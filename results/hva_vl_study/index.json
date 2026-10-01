@@ -1,8 +1,8 @@
 {
   "schema": "hva_vl_study_index_v1",
-  "generated_utc": "2026-09-25T19:16:43.591439+00:00",
+  "generated_utc": "2026-09-30T22:30:11.104013+00:00",
   "root": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/hva_vl_study",
-  "n_entries": 37,
+  "n_entries": 83,
   "migration_map": {
     "results/hva_vl_study/REPORT_HEURISTIC_warmstart_restarts.md": "results/hva_vl_study/reports/REPORT_HEURISTIC_warmstart_restarts.md",
     "results/hva_vl_study/REPORT_HVA_square_frustrated.md": "results/hva_vl_study/reports/REPORT_HVA_square_frustrated.md",
@@ -17,6 +17,251 @@
     "results/hva_vl_study/resources/SUMMARY.md": "results/hva_vl_study/reports/SUMMARY.md"
   },
   "entries": [
+    {
+      "run_id": "adapt_bonds_square_N10_h1.00",
+      "experiment": "bond_ablation",
+      "status": "final",
+      "path": "bond_ablation/adapt_bonds_square_N10_h1.00.json",
+      "schema": "adapt_bonds_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_adapt_bonds.py",
+      "generated_utc": "2026-09-30T21:05:52.752201+00:00",
+      "n_points": 8,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 1,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.502276316201204,
+        "e0": -12.47392206883697
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.7944822197309716,
+        "de_over_gap": 1.5817632528241972,
+        "cx": 26,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "bond_ablation_square_N10_p1_from2_h0.50",
+      "experiment": "bond_ablation",
+      "status": "final",
+      "path": "bond_ablation/bond_ablation_square_N10_p1_from2_h0.50.json",
+      "schema": "bond_ablation_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_bond_ablation.py",
+      "generated_utc": "2026-09-30T21:03:18.411337+00:00",
+      "n_points": 3,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 1,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.006132344786848876,
+        "e0": -9.369294164498244
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.022071364438705388,
+        "de_over_gap": 3.5991721284228095,
+        "cx": 112,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "bond_ablation_square_N10_p1_from2_h1.00",
+      "experiment": "bond_ablation",
+      "status": "final",
+      "path": "bond_ablation/bond_ablation_square_N10_p1_from2_h1.00.json",
+      "schema": "bond_ablation_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_bond_ablation.py",
+      "generated_utc": "2026-09-30T20:58:30.431001+00:00",
+      "n_points": 3,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 1,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.5022763162012094,
+        "e0": -12.47392206883702
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.12740817093578372,
+        "de_over_gap": 0.25366151424258004,
+        "cx": 112,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "bond_ablation_square_N10_p1_h0.50",
+      "experiment": "bond_ablation",
+      "status": "final",
+      "path": "bond_ablation/bond_ablation_square_N10_p1_h0.50.json",
+      "schema": "bond_ablation_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_bond_ablation.py",
+      "generated_utc": "2026-09-30T20:42:01.946760+00:00",
+      "n_points": 3,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 1,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.006132344786839994,
+        "e0": -9.369294164498251
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 1.4631602531181116,
+        "de_over_gap": 238.5971930766274,
+        "cx": 56,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "bond_ablation_square_N10_p1_h1.00",
+      "experiment": "bond_ablation",
+      "status": "final",
+      "path": "bond_ablation/bond_ablation_square_N10_p1_h1.00.json",
+      "schema": "bond_ablation_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_bond_ablation.py",
+      "generated_utc": "2026-09-30T20:42:47.577985+00:00",
+      "n_points": 2,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 1,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.5022763162012929,
+        "e0": -12.473922068836977
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 2.4739220688369787,
+        "de_over_gap": 4.925420508669827,
+        "cx": 56,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "bond_ablation_square_N10_p2_from2_h0.50",
+      "experiment": "bond_ablation",
+      "status": "partial",
+      "path": "bond_ablation/bond_ablation_square_N10_p2_from2_h0.50.json",
+      "schema": "bond_ablation_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_bond_ablation.py",
+      "generated_utc": "2026-09-30T21:38:43.801844+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.006132344786857757,
+        "e0": -9.369294164498262
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.022066520604951734,
+        "de_over_gap": 3.5983822456040873,
+        "cx": 112,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "frac_sweep_square_N10_p2_h0.50",
+      "experiment": "bond_ablation",
+      "status": "final",
+      "path": "bond_ablation/frac_sweep_square_N10_p2_h0.50.json",
+      "schema": "bond_frac_sweep_v1",
+      "source_script": "frac_sweep_topk.py",
+      "generated_utc": "2026-09-30T21:54:50.050229+00:00",
+      "n_points": 4,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.006132344786855981,
+        "e0": -9.369294164498228
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": 112,
+        "depth_2q": null
+      }
+    },
     {
       "run_id": "square_n10_p2_analysis",
       "experiment": "circuit_comparison",
@@ -508,13 +753,678 @@
       }
     },
     {
+      "run_id": "angle_analysis_basin-signature_square_N18_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/angle_analysis_basin-signature_square_N18_h0.50.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_angles.py",
+      "generated_utc": "2026-09-28T21:56:18.737791+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "angle_analysis_npz-blocks_square_N10_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/angle_analysis_npz-blocks_square_N10_h0.50.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_angles.py",
+      "generated_utc": "2026-09-28T21:56:34.009243+00:00",
+      "n_points": 3,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": 0.5,
+        "J2": null,
+        "gap": 0.005893578195966143,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.4228025282204117,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "angle_analysis_seed-gap_square_N18_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/angle_analysis_seed-gap_square_N18_h0.50.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_angles.py",
+      "generated_utc": "2026-09-28T21:56:26.274768+00:00",
+      "n_points": 5,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.5418034572357815,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "ansatz_saturation_square_p1_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/ansatz_saturation_square_p1_h0.50.json",
+      "schema": "ansatz_saturation_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_ansatz_variants.py",
+      "generated_utc": "2026-09-28T13:35:56.667728+00:00",
+      "n_points": 4,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 6,
+        "p": null,
+        "h": 0.5,
+        "J2": null,
+        "gap": 0.2506273026277741,
+        "e0": -5.015840884122677
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 2000,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": 1.2157894151431565,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "ansatz_variants_square_N10_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/ansatz_variants_square_N10_h0.50.json",
+      "schema": "ansatz_variants_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_ansatz_variants.py",
+      "generated_utc": "2026-09-29T21:06:22.128018+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": null,
+        "h": 0.5,
+        "J2": null,
+        "gap": 0.006132344786850652,
+        "e0": -9.369294164498303
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 3000,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.023413562199186444,
+        "de_over_gap": 3.8180439967092576,
+        "cx": 82,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "ansatz_variants_square_N18_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/ansatz_variants_square_N18_h0.50.json",
+      "schema": "ansatz_variants_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_ansatz_variants.py",
+      "generated_utc": "2026-09-30T19:39:06.680595+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 18,
+        "p": null,
+        "h": 0.5,
+        "J2": null,
+        "gap": 0.005893578196136673,
+        "e0": -16.985041597883214
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 1500,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.09365124390003032,
+        "de_over_gap": 15.890387941475026,
+        "cx": 396,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "ansatz_variants_square_N6_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/ansatz_variants_square_N6_h0.50.json",
+      "schema": "ansatz_variants_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_ansatz_variants.py",
+      "generated_utc": "2026-09-30T13:52:59.615415+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 6,
+        "p": null,
+        "h": 0.5,
+        "J2": null,
+        "gap": 0.2506273026277457,
+        "e0": -5.015840884122665
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 200,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": 0.013983306243071425,
+        "de_over_gap": 0.05579322801810102,
+        "cx": 52,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "basincount_square_N10_p2_h0.50_k20",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/basincount_square_N10_p2_h0.50_k20.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_basin_count.py",
+      "generated_utc": "2026-09-27T21:37:26.992901+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 10,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.006132344786850652,
+        "e0": -9.36929416449827
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 2500,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "basincount_square_N12_p2_h0.50_k20",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/basincount_square_N12_p2_h0.50_k20.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_basin_count.py",
+      "generated_utc": "2026-09-27T22:21:03.387134+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 12,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.007137480495980952,
+        "e0": -11.143973477628997
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 2500,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "basincount_square_N18_p2_h0.50_k6",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/basincount_square_N18_p2_h0.50_k6.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_basin_count.py",
+      "generated_utc": "2026-09-28T21:46:29.934395+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.0058935781960549605,
+        "e0": -16.985041597883214
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 3000,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "basincount_square_N6_p1_h0.50_k3",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/basincount_square_N6_p1_h0.50_k3.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_basin_count.py",
+      "generated_utc": "2026-09-29T13:14:08.843338+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 6,
+        "p": 1,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.25062730262777233,
+        "e0": -5.015840884122662
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 200,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "basincount_square_N8_p2_h0.50_k20",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/basincount_square_N8_p2_h0.50_k20.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_basin_count.py",
+      "generated_utc": "2026-09-27T21:03:51.840922+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 8,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.09229980356701706,
+        "e0": -6.898624285703902
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 2000,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "compare_hva_nnn_vs_vl_square_N9_p2",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/compare_hva_nnn_vs_vl_square_N9_p2.json",
+      "schema": "hva_nnn_vs_vl_full_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/compare_hva_nnn_vs_vl.py",
+      "generated_utc": "2026-09-29T19:23:03.832698+00:00",
+      "n_points": 4,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.22378038451581972,
+        "e0": -7.753192934631928
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 2000,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "converge_ceiling_square_N18_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/converge_ceiling_square_N18_h0.50.json",
+      "schema": "converge_ceiling_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/converge_to_ceiling.py",
+      "generated_utc": "2026-09-30T13:06:04.437622+00:00",
+      "n_points": 2,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 18,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.005893578196261018,
+        "e0": -16.985041597883207
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 3000,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": 15.595432586949414,
+        "cx": 318,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "diagnose_n18_square_p2",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/diagnose_n18_square_p2.json",
+      "schema": "diagnose_n18_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/diagnose_n18.py",
+      "generated_utc": "2026-09-29T20:39:33.537468+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 18,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "dual_target_fidelity_square_N18_p2_h0.50",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/dual_target_fidelity_square_N18_p2_h0.50.json",
+      "schema": "dual_target_fidelity_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/dual_target_fidelity.py",
+      "generated_utc": "2026-09-29T19:30:22.195158+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 18,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.005893578196346283,
+        "e0": -16.98504159788332
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "dual_target_fidelity_square_N18_p2_h1.00",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/dual_target_fidelity_square_N18_p2_h1.00.json",
+      "schema": "dual_target_fidelity_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/dual_target_fidelity.py",
+      "generated_utc": "2026-09-29T20:12:04.362162+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 18,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.4936577623772891,
+        "e0": -23.028003818100192
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "dual_target_fidelity_square_N9_p2_h2.00",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/dual_target_fidelity_square_N9_p2_h2.00.json",
+      "schema": "dual_target_fidelity_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/dual_target_fidelity.py",
+      "generated_utc": "2026-09-29T20:12:24.166554+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 2.0,
+        "J2": 0.5,
+        "gap": 2.625168311226634,
+        "e0": -19.338261826013724
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "dual_target_fidelity_square_N9_p2_h3.00",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/dual_target_fidelity_square_N9_p2_h3.00.json",
+      "schema": "dual_target_fidelity_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/dual_target_fidelity.py",
+      "generated_utc": "2026-09-29T20:12:30.679996+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 3.0,
+        "J2": 0.5,
+        "gap": 4.539363253052162,
+        "e0": -27.97873915958538
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
       "run_id": "hva_ansatze_h_sweep_frustrated",
       "experiment": "hva_nnn_sweep",
       "status": "final",
       "path": "hva_nnn_sweep/hva_ansatze_h_sweep_frustrated.json",
       "schema": "hva_ansatze_h_sweep_frustrated_v1",
-      "source_script": "scripts/analysis/hva_nnn_h_sweep_frustrated.py",
-      "generated_utc": "2026-09-24T18:08:08.102606+00:00",
+      "source_script": "scripts/analysis/vl_vs_hva/hva_nnn_h_sweep_frustrated.py",
+      "generated_utc": "2026-09-29T15:45:49.657978+00:00",
       "n_points": 8,
       "physics": {
         "model": "tfim_frustrated",
@@ -530,17 +1440,17 @@
         "e0": -7.7531929346318815
       },
       "method": {
-        "optimizer": null,
-        "maxiter": 400,
+        "optimizer": "robust_random_x8",
+        "maxiter": 2000,
         "sigma": null,
         "seeds": null,
         "n_hops": null,
         "strategy": null
       },
       "metrics": {
-        "fidelity": 0.725279231349456,
-        "abs_error": 0.631579055028844,
-        "de_over_gap": 2.822316425969243,
+        "fidelity": 0.7252792949769749,
+        "abs_error": 0.6315790550053064,
+        "de_over_gap": 2.822316425864061,
         "cx": 24,
         "depth_2q": 16
       }
@@ -686,6 +1596,251 @@
       }
     },
     {
+      "run_id": "n18_square_N18_p2_faircov_mi3000",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p2_faircov_mi3000.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_fair_convergence.py",
+      "generated_utc": "2026-09-29T20:06:55.347113+00:00",
+      "n_points": 6,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.49365776237725356,
+        "e0": -23.028003818100267
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 3000,
+        "sigma": 0.0,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.8858994022685698,
+        "abs_error": 0.40455194428413677,
+        "de_over_gap": 0.8194988008209986,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n18_square_N18_p2_h1.00_second_dir_x",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p2_h1.00_second_dir_x.json",
+      "schema": null,
+      "source_script": "n18_h1_second_dir_x.py",
+      "generated_utc": "2026-09-27T21:25:53.341762+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.49365776237717895,
+        "e0": -23.028003818100213
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 3000,
+        "sigma": 0.2,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n18_square_N18_p2_metropolis_mi500",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p2_metropolis_mi500.json",
+      "schema": "n18_second_order_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_second_order.py",
+      "generated_utc": "2026-09-27T01:58:39.267851+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 500,
+        "sigma": 0.15,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "metropolis"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n18_square_N18_p2_mixed_mi500",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p2_mixed_mi500.json",
+      "schema": "n18_second_order_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_second_order.py",
+      "generated_utc": "2026-09-26T19:09:38.844172+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 500,
+        "sigma": 0.15,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "mixed"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n18_square_N18_p2_secondorder_mi1200",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p2_secondorder_mi1200.json",
+      "schema": "n18_second_order_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_second_order.py",
+      "generated_utc": "2026-09-26T03:45:20.664286+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 1200,
+        "sigma": 0.15,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "second_order"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n18_square_N18_p2_secondorder_mi300",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p2_secondorder_mi300.json",
+      "schema": "n18_second_order_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_second_order.py",
+      "generated_utc": "2026-09-25T19:55:19.872430+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 300,
+        "sigma": 0.15,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "second_order"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n18_square_N18_p3_faircov_mi3000",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N18_p3_faircov_mi3000.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_fair_convergence.py",
+      "generated_utc": "2026-09-28T13:46:06.934494+00:00",
+      "n_points": 6,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 18,
+        "p": 3,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.005893578196143778,
+        "e0": -16.985041597883146
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 3000,
+        "sigma": 0.0,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.9123810008086432,
+        "abs_error": 0.09322267512699867,
+        "de_over_gap": 15.81767001717142,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
       "run_id": "n18_square_N8_p2_secondorder_mi30",
       "experiment": "hva_nnn_sweep",
       "status": "final",
@@ -721,6 +1876,41 @@
       }
     },
     {
+      "run_id": "n6_square_N6_p1_faircov_mi200",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n6_square_N6_p1_faircov_mi200.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_fair_convergence.py",
+      "generated_utc": "2026-09-29T13:15:09.061023+00:00",
+      "n_points": 6,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": 6,
+        "p": 1,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.2506273026277501,
+        "e0": -5.015840884122667
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 200,
+        "sigma": 0.0,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.9088000428837479,
+        "abs_error": 0.19977200835051256,
+        "de_over_gap": 0.7970879718848048,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
       "run_id": "n9_confirm_second_order",
       "experiment": "hva_nnn_sweep",
       "status": "final",
@@ -744,6 +1934,76 @@
         "maxiter": 60,
         "sigma": 0.15,
         "seeds": 8,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "nn_shrink_seed_eval_square",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/nn_shrink_seed_eval_square.json",
+      "schema": "nn_shrink_seed_eval_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/eval_nn_shrink_seed.py",
+      "generated_utc": "2026-09-29T22:08:26.970615+00:00",
+      "n_points": 8,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 6,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.2506273026277501,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "seed_vs_optimum_square",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/seed_vs_optimum_square.json",
+      "schema": "seed_vs_optimum_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_seed_vs_optimum.py",
+      "generated_utc": "2026-09-29T22:03:35.739890+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
         "n_hops": null,
         "strategy": null
       },
@@ -1001,6 +2261,41 @@
       }
     },
     {
+      "run_id": "best_results_scoreboard_2d_frustrated",
+      "experiment": "reports",
+      "status": "final",
+      "path": "reports/best_results_scoreboard_2d_frustrated.json",
+      "schema": "state_prep_scoreboard_v1",
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
       "run_id": "hva_vs_vl_chain_1d_N10_20260922_144634",
       "experiment": "resources",
       "status": "final",
@@ -1033,6 +2328,324 @@
         "de_over_gap": 1.795568205073289,
         "cx": 18,
         "depth_2q": 18
+      }
+    },
+    {
+      "run_id": "analysis_square_N8_p1_J20.50_bestof",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/analysis_square_N8_p1_J20.50_bestof.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_theta_patterns.py",
+      "generated_utc": "2026-09-30T21:18:22.625216+00:00",
+      "n_points": 24,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 1,
+        "h": 0.2,
+        "J2": 0.5,
+        "gap": 0.002150269323198728,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 800,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "bestof"
+      },
+      "metrics": {
+        "fidelity": 0.46481525365692333,
+        "abs_error": null,
+        "de_over_gap": 50.90621635804098,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "analysis_square_N8_p1_J20.50_first_order",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/analysis_square_N8_p1_J20.50_first_order.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_theta_patterns.py",
+      "generated_utc": "2026-09-30T20:55:01.328655+00:00",
+      "n_points": 24,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 1,
+        "h": 0.2,
+        "J2": 0.5,
+        "gap": 0.002150269323198728,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 800,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "first_order"
+      },
+      "metrics": {
+        "fidelity": 0.43606695486733876,
+        "abs_error": null,
+        "de_over_gap": 358.81531294591275,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "analysis_square_N8_p2_J20.50_first_order",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/analysis_square_N8_p2_J20.50_first_order.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_theta_patterns.py",
+      "generated_utc": "2026-09-30T21:16:56.105015+00:00",
+      "n_points": 24,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 2,
+        "h": 0.2,
+        "J2": 0.5,
+        "gap": 0.002150269323198728,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 800,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "first_order"
+      },
+      "metrics": {
+        "fidelity": 0.8808256265345493,
+        "abs_error": null,
+        "de_over_gap": 14.172427819159205,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "multiseed_analysis_square_N8_p1_J20.50_metropolis_seeds6",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/multiseed_analysis_square_N8_p1_J20.50_metropolis_seeds6.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_vs_hva/analyze_theta_patterns.py",
+      "generated_utc": "2026-09-30T21:41:21.637331+00:00",
+      "n_points": 8,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 1,
+        "h": 0.2,
+        "J2": 0.5,
+        "gap": 0.002150269323198728,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 400,
+        "sigma": 0.3,
+        "seeds": 6,
+        "n_hops": null,
+        "strategy": "metropolis"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "theta_sweep_square_N8_p1_J20.50_bestof",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/theta_sweep_square_N8_p1_J20.50_bestof.json",
+      "schema": "theta_pattern_sweep_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/theta_pattern_sweep.py",
+      "generated_utc": "2026-09-30T20:48:59.457477+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 1,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 800,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "bestof"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "theta_sweep_square_N8_p1_J20.50_first_order",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/theta_sweep_square_N8_p1_J20.50_first_order.json",
+      "schema": "theta_pattern_sweep_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/theta_pattern_sweep.py",
+      "generated_utc": "2026-09-30T20:51:49.398808+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 1,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 800,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "first_order"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "theta_sweep_square_N8_p1_J20.50_metropolis_seeds6",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/theta_sweep_square_N8_p1_J20.50_metropolis_seeds6.json",
+      "schema": "theta_pattern_sweep_multiseed_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/theta_pattern_sweep.py",
+      "generated_utc": "2026-09-30T22:29:26.684867+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 1,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 400,
+        "sigma": 0.3,
+        "seeds": 6,
+        "n_hops": null,
+        "strategy": "metropolis"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "theta_sweep_square_N8_p2_J20.50_first_order",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/theta_sweep_square_N8_p2_J20.50_first_order.json",
+      "schema": "theta_pattern_sweep_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/theta_pattern_sweep.py",
+      "generated_utc": "2026-09-30T21:16:08.982002+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 800,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "first_order"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "warmstart_coef_shootout_square_p1_J20.50",
+      "experiment": "theta_patterns",
+      "status": "final",
+      "path": "theta_patterns/warmstart_coef_shootout_square_p1_J20.50.json",
+      "schema": "warmstart_coef_shootout_v2",
+      "source_script": "scripts/analysis/vl_vs_hva/warmstart_coef_shootout.py",
+      "generated_utc": "2026-09-30T22:28:39.842474+00:00",
+      "n_points": 18,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": [
+          8,
+          10
+        ],
+        "p": 1,
+        "h": 0.3,
+        "J2": 0.5,
+        "gap": 0.011998157595766834,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 10,
+        "sigma": null,
+        "seeds": 8,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
       }
     },
     {

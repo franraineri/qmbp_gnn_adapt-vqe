@@ -1,6 +1,6 @@
 # Best Results Scoreboard — p=1
 
-**Updated**: 2026-09-30 14:34 UTC
+**Updated**: 2026-10-02 06:53 UTC
 **p_layers**: 1
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
 **Reports scanned**: 347
@@ -146,19 +146,7 @@
 
 ## Cross-Validation (vs ModelRegistryDB)
 
-| Issue | Detail |
-|---|---|
-| ⚠️ | chain_1d p=1 N=20: scoreboard grade=B but zoo pass_rate_by_n[20]=0% — possible stale zoo data |
-| ⚠️ | heavy_hex p=1 N=4: scoreboard grade=A but zoo pass_rate_by_n[4]=0% — possible stale zoo data |
-| ⚠️ | heavy_hex p=1 N=16: scoreboard grade=B but zoo pass_rate_by_n[16]=0% — possible stale zoo data |
-| ⚠️ | heavy_hex p=1 N=20: scoreboard grade=B but zoo pass_rate_by_n[20]=0% — possible stale zoo data |
-| ⚠️ | ladder p=1 N=20: scoreboard |ΔE|@h=2.5 = 0.465 >> registry mean ΔE/gap = 0.172 — h=2.5 is anomalously hard for this config |
-| ⚠️ | ladder p=1 N=26: scoreboard |ΔE|@h=2.5 = 0.631 >> registry mean ΔE/gap = 0.172 — h=2.5 is anomalously hard for this config |
-| ⚠️ | ladder p=1 N=30: scoreboard |ΔE|@h=2.5 = 0.735 >> registry mean ΔE/gap = 0.172 — h=2.5 is anomalously hard for this config |
-| ⚠️ | ladder p=1 N=40: scoreboard |ΔE|@h=2.5 = 0.967 >> registry mean ΔE/gap = 0.172 — h=2.5 is anomalously hard for this config |
-| ⚠️ | square p=1 N=30: scoreboard |ΔE|@h=2.5 = 1.300 >> registry mean ΔE/gap = 1.828 — h=2.5 is anomalously hard for this config |
-| ⚠️ | triangular p=1 N=16: scoreboard |ΔE|@h=2.5 = 5.214 >> registry mean ΔE/gap = 7.155 — h=2.5 is anomalously hard for this config |
-| ⚠️ | triangular p=1 N=24: scoreboard |ΔE|@h=2.5 = 17.590 >> registry mean ΔE/gap = 7.155 — h=2.5 is anomalously hard for this config |
+- ℹ️ Cross-validation error: Extra data: line 1708 column 2 (char 52163)
 
 
 ---

@@ -59,11 +59,17 @@ class MultiNAggregator:
         h_min: float | None = None,
         h_max: float | None = None,
         include_orbit_feature: bool = False,
+        frustrated: bool = False,
     ) -> None:
         self.topology = topology
         self.model = model
         self.p_layers = p_layers
         self.include_orbit_feature = include_orbit_feature
+        # Frustrated (J2 != 0) data lives under the {model}/frustrated/ subdir.
+        # Without this flag the NPZ read globs resolve to {model}/ and silently
+        # miss the frustrated corpus (scan returns 0 points even though the data
+        # exists). Threaded into training_npz_read_globs below.
+        self.frustrated = frustrated
         self._results_dir = results_dir or _RESULTS_DIR
         self._data_by_n: dict[int, list[dict[str, Any]]] = {}
         self.max_n = max_n  # If set, exclude N > max_n from training data
@@ -110,7 +116,9 @@ class MultiNAggregator:
         _train_root = _PROJECT_ROOT / TRAINING_DATA_ROOT
         _seen_names: set[str] = set()
         _train_files: list[Path] = []
-        for _dir, _pattern in training_npz_read_globs(self.topology, self.p_layers, model=self.model, root=_train_root):
+        for _dir, _pattern in training_npz_read_globs(
+            self.topology, self.p_layers, model=self.model, frustrated=self.frustrated, root=_train_root
+        ):
             if not _dir.exists():
                 continue
             for _f in sorted(_dir.glob(_pattern)):
@@ -246,7 +254,9 @@ class MultiNAggregator:
         _extrap_root = _PROJECT_ROOT / EXTRAPOLATION_DATA_ROOT
         _seen_extrap: set[str] = set()
         _extrap_files: list[Path] = []
-        for _dir, _pattern in _npz_read_globs(self.topology, self.p_layers, model=self.model, root=_extrap_root):
+        for _dir, _pattern in _npz_read_globs(
+            self.topology, self.p_layers, model=self.model, frustrated=self.frustrated, root=_extrap_root
+        ):
             if not _dir.exists():
                 continue
             for _f in sorted(_dir.glob(_pattern)):

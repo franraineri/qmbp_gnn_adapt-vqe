@@ -68,55 +68,21 @@ def _ground_state(topology, n, h, j2):
 
 
 def _optimize_bestof(
-    qc, H, psi, *, restarts, maxiter, sigma, seed0, warm_theta=None, analytic_theta=None, on_restart=None
+    qc, H, psi, *, restarts, maxiter, sigma, seed0, warm_theta=None, on_restart=None, backend=None
 ):
-    """Robust multi-seed best-of. Returns (best_fid, best_e, runs).
+    """Robust multi-seed best-of from a single warm seed. Returns (best_fid, best_e, runs).
 
-    Seeds tried (best-of by energy across all): the analytic variant warm-start
-    (``analytic_theta`` — the informed starting point every variant deserves), an
-    optional checkpoint seed (``warm_theta``), and ``restarts`` random in-box
-    starts for basin coverage. Uses the cached-H NoiselessBackend + adjoint
-    gradient. ``sigma`` kept for signature compatibility. ``on_restart`` is the
-    base per-restart persistence hook (fires after each restart; crash-safe).
+    Thin wrapper over :func:`study_core.converge_circuit`: restart 0 starts from
+    ``warm_theta`` (the seed chosen by the canonical ``prepare_warmstart`` cascade)
+    and the remaining ``restarts`` are random in-box starts for basin coverage.
+    ``sigma`` kept for signature compatibility. ``on_restart`` is the per-restart
+    persistence hook (crash-safe). Pass ``backend`` to reuse the cached dense H.
     """
-    import numpy as np
+    from qmbp_simulation.framework.study_core import converge_circuit
 
-    from qmbp_simulation.framework.study_core import make_cost_fid, optimize_bestof
-
-    cost, fid, grad, _ = make_cost_fid(qc, H, psi)
-    npar = qc.num_parameters
-
-    # Random best-of (restart 0 = analytic seed when provided, else θ=0).
-    best_fid, best_e, runs = optimize_bestof(
-        cost,
-        fid,
-        grad,
-        npar,
-        restarts=restarts,
-        maxiter=maxiter,
-        seed0=seed0,
-        warm_theta=analytic_theta if analytic_theta is not None else warm_theta,
-        on_restart=on_restart,
-    )
-
-    # If BOTH an analytic seed and a checkpoint exist, also try the checkpoint as
-    # an extra seed-0 run and keep the better (best-of by energy).
-    if analytic_theta is not None and warm_theta is not None and len(warm_theta) == npar:
-        alt_fid, alt_e, alt_runs = optimize_bestof(
-            cost,
-            fid,
-            grad,
-            npar,
-            restarts=1,
-            maxiter=maxiter,
-            seed0=seed0,
-            warm_theta=np.asarray(warm_theta, float),
-            on_restart=on_restart,
-        )
-        runs = runs + alt_runs
-        if alt_e < best_e:
-            best_fid, best_e = alt_fid, alt_e
-    return best_fid, best_e, runs
+    return converge_circuit(
+        qc, H, psi, restarts=restarts, maxiter=maxiter, seed0=seed0,
+        warm_theta=warm_theta, on_restart=on_restart, backend=backend)
 
 
 def _cx_and_params(qc):
@@ -129,6 +95,9 @@ def _cx_and_params(qc):
 def run_saturation(args) -> int:
     from qmbp_simulation.circuits import HVACircuitBuilder
     from qmbp_simulation.circuits.hva_variants import VARIANTS, build_variant
+    from qmbp_simulation.execution import NoiselessBackend
+    from qmbp_simulation.framework.study_core import prepare_warmstart
+    from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
 
     builder = HVACircuitBuilder()
     base = VARIANTS["p1_base"]
@@ -142,8 +111,16 @@ def run_saturation(args) -> int:
         lat, H, psi, e0, gap = _ground_state(args.topology, n, args.h, args.j2)
         qc, _ = build_variant(builder, n, lat, base)
         n_2q, npar = _cx_and_params(qc)
+        n_nn = len(lat.edges)
+        n_nnn = len(HamiltonianBuilder._generate_nnn_edges(lat))
+        backend = NoiselessBackend()
+        ws = prepare_warmstart(
+            qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=n, p_layers=1,
+            h=args.h, J2=args.j2, micro_descent=args.micro_descent,
+            backend=backend, target_len=npar)
         fid, e_best, runs = _optimize_bestof(
-            qc, H, psi, restarts=args.restarts, maxiter=args.maxiter, sigma=args.sigma, seed0=args.seed0
+            qc, H, psi, restarts=args.restarts, maxiter=args.maxiter,
+            sigma=args.sigma, seed0=args.seed0, warm_theta=ws["seed"], backend=backend
         )
         saturates = fid >= args.sat_threshold
         row = {
@@ -196,6 +173,8 @@ def run_saturation(args) -> int:
 def run_variants(args) -> int:
     from qmbp_simulation.circuits import HVACircuitBuilder
     from qmbp_simulation.circuits.hva_variants import VARIANTS, build_variant
+    from qmbp_simulation.execution import NoiselessBackend
+    from qmbp_simulation.framework.study_core import prepare_warmstart
     from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
 
     builder = HVACircuitBuilder()
@@ -203,6 +182,7 @@ def run_variants(args) -> int:
     # Bond counts for the analytic variant warm-start seed (robust starting point).
     n_nn = len(lat.edges)
     n_nnn = len(HamiltonianBuilder._generate_nnn_edges(lat))
+    backend = NoiselessBackend()  # shared across variants (reuses cached dense H)
     out_file = f"ansatz_variants_{args.topology}_N{args.n}_h{args.h:.2f}.json"
 
     # Optional subset (e.g. only p1_half_nn/p2_base/p3_base at expensive N).
@@ -263,17 +243,22 @@ def run_variants(args) -> int:
         t0 = time.time()
         qc, _ = build_variant(builder, args.n, lat, v)
         n_2q, npar = _cx_and_params(qc)
-        # Robust warm-start for THIS variant's exact block layout.
+        # Canonical warm-start via prepare_warmstart (same cascade as
+        # run_variant_topk): calibrated + regime candidates ranked by a short
+        # micro-descent. The structure-aware seeds are injected as
+        # extra_candidates (the built-in standard-layout ones are length-filtered
+        # out for these non-standard block layouts, so target_len=npar lets the
+        # extras survive):
+        #   1. extend-from-base: for a variant that extends a base, the shared
+        #      prefix comes from the base's BEST KNOWN θ + analytic extra blocks;
+        #   2. the analytic second-order variant seed;
+        #   3. (warm_mode != off) this variant's own checkpoint θ.
         from qmbp_simulation.analysis.warmstart import (
             compose_extend_theta,
             variant_warmstart_theta,
         )
 
-        seed_note = "analytic"
-        analytic_theta = None
-        # Prefer extend-from-base: if the variant extends a base (e.g. p2 + partial
-        # layer), seed the shared prefix from the base's BEST KNOWN θ (near the
-        # ground state) and the extra blocks analytically — the strongest seed.
+        extra: list[tuple] = []
         if v.extends and v.extends in VARIANTS:
             base_qc, _ = build_variant(builder, args.n, lat, VARIANTS[v.extends])
             base_hit = load_best_theta(
@@ -282,30 +267,27 @@ def run_variants(args) -> int:
             if base_hit is not None:
                 _, base_theta, base_src = base_hit
                 composed = compose_extend_theta(
-                    base_theta,
-                    list(v.extra_blocks),
-                    n_nn,
-                    n_nnn,
-                    args.n,
-                    args.h,
-                    J=1.0,
-                    J2=args.j2,
-                    extra_rx_final=v.rx_final,
-                    extra_rz_final=v.rz_final,
+                    base_theta, list(v.extra_blocks), n_nn, n_nnn, args.n, args.h,
+                    J=1.0, J2=args.j2, extra_rx_final=v.rx_final, extra_rz_final=v.rz_final,
                 )
                 if len(composed) == npar:
-                    analytic_theta = composed
-                    seed_note = f"extend-from-{v.extends}({base_src})"
-        if analytic_theta is None:
-            analytic_theta = variant_warmstart_theta(
-                v.blocks, n_nn, n_nnn, args.n, args.h, J=1.0, J2=args.j2, rx_final=v.rx_final, rz_final=v.rz_final
-            )
-            if len(analytic_theta) != npar:
-                analytic_theta = None  # safety: layout mismatch → fall back to θ=0
-                seed_note = "none (layout mismatch)"
-        warm_theta, warm_src = None, None
+                    extra.append((composed, f"extend-from-{v.extends}({base_src})"))
+        analytic_theta = variant_warmstart_theta(
+            v.blocks, n_nn, n_nnn, args.n, args.h, J=1.0, J2=args.j2,
+            rx_final=v.rx_final, rz_final=v.rz_final)
+        if len(analytic_theta) == npar:
+            extra.append((analytic_theta, "analytic"))
+        warm_src = None
         if warm_mode != "off" and ckpt.get(name) is not None:
-            _, warm_theta, warm_src = ckpt[name]
+            _, warm_theta_ck, warm_src = ckpt[name]
+            if warm_theta_ck is not None and len(warm_theta_ck) == npar:
+                extra.append((warm_theta_ck, f"checkpoint({warm_src})"))
+
+        ws = prepare_warmstart(
+            qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=args.n, p_layers=1,
+            h=args.h, J2=args.j2, extra_candidates=(extra or None),
+            micro_descent=args.micro_descent, backend=backend, target_len=npar)
+        warm_theta, seed_note = ws["seed"], ws["provenance"]
 
         # Per-restart crash-safety: persist a PARTIAL artifact after every restart
         # of the in-progress variant, so an interrupt at large N never loses the
@@ -373,7 +355,7 @@ def run_variants(args) -> int:
             sigma=args.sigma,
             seed0=args.seed0,
             warm_theta=warm_theta,
-            analytic_theta=analytic_theta,
+            backend=backend,
             on_restart=_persist_partial,
         )
         n_conv = sum(1 for r in runs if r["converged"])
@@ -398,7 +380,8 @@ def run_variants(args) -> int:
             "fidelity_per_cx": (fid / n_2q) if n_2q > 0 else None,
             "converged": f"{n_conv}/{args.restarts}",
             "warm_mode": warm_mode,
-            "analytic_warmstart": analytic_theta is not None,
+            "prepare_warmstart": True,
+            "init_fidelity": ws.get("init_fidelity"),
             "seed_kind": seed_note,
             "warm_applied": warm_src is not None,
             "warm_source": warm_src,
@@ -464,6 +447,11 @@ def main(argv=None) -> int:
     p.add_argument("--maxiter", type=int, default=2000)
     p.add_argument("--sigma", type=float, default=0.0)  # reserved (best-of uses random)
     p.add_argument("--seed0", type=int, default=70000)
+    p.add_argument(
+        "--micro-descent", type=int, default=60,
+        help="L-BFGS-B iters to score each prepare_warmstart candidate "
+             "(calibrated/regime/extend/analytic/checkpoint); 0 = rank by init-fid only.",
+    )
     p.add_argument(
         "--sat-threshold", type=float, default=0.93, help="Ceiling below this = p=1 no longer saturates (headroom)."
     )

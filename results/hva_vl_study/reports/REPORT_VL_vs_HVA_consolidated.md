@@ -19,9 +19,8 @@ Auto-generated from the JSON artifacts across all N, h, and method variants — 
 
 | method | variant | loader/χ | F | \|ΔE\| | ΔE/gap | 2q | total | depth | converged |
 |--------|---------|----------|------:|-------:|-------:|---:|------:|------:|-----------|
-| HVA | p2_base | — | 0.9957 | 0.0140 | 0.056 | 52 | — | — | 1/2 |
+| HVA | p2_base | — | 0.9957 | 0.0140 | 0.056 | 52 | — | — | 0/2 |
 | HVA | nnn p=1 (fair-conv best) | — | 0.9088 | 0.1998 | 0.797 | 26 | 87 | 29 | 6/6 seeds |
-| HVA | p1_base | — | 0.6967 | 0.3047 | 1.216 | 26 | — | — | 2/2 |
 
 ## N = 9, h = 0.50 (gap 0.2238, E0 -7.7532)
 
@@ -87,31 +86,29 @@ Auto-generated from the JSON artifacts across all N, h, and method variants — 
 
 | method | variant | loader/χ | F | \|ΔE\| | ΔE/gap | 2q | total | depth | converged |
 |--------|---------|----------|------:|-------:|-------:|---:|------:|------:|-----------|
+| HVA | p2_full_ref | — | 0.9893 | 0.0221 | 3.599 | 112 | — | — | 1/2 |
+| HVA | p2_full_ref | — | 0.9892 | 0.0221 | 3.598 | 112 | — | — | 2/2 |
+| HVA | p2_full_ref (nnn=15) | — | 0.9892 | — | — | 112 | — | — | masked |
 | HVA | p1_half_nn_rx | — | 0.9891 | 0.0234 | 3.818 | 82 | — | — | 4/4 |
+| HVA | p2_topk_f0.7 (nnn=10) | — | 0.9865 | — | — | 92 | — | — | masked |
+| HVA | p2_topk_f0.5 (nnn=8) | — | 0.9861 | — | — | 84 | — | — | masked |
+| HVA | p2_topk_f0.3 (nnn=4) | — | 0.9670 | — | — | 68 | — | — | masked |
 
-## N = 10, h = 1.00 (gap 0.5023, E0 -12.4739)
-
-> ⚠️ Only **VL** present above F>0.5 at this scenario — no same-scenario cross-method comparison possible.
-
-| method | variant | loader/χ | F | \|ΔE\| | ΔE/gap | 2q | total | depth | converged |
-|--------|---------|----------|------:|-------:|-------:|---:|------:|------:|-----------|
-| VL | default L2/F20 | vector | 0.8966 | 0.6180 | 1.230 | 34 | 237 | 53 | n/a (fixed circuit) |
+_2 run(s) hidden (F ≤ 0.5)._
 
 ## N = 18, h = 0.50 (gap 0.0059, E0 -16.9850)
 
 | method | variant | loader/χ | F | \|ΔE\| | ΔE/gap | 2q | total | depth | converged |
 |--------|---------|----------|------:|-------:|-------:|---:|------:|------:|-----------|
-| HVA | p2_half_nn_rx | — | 0.9268 | 0.0846 | 14.355 | 318 | — | — | 0/1 |
 | HVA | nnn p=3 (fair-conv best) | — | 0.9241 | 0.0819 | 13.897 | 396 | 918 | 147 | 2/6 seeds |
-| HVA | p2_half_nn | — | 0.9124 | 0.0919 | 15.601 | 318 | — | — | 0/1 |
+| HVA | p3_base | — | 0.9132 | 0.0937 | 15.890 | 396 | — | — | 0/1 |
 | VL | L8/F50 | mps χ=64 | 0.8625 | 0.5382 | 91.326 | 264 | 1768 | 181 | n/a (fixed circuit) |
 
 **Iso-2q view** — fidelity at matched 2q budgets (VL interpolated on its quality curve; HVA from its runs).
 
 | 2q budget | HVA F | VL F | better |
 |----------:|------:|-----:|--------|
-| 264 | 0.9124 | 0.8625 | HVA |
-| 318 | 0.9268 | 0.8625 | HVA |
+| 264 | 0.9241 | 0.8625 | HVA |
 | 396 | 0.9241 | 0.8625 | HVA |
 
 **Dual-target fidelity** — both methods re-simulated locally against the same reference. `⟨exact|MPS χ=64⟩² = 0.999933`, so the two references coincide to that overlap.
@@ -187,16 +184,51 @@ Here VL has ONLY its default config (`L2/F20`, no quality sweep), so HVA's tuned
 | HVA | 1.0000 | 1.0000 | compare_hva_nnn_vs_vl_square_N9_p2.json |
 | VL | 0.9870 | 0.9870 | tfim_frustrated_square_n9_p2_h3.00_j20.50_vl.qpy |
 
+## N = 10, h = 1.00 (gap 0.5023, E0 -12.4739)
+
+| method | variant | loader/χ | F | \|ΔE\| | ΔE/gap | 2q | total | depth | converged |
+|--------|---------|----------|------:|-------:|-------:|---:|------:|------:|-----------|
+| HVA | p2_full_ref | — | 0.9621 | 0.1274 | 0.254 | 112 | — | — | 2/2 |
+| HVA | adapt step6 (25 bonds) | — | 0.8723 | 0.4223 | 0.841 | 50 | — | — | masked |
+| HVA | adapt step5 (23 bonds) | — | 0.8654 | 0.4192 | 0.835 | 46 | — | — | masked |
+| HVA | adapt step3 (19 bonds) | — | 0.8615 | 0.4541 | 0.904 | 38 | — | — | masked |
+| HVA | adapt step2 (17 bonds) | — | 0.8421 | 0.4622 | 0.920 | 34 | — | — | masked |
+| HVA | p1_topk_nnn (nnn=8) | — | 0.8356 | 0.4734 | 0.942 | 42 | — | — | 2/2 |
+| HVA | adapt step4 (21 bonds) | — | 0.8348 | 0.5984 | 1.191 | 42 | — | — | masked |
+| HVA | p1_topk_nnn (nnn=8) | — | 0.8289 | 0.6770 | 1.348 | 42 | — | — | 2/2 |
+| HVA | adapt step1 (15 bonds) | — | 0.8059 | 0.6832 | 1.360 | 30 | — | — | masked |
+| HVA | adapt step0 (13 bonds) | — | 0.7715 | 0.7945 | 1.582 | 26 | — | — | masked |
+| HVA | adapt step7 (27 bonds) | — | 0.5956 | 2.4739 | 4.925 | 54 | — | — | masked |
+| HVA | p1_pruned (nnn=15) | — | 0.5956 | 2.4739 | 4.925 | 56 | — | — | 2/2 |
+| HVA | p1_full_ref (nnn=15) | — | 0.5956 | 2.4739 | 4.925 | 56 | — | — | 2/2 |
+| VL | default L2/F20 | vector | 0.8966 | 0.6180 | 1.230 | 34 | 237 | 53 | n/a (fixed circuit) |
+
+**Iso-2q view** — fidelity at matched 2q budgets (VL interpolated on its quality curve; HVA from its runs).
+
+| 2q budget | HVA F | VL F | better |
+|----------:|------:|-----:|--------|
+| 26 | 0.7715 | 0.8966 | VL |
+| 30 | 0.8059 | 0.8966 | VL |
+| 34 | 0.8421 | 0.8966 | VL |
+| 38 | 0.8615 | 0.8966 | VL |
+| 42 | 0.8356 | 0.8966 | VL |
+| 46 | 0.8654 | 0.8966 | VL |
+| 50 | 0.8723 | 0.8966 | VL |
+| 54 | 0.5956 | 0.8966 | VL |
+| 56 | 0.5956 | 0.8966 | VL |
+| 112 | 0.9621 | 0.8966 | HVA |
+
 ## Coverage matrix (methods present per scenario)
 
 | N | h | HVA variants | VL variants |
 |---|------|-------------:|------------:|
-| 6 | 0.50 | 3 | 0 |
+| 6 | 0.50 | 2 | 0 |
 | 9 | 0.50 | 5 | 7 |
 | 9 | 1.00 | 5 | 7 |
 | 9 | 2.00 | 1 | 1 |
 | 9 | 3.00 | 1 | 1 |
-| 10 | 0.50 | 1 | 0 |
-| 10 | 1.00 | 0 | 1 |
-| 18 | 0.50 | 3 | 1 |
+| 10 | 0.50 | 9 | 0 |
+| 10 | 1.00 | 13 | 1 |
+| 18 | 0.50 | 2 | 1 |
 | 18 | 1.00 | 1 | 1 |
+

@@ -2370,3 +2370,145 @@ def persist_predictions_to_training_npz(
         "total_updated": total_updated,
         "per_n": per_n,
     }
+
+
+def import_bond_ablation_to_npz(
+    json_dir: str | Path,
+    topology: str,
+    p_layers: int,
+    *,
+    model: str = "tfim_bond_resolved",
+    frustrated: bool = True,
+    j2: float = 0.5,
+    ansatz_kind: str = "frustrated",
+    root: Path = TRAINING_DATA_ROOT,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Import full-circuit θ from bond-ablation study JSONs into the training NPZs.
+
+    The ``vl_vs_hva`` bond-ablation study persists one JSON per
+    (topology, N, h, p) point under ``results/hva_vl_study/bond_ablation``. Each
+    file carries a top-level ``best_theta`` plus ``topology``/``N``/``h``/
+    ``p_layers``/``J2``/``e0``/``gap``. This helper lifts those points into the
+    canonical training corpus (``data/multi_n_training/<model>/[frustrated/]``)
+    via :func:`upsert_theta_npz`, so ``--iterative-improve`` can seed from the
+    existing high-fidelity corpus instead of starting cold.
+
+    Only rows whose ``best_theta`` length equals the FULL ansatz ``n_params`` for
+    that ``(N, p_layers)`` are imported. The study also contains pruned-bond
+    variants (fewer NNN rotations → shorter θ); importing those would create a
+    mixed-dimension NPZ incompatible with the full circuit the runner builds, so
+    they are skipped (counted under ``skipped_dim_mismatch``).
+
+    Energies: the study's top-level ``e0`` is the exact ground energy and the
+    best variational energy lives per-row; we persist ``e_vqe`` as the row's
+    ``e_best`` when present, else ``e0`` (so the anti-regression upsert keeps the
+    lowest). ``e_exact`` is ``e0`` and ``gap`` the top-level gap. Points are
+    tagged ``method="study_import"``, ``quality_tier="verified"``.
+
+    Returns a summary dict ``{imported, skipped_dim_mismatch, skipped_no_theta,
+    skipped_other_config, per_n, files_scanned}``. ``dry_run=True`` computes the
+    same summary without writing any NPZ.
+    """
+    import numpy as np
+
+    from qmbp_simulation.circuits import HVACircuitBuilder
+    from qmbp_simulation.models import make_lattice
+
+    json_dir = Path(json_dir)
+    summary: dict[str, Any] = {
+        "imported": 0,
+        "skipped_dim_mismatch": 0,
+        "skipped_no_theta": 0,
+        "skipped_other_config": 0,
+        "files_scanned": 0,
+        "per_n": {},
+    }
+    if not json_dir.exists():
+        logger.warning("import_bond_ablation_to_npz: dir not found: %s", json_dir)
+        return summary
+
+    hva = HVACircuitBuilder()
+    _n_params_cache: dict[int, int] = {}
+
+    def _full_n_params(n_qubits: int) -> int:
+        if n_qubits not in _n_params_cache:
+            lat = make_lattice(topology, n_qubits, J=1.0, h=1.0)
+            if ansatz_kind == "frustrated":
+                qc, _ = hva.create_bond_resolved_frustrated(n_qubits, p_layers, lat)
+            elif ansatz_kind == "longitudinal":
+                qc, _ = hva.create_bond_resolved_longitudinal(n_qubits, p_layers, lat)
+            else:
+                qc, _ = hva.create_bond_resolved(n_qubits, p_layers, lat)
+            _n_params_cache[n_qubits] = int(qc.num_parameters)
+        return _n_params_cache[n_qubits]
+
+    # Collect matching points per N so we upsert once per NPZ.
+    by_n: dict[int, list[dict[str, Any]]] = {}
+
+    for jf in sorted(json_dir.glob("*.json")):
+        summary["files_scanned"] += 1
+        try:
+            d = json.loads(jf.read_text())
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("import_bond_ablation_to_npz: unreadable %s: %s", jf.name, exc)
+            continue
+
+        if d.get("topology") != topology or int(d.get("p_layers", -1)) != int(p_layers):
+            summary["skipped_other_config"] += 1
+            continue
+
+        theta = d.get("best_theta")
+        if not isinstance(theta, list) or not theta:
+            summary["skipped_no_theta"] += 1
+            continue
+
+        n_qubits = int(d["N"])
+        if len(theta) != _full_n_params(n_qubits):
+            summary["skipped_dim_mismatch"] += 1
+            continue
+
+        h = round(float(d["h"]), 2)
+        e0 = float(d["e0"])
+        gap = float(d.get("gap", 0.0) or 0.0)
+        # Row-level best energy if available, else e0 (anti-regression keeps min).
+        e_best = e0
+        rows = d.get("rows")
+        if isinstance(rows, list) and rows:
+            cand = [r.get("e_best") for r in rows if isinstance(r.get("e_best"), (int, float))]
+            if cand:
+                e_best = float(min(cand))
+
+        by_n.setdefault(n_qubits, []).append(
+            {"h": h, "theta": np.asarray(theta, dtype=np.float64), "e_vqe": e_best, "e_exact": e0, "gap": gap}
+        )
+
+    for n_qubits, pts in sorted(by_n.items()):
+        summary["per_n"][n_qubits] = len(pts)
+        summary["imported"] += len(pts)
+        if dry_run:
+            continue
+        npz_path = training_npz_path(topology, n_qubits, p_layers, model=model, frustrated=frustrated)
+        upsert_theta_npz(
+            npz_path,
+            np.array([p["h"] for p in pts], dtype=np.float64),
+            np.array([p["theta"] for p in pts], dtype=np.float64),
+            np.array([p["e_vqe"] for p in pts], dtype=np.float64),
+            np.array([p["e_exact"] for p in pts], dtype=np.float64),
+            gaps_new=np.array([p["gap"] for p in pts], dtype=np.float64),
+            method_new=["study_import"] * len(pts),
+            quality_tier_new=["verified"] * len(pts),
+            model=model,
+            j2=j2 if frustrated else None,
+        )
+
+    logger.info(
+        "import_bond_ablation_to_npz: %s imported=%d (dim-mismatch skipped=%d, no-theta=%d, other-config=%d) per_n=%s",
+        topology,
+        summary["imported"],
+        summary["skipped_dim_mismatch"],
+        summary["skipped_no_theta"],
+        summary["skipped_other_config"],
+        summary["per_n"],
+    )
+    return summary

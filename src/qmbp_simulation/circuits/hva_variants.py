@@ -47,6 +47,12 @@ class AnsatzVariant:
     # prefix from the base variant's best known θ, tail analytically).
     extends: str | None = None
     extra_blocks: tuple[str, ...] = field(default_factory=tuple)
+    # When set, nn/nnn RZZ blocks entangle only the bonds named in this
+    # selection (a bond_mask.BondSelection), not every edge of that type. This
+    # is how pruned (T1) and highest-weight-subset (T2) ansätze — and future
+    # ADAPT-grown ones — are expressed as ordinary registry variants. When None,
+    # the variant uses the full edge set (standard configurable build).
+    bond_selection: object | None = None
 
     def theoretical_cx(self, n_nn: int, n_nnn: int, cx_per_rzz: int = 2) -> int:
         """Theoretical 2q-gate count = cx_per_rzz × (#nn RZZ + #nnn RZZ)."""
@@ -148,15 +154,74 @@ VARIANTS: dict[str, AnsatzVariant] = {
         blocks=["nn", "nnn", "x"] * 3,
         tags=("anchor",),
     ),
+    # p=3 counterpart of the half_nn_rx family (the most expressive-per-2q
+    # structure): p full frustrated layers + a half-layer of only nn RZZ + a
+    # free trailing RX (0 CX). Same recipe as p1_half_nn_rx / p2_half_nn_rx,
+    # scaled to p=3 — the structure to prune for the N=18 p=3 compression study.
+    "p3_half_nn_rx": AnsatzVariant(
+        "p3_half_nn_rx",
+        "p=3 + half-layer nn RZZ then x + trailing RX (partial 4th + free rot)",
+        blocks=["nn", "nnn", "x", "nn", "nnn", "x", "nn", "nnn", "x", "nn", "x"],
+        rx_final=True,
+        tags=("intermediate_2q", "partial_p4"),
+        extends="p3_base",
+        extra_blocks=("nn", "x"),
+    ),
 }
 
 
 def build_variant(builder, n_qubits: int, lattice, variant: AnsatzVariant):
-    """Build the circuit for a variant via the configurable engine."""
+    """Build the circuit for a variant.
+
+    Routes to the masked engine when the variant carries a ``bond_selection``
+    (pruned / subset / ADAPT-grown bonds), otherwise to the configurable engine
+    (full edge set). Both share the same block grammar and gate convention, so
+    the choice is transparent to callers.
+    """
+    if variant.bond_selection is not None:
+        return builder.create_bond_resolved_masked(
+            n_qubits,
+            lattice,
+            blocks=variant.blocks,
+            bond_selection=variant.bond_selection,
+            rx_final=variant.rx_final,
+            rz_final=variant.rz_final,
+        )
     return builder.create_bond_resolved_frustrated_configurable(
         n_qubits,
         lattice,
         blocks=variant.blocks,
         rx_final=variant.rx_final,
         rz_final=variant.rz_final,
+    )
+
+
+def make_masked_variant(
+    name: str,
+    description: str,
+    blocks: list[str],
+    bond_selection,
+    *,
+    rx_final: bool = False,
+    rz_final: bool = False,
+    tags: tuple[str, ...] = ("masked",),
+) -> AnsatzVariant:
+    """Build a masked :class:`AnsatzVariant` from a ``bond_selection``.
+
+    Convenience for T1/T2/ADAPT: turns a derived
+    :class:`qmbp_simulation.circuits.bond_mask.BondSelection` into a registry
+    variant that ``build_variant`` and ``run_ansatz_variants`` handle like any
+    other. The selection's provenance is appended to the description so the
+    result artifact records how the bonds were chosen.
+    """
+    prov = getattr(bond_selection, "provenance", "")
+    desc = f"{description} [{prov}]" if prov else description
+    return AnsatzVariant(
+        name=name,
+        description=desc,
+        blocks=list(blocks),
+        rx_final=rx_final,
+        rz_final=rz_final,
+        tags=tuple(tags),
+        bond_selection=bond_selection,
     )

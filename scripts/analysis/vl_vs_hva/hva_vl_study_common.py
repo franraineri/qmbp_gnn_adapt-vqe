@@ -62,6 +62,14 @@ SUBDIRS = {
     "state_prep_fidelity": STUDY_ROOT / "state_prep_fidelity",
     "hva_nnn_sweep": STUDY_ROOT / "hva_nnn_sweep",
     "resources": STUDY_ROOT / "resources",
+    # Bond-selection ablation (T1 pruning / T2 subset / future ADAPT). Kept in
+    # its own folder so the "fewer 2q via masked ansätze" analysis stays clean
+    # and separate from the main ansatz-variant sweep.
+    "bond_ablation": STUDY_ROOT / "bond_ablation",
+    # Portable, complete ansatz definitions (AnsatzSpec): system + structure +
+    # exact bond edges + converged θ, one self-contained JSON per ansatz so any
+    # runner can select and reuse it.
+    "ansatz_specs": STUDY_ROOT / "ansatz_specs",
 }
 
 # 2-qubit gate names counted across native and transpiled bases.
@@ -1011,3 +1019,126 @@ def study_artifact_writer(
         source_script=source_script or _caller_script(),
         repo_root=_REPO_ROOT,
     )
+
+
+class StudyPersister:
+    """Crash-safe partial+final persistence for a bond/variant study runner.
+
+    Every bond/variant runner (``run_bond_ablation``, ``run_variant_topk``,
+    ``run_bond_topk_regime``) re-implemented the same persistence pattern:
+    wrap ``build_resumable_payload`` + :func:`save_json` with a fixed
+    ``fingerprint``/``extra`` base, and build an "in_progress" row inside an
+    ``on_restart`` callback so a long N=18 run never loses completed restarts.
+    This centralizes it so a new runner never re-writes that boilerplate.
+
+    Construct once per run with the stable identity of the artifact; then:
+
+    - ``persist(rows, status="partial")`` — write the current rows list.
+    - ``restart_callback(label, n_2q, n_params)`` — returns an ``on_restart``
+      callable for :func:`optimize_bestof`/``converge_circuit`` that appends a
+      provisional in-progress row (best fidelity/energy/θ so far) and persists
+      after every restart, printing a one-line progress note.
+
+    ``fingerprint`` is the resumable-payload identity (n_qubits, p_layers, model,
+    topology, h); ``extra`` is merged into the saved payload (e0, gap, schema,
+    status, …). ``rows_ref`` is the live list the runner appends completed rows
+    to, so the callback can show ``rows_ref + [in_progress]`` without the runner
+    threading it in.
+    """
+
+    def __init__(self, *, subdir, out_file, fingerprint, extra, params,
+                 description, rows_ref=None, total_restarts=None):
+        self.subdir = subdir
+        self.out_file = out_file
+        self.fingerprint = dict(fingerprint)
+        self.extra = dict(extra)
+        self.params = dict(params)
+        self.description = description
+        self.rows_ref = rows_ref if rows_ref is not None else []
+        self.total_restarts = total_restarts
+
+    def persist(self, rows, status="partial"):
+        """Write ``rows`` as a resumable payload to the study subfolder."""
+        from qmbp_simulation.framework.study_checkpoint import build_resumable_payload
+
+        payload = build_resumable_payload(
+            rows=rows,
+            theta=(rows[-1].get("best_theta_final") if rows else None),
+            fingerprint=self.fingerprint,
+            extra={**self.extra, "status": status},
+        )
+        return save_json(payload, self.subdir, self.out_file,
+                         params=self.params, description=self.description)
+
+    def restart_callback(self, label, n_2q, n_params):
+        """Return an ``on_restart(runs, best)`` persister for one variant."""
+        def _cb(partial_runs, best):
+            best_theta = (min(partial_runs, key=lambda r: r["energy"])["theta_final"]
+                          if partial_runs else None)
+            prog = {"variant": label, "status": "in_progress",
+                    "n_restarts_done": len(partial_runs),
+                    "best_fidelity": (best or {}).get("fidelity"),
+                    "best_energy": (best or {}).get("energy"),
+                    "n_2q_transpiled": n_2q, "n_params": n_params,
+                    "best_theta_final": best_theta}
+            self.persist(self.rows_ref + [prog])
+            fid_now = (best or {}).get("fidelity")
+            total = f"/{self.total_restarts}" if self.total_restarts else ""
+            msg = (f"    [{label}] restart {len(partial_runs)}{total} "
+                   f"best_fid={fid_now:.4f}" if fid_now is not None
+                   else f"    [{label}] restart {len(partial_runs)}{total}")
+            print(msg, flush=True)
+        return _cb
+
+
+def sync_scoreboard(*, blocking: bool = False) -> None:
+    """Refresh the best-results scoreboard from all study artifacts.
+
+    Closes the loop so a study runner updates the shared scoreboard the moment
+    it finishes, instead of relying on a manual ``update_scoreboard.py`` run. The
+    update is idempotent and incremental (``update_scoreboard.main`` upserts only
+    improved configs), so calling it after every run is safe and byte-stable when
+    nothing improved.
+
+    By default this is **fire-and-forget** in a detached subprocess: scoreboard
+    aggregation walks every artifact and must never block or break the experiment
+    that just produced a result (same contract as the project's
+    ``post_experiment_sync`` hook). Pass ``blocking=True`` to run it inline (e.g.
+    in a test or when the caller wants the exit status).
+    """
+    import subprocess
+    import sys
+
+    script = Path(__file__).resolve().parent / "update_scoreboard.py"
+    if blocking:
+        subprocess.run([sys.executable, str(script)], check=False)
+        return
+    try:
+        subprocess.Popen(  # noqa: S603 — fixed, in-repo script path
+            [sys.executable, str(script)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception:
+        pass  # a failed scoreboard sync must never fail the experiment
+
+
+def save_ansatz_spec(variant, *, topology, n_qubits, h, j2, theta,
+                     subdir="ansatz_specs", nn_edges=None, nnn_edges=None,
+                     **metrics):
+    """Persist a portable, complete ``AnsatzSpec`` for one converged ansatz.
+
+    The standard way every runner records an ansatz so it can be re-selected and
+    reused in ANY other experiment: full system + structure + EXACT bond edges +
+    converged θ + metrics, in one self-contained JSON. Thin wrapper over
+    :class:`qmbp_simulation.circuits.ansatz_spec.AnsatzSpec` (reuses it, no
+    re-implementation). File: ``<STUDY_ROOT>/<subdir>/<variant.name>_<topo>_
+    N<n>_h<hh>.spec.json``. Returns the path written.
+    """
+    from qmbp_simulation.circuits.ansatz_spec import AnsatzSpec
+
+    spec = AnsatzSpec.from_variant(
+        variant, topology=topology, n_qubits=n_qubits, h=h, j2=j2, theta=theta,
+        nn_edges=nn_edges, nnn_edges=nnn_edges, **metrics)
+    fname = f"{variant.name}_{topology}_N{n_qubits}_h{h:.2f}.spec.json"
+    return spec.save(study_dir(subdir) / fname)

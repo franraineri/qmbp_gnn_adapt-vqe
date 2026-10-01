@@ -209,3 +209,270 @@ class TestCxAndParams:
         n_2q, npar = cx_and_params(qc)
         assert n_2q > 0
         assert npar == qc.num_parameters
+
+
+class TestOptimizeXSpaceBestof:
+    """optimize_xspace_bestof spends exploration only on the θ_x subspace."""
+
+    @staticmethod
+    def _quad(target):
+        def cost(t):
+            import numpy as np
+            return float(np.sum((t - target) ** 2))
+
+        def fid(t):
+            return 1.0 / (1.0 + cost(t))
+
+        def grad(t):
+            return 2.0 * (t - target)
+
+        return cost, fid, grad
+
+    def test_restart0_starts_at_seed(self):
+        import numpy as np
+
+        from qmbp_simulation.framework.study_core import optimize_xspace_bestof
+
+        seed = np.array([0.5, 0.5, 0.1, 0.2])
+        cost, fid, grad = self._quad(0.3)
+        _bf, _be, runs = optimize_xspace_bestof(
+            cost, fid, grad, seed, [2, 3], restarts=2, maxiter=50, seed0=1)
+        assert runs[0]["theta_init"] == seed.tolist()
+
+    def test_zz_anchored_x_perturbed_on_restarts(self):
+        import numpy as np
+
+        from qmbp_simulation.framework.study_core import optimize_xspace_bestof
+
+        seed = np.array([0.5, 0.5, 0.1, 0.2])
+        cost, fid, grad = self._quad(0.3)
+        _bf, _be, runs = optimize_xspace_bestof(
+            cost, fid, grad, seed, [2, 3], restarts=3, maxiter=50, seed0=7, sigma_x=0.3)
+        r1 = np.array(runs[1]["theta_init"])
+        assert r1[0] == 0.5 and r1[1] == 0.5  # ZZ untouched
+        assert not (r1[2] == 0.1 and r1[3] == 0.2)  # X perturbed
+
+    def test_converges_to_target(self):
+        import numpy as np
+
+        from qmbp_simulation.framework.study_core import optimize_xspace_bestof
+
+        seed = np.zeros(4)
+        cost, fid, grad = self._quad(0.3)
+        bf, be, _runs = optimize_xspace_bestof(
+            cost, fid, grad, seed, [2, 3], restarts=2, maxiter=200, seed0=1)
+        assert be < 1e-6  # full L-BFGS still relaxes all params
+        assert bf > 0.99
+
+    def test_out_of_range_indices_raise(self):
+        import numpy as np
+        import pytest
+
+        from qmbp_simulation.framework.study_core import optimize_xspace_bestof
+
+        seed = np.zeros(4)
+        cost, fid, grad = self._quad(0.3)
+        with pytest.raises(ValueError):
+            optimize_xspace_bestof(cost, fid, grad, seed, [9], restarts=1,
+                                   maxiter=10, seed0=1)
+
+
+class TestBuildVariantRow:
+    """Canonical per-variant result row (single source of the dict shape)."""
+
+    def _runs(self):
+        return [
+            {"restart": 0, "energy": -1.0, "fidelity": 0.90, "theta_final": [0.1, 0.2]},
+            {"restart": 1, "energy": -1.5, "fidelity": 0.95, "theta_final": [0.3, 0.4]},
+        ]
+
+    def test_core_metrics_and_derived_fields(self):
+        from qmbp_simulation.framework.study_core import build_variant_row
+
+        row = build_variant_row("v1", 0.95, -1.5, self._runs(),
+                                n_2q=100, n_params=20, e0=-2.0, gap=0.5)
+        assert row["variant"] == "v1"
+        assert row["best_fidelity"] == 0.95
+        assert row["abs_error"] == 0.5          # |-1.5 - (-2.0)|
+        assert row["de_gap"] == 1.0             # 0.5 / 0.5
+        assert row["fidelity_per_cx"] == 0.95 / 100
+        # lowest-energy restart supplies theta
+        assert row["best_theta_final"] == [0.3, 0.4]
+
+    def test_gap_zero_yields_none_de_gap(self):
+        from qmbp_simulation.framework.study_core import build_variant_row
+
+        row = build_variant_row("v", 0.5, -1.0, self._runs(),
+                                n_2q=10, n_params=5, e0=-1.0, gap=0.0)
+        assert row["de_gap"] is None
+
+    def test_bond_selection_bookkeeping(self):
+        from qmbp_simulation.circuits.bond_mask import BondSelection
+        from qmbp_simulation.framework.study_core import build_variant_row
+
+        sel = BondSelection(nn_edges=[(0, 1), (1, 2)], nnn_edges=[(0, 2)],
+                            provenance="top_k")
+        row = build_variant_row("masked", 0.9, -1.0, self._runs(),
+                                n_2q=50, n_params=10, e0=-1.1, gap=0.3,
+                                bond_selection=sel)
+        assert row["n_nn_bonds"] == 2
+        assert row["n_nnn_bonds"] == 1
+        assert row["selection_provenance"] == "top_k"
+
+    def test_full_selection_defaults_and_extra(self):
+        from qmbp_simulation.framework.study_core import build_variant_row
+
+        row = build_variant_row("v", 0.9, -1.0, self._runs(), n_2q=50,
+                                n_params=10, e0=-1.1, gap=0.3,
+                                blocks=["nn", "x"], rx_final=True,
+                                seed_kind="analytic", seconds=12.34,
+                                custom_field="xyz")
+        assert row["selection_provenance"] == "full"  # no bond_selection
+        assert row["blocks"] == ["nn", "x"]
+        assert row["rx_final"] is True
+        assert row["seed_kind"] == "analytic"
+        assert row["seconds"] == 12.3
+        assert row["custom_field"] == "xyz"  # **extra merged
+
+
+class TestConvergeCircuit:
+    """converge_circuit = make_cost_fid + optimize_bestof in one call."""
+
+    def test_matches_manual_pipeline(self, gs_n6):
+        from qmbp_simulation.framework.study_core import (
+            converge_circuit,
+            make_cost_fid,
+            optimize_bestof,
+        )
+
+        _lat, qc, H, psi, _e0, _gap, _n_nn, _n_nnn = gs_n6
+        # Manual pipeline
+        cost, fid, grad, _ = make_cost_fid(qc, H, psi)
+        bf_m, be_m, runs_m = optimize_bestof(
+            cost, fid, grad, qc.num_parameters, restarts=1, maxiter=200, seed0=7)
+        # Wrapper (same seed/budget → identical numerics)
+        bf_w, be_w, runs_w = converge_circuit(
+            qc, H, psi, restarts=1, maxiter=200, seed0=7)
+        assert bf_w == pytest.approx(bf_m)
+        assert be_w == pytest.approx(be_m)
+        assert len(runs_w) == len(runs_m)
+
+    def test_shared_backend_is_used(self, gs_n6):
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.framework.study_core import converge_circuit
+
+        _lat, qc, H, psi, _e0, _gap, _n_nn, _n_nnn = gs_n6
+        backend = NoiselessBackend()
+        bf, be, runs = converge_circuit(
+            qc, H, psi, restarts=1, maxiter=100, seed0=1, backend=backend)
+        assert 0.0 <= bf <= 1.0
+        assert len(runs) == 1
+
+
+class TestPrepareWarmstart:
+    """prepare_warmstart = the one-call runner integration of the combined cascade."""
+
+    def test_returns_seed_and_report(self, gs_n6):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, micro_descent=6)
+        assert r["seed"].size == qc.num_parameters
+        assert r["provenance"]  # non-empty
+        assert isinstance(r["report"], list) and len(r["report"]) >= 1
+        assert "_fid" in r and "_grad" in r  # evaluators returned for reuse
+
+    def test_combined_includes_calibrated_candidate(self, gs_n6):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, strategy="combined",
+                              micro_descent=6)
+        labels = [x["label"] for x in r["report"]]
+        assert "calibrated" in labels
+
+    def test_regime_strategy_excludes_calibrated(self, gs_n6):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, strategy="regime",
+                              micro_descent=6)
+        labels = [x["label"] for x in r["report"]]
+        assert "calibrated" not in labels
+
+    def test_init_fidelity_is_valid_overlap(self, gs_n6):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, micro_descent=6)
+        assert 0.0 <= r["init_fidelity"] <= 1.0 + 1e-9
+
+    def test_negative_methods_never_appear(self, gs_n6):
+        # ensemble + block_mix are validated-negative → never in the report,
+        # and prepare_warmstart exposes no way to turn them on.
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, micro_descent=6)
+        labels = [x["label"] for x in r["report"]]
+        assert not any(l.startswith("ensemble<") for l in labels)
+        assert not any(l.startswith("block_mix<") for l in labels)
+
+    def test_profile_recorded(self, gs_n6):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, model="tfim_frustrated",
+                              topology="square", micro_descent=6)
+        assert r["_profile"]["calibrated_family"] is True
+        assert r["_profile"]["include_ensemble"] is False
+
+    def test_non_ising_model_disables_analytic_seeds(self, gs_n6):
+        # Heisenberg/XY/Kitaev: Ising-calibrated seeds OFF, regime still present.
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        lat, qc, H, psi, _e0, _gap, n_nn, n_nnn = gs_n6
+        r = prepare_warmstart(qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=6,
+                              p_layers=1, h=0.5, J2=0.5, model="heisenberg",
+                              topology="square", micro_descent=6)
+        labels = [x["label"] for x in r["report"]]
+        assert "calibrated" not in labels
+        assert "structural" not in labels
+        assert r["_profile"]["calibrated_family"] is False
+
+
+class TestWarmstartProfile:
+    """warmstart_profile — structure-aware technique selection."""
+
+    def test_ising_family_full_stack(self):
+        from qmbp_simulation.analysis.warmstart import warmstart_profile
+
+        for m in ("tfim", "tfim_frustrated", "tfim_bond_resolved", None):
+            p = warmstart_profile(model=m, topology="square", J2=0.5)
+            assert p["include_calibrated"] and p["include_structural"]
+            assert p["include_regime"]
+            assert not p["include_ensemble"] and not p["include_block_mix"]
+
+    def test_non_ising_disables_calibrated(self):
+        from qmbp_simulation.analysis.warmstart import warmstart_profile
+
+        for m in ("heisenberg", "xy", "kitaev", "heisenberg_transverse"):
+            p = warmstart_profile(model=m)
+            assert not p["include_calibrated"]
+            assert not p["include_structural"]
+            assert p["include_regime"]            # general seed stays on
+            assert p["calibrated_family"] is False
+
+    def test_negatives_always_off(self):
+        from qmbp_simulation.analysis.warmstart import warmstart_profile
+
+        for m in ("tfim", "heisenberg", None):
+            p = warmstart_profile(model=m)
+            assert p["include_ensemble"] is False
+            assert p["include_block_mix"] is False

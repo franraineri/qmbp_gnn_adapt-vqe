@@ -96,6 +96,37 @@ def _param_names(edges: list[tuple[int, int]], n_qubits: int) -> list[str]:
     return names
 
 
+HERON_BASIS = ["cz", "rz", "sx", "x"]  # IBM Heron native gate set
+
+
+def _native_stats(qc) -> dict:
+    """Depth / 2q-depth / gate counts for a (transpiled) circuit."""
+    ops = dict(qc.count_ops())
+    two_q = sum(v for k, v in ops.items() if k in ("cz", "cx", "ecr", "rzz"))
+    return {
+        "depth": int(qc.depth()),
+        "depth_2q": int(qc.depth(lambda ins: len(ins.qubits) == 2)),
+        "n_2q_gates": two_q,
+        "gate_counts": {k: int(v) for k, v in sorted(ops.items(), key=lambda kv: -kv[1])},
+    }
+
+
+def _load_theta_from_json(path: str, key: str, n_params: int) -> np.ndarray:
+    """Read a flat angle list from a JSON file via a dotted key path."""
+    data = json.loads(Path(path).read_text())
+    node = data
+    for part in key.split("."):
+        if not isinstance(node, dict) or part not in node:
+            raise KeyError(f"key path '{key}' not found in {path} (missing '{part}')")
+        node = node[part]
+    angles = np.asarray(node, dtype=float).flatten()
+    if angles.shape[0] != n_params:
+        raise ValueError(
+            f"theta from {path}:{key} has {angles.shape[0]} angles, expected {n_params}"
+        )
+    return angles
+
+
 RECREATE_TEMPLATE = '''#!/usr/bin/env python
 """Standalone rebuilder for the bond-resolved HVA circuit (Qiskit-only).
 
@@ -199,7 +230,7 @@ TFIM bond-resolved Hardware-Efficient Variational Ansatz (HVA), {n_params} param
 | `theta_gnn.json` | the {n_params} predicted angles + parameter order | — |
 | `metadata.json` | topology, edges, energies, versions | — |
 | `recreate.py` | standalone rebuilder (Qiskit-only, no repo needed) | qiskit, numpy |
-| `README.md` | this file | — |
+| `README.md` | this file | — |{native_row}
 
 ## Requirements
 
@@ -256,8 +287,8 @@ on each edge k and `RX(2·θ_x_i)` on each qubit i. Initial state is |+⟩^N (H 
 qubits). Hamiltonian: TFIM H = −J·ΣZZ − h·ΣX with J=1, h={h}.
 
 `theta_gnn.json` stores the **raw θ**. The QASM3 file shows the **materialized
-`2·θ`** as the gate argument (e.g. θ_zz=0.0527 → `rzz(0.1055)`). Both describe the
-same circuit — don't double the QASM angles again.
+`2·θ`** as the gate argument (e.g. θ_zz[0]={theta_zz0:.4f} → `rzz({two_theta_zz0:.4f})`).
+Both describe the same circuit — don't double the QASM angles again.
 
 ## Sanity check (reproduce these numbers)
 
@@ -270,8 +301,25 @@ Build the TFIM Hamiltonian H = −ΣZZ − h·ΣX and evaluate ⟨H⟩ on the bo
 | θ=0 reference (|+⟩^N = −h·N) | {e_zero:.1f} |
 
 If your loaded circuit gives ⟨H⟩ = {e_gnn} you reconstructed it correctly.
-
+{native_section}
 Generated {generated} · qiskit {qiskit_version}
+"""
+
+
+NATIVE_SECTION_TEMPLATE = """
+## Compressed circuit (native IBM Heron basis)
+
+`circuit_native.qasm3` / `circuit_native.qpy` are the same bound circuit
+transpiled to the Heron native gate set `{native_basis}`
+(optimization_level=3, seed_transpiler=42). Each logical `RZZ` becomes 2 `CZ`.
+
+| | depth | 2q-depth | 2q-gates | gate counts |
+|---|-------|----------|----------|-------------|
+| logical | {log_depth} | {log_2qd} | {log_2q} | {log_ops} |
+| native (Heron) | {nat_depth} | {nat_2qd} | {nat_2q} | {nat_ops} |
+
+The logical and native circuits are equivalent unitaries (up to transpiler
+optimization); the native one reflects what actually runs on hardware.
 """
 
 
@@ -280,6 +328,20 @@ def main() -> None:
     ap.add_argument("--h", type=float, default=1.0)
     ap.add_argument("--no-angles", action="store_true",
                     help="export parametric circuit only (skip GNN prediction)")
+    ap.add_argument("--theta-json", type=str, default=None,
+                    help="use angles from this JSON instead of GNN prediction. "
+                         "Reads key 'theta' (a flat list of n_params angles), or "
+                         "'n10.theta_gnn_initial' style nested keys via --theta-key.")
+    ap.add_argument("--theta-key", type=str, default="theta",
+                    help="dotted key path inside --theta-json to the angle list "
+                         "(e.g. 'n10.theta_gnn_initial'). Default: 'theta'.")
+    ap.add_argument("--theta-source", type=str, default=None,
+                    help="label recorded in the bundle for angle provenance "
+                         "(e.g. 'hardware_job_initial'). Default derived from source.")
+    ap.add_argument("--native", action="store_true",
+                    help="also emit the compressed (transpiled) circuit in the IBM "
+                         "Heron native basis (cz/rz/sx/x): circuit_native.qasm3 + "
+                         "circuit_native.qpy + native gate stats in metadata.")
     ap.add_argument("--out", type=str, default=None,
                     help="output dir (default results/exports/hva_<topo>_N<n>_p<p>_h<h>)")
     args = ap.parse_args()
@@ -330,13 +392,23 @@ def main() -> None:
 
     angles = None
     if not args.no_angles:
-        model = runner.load_best_mpnn_for_cross_n(
-            n_target=N_QUBITS, model=MODEL, topology=TOPOLOGY, p_layers=P_LAYERS,
-            checkpoint_path=CHECKPOINT, train_if_missing=False,
-        )
-        if model is None:
-            raise RuntimeError(f"Failed to load checkpoint {CHECKPOINT}")
-        angles = _predict_theta(model, lattice, h, n_params)
+        if args.theta_json:
+            # Use externally-provided angles (e.g. the theta behind a hardware
+            # job) instead of predicting with the GNN — keeps the circuit
+            # structure identical, only the angle values change.
+            angles = _load_theta_from_json(args.theta_json, args.theta_key, n_params)
+            angle_source = args.theta_source or f"{Path(args.theta_json).name}:{args.theta_key}"
+            angle_note = "externally-provided angles (see angle_source)"
+        else:
+            model = runner.load_best_mpnn_for_cross_n(
+                n_target=N_QUBITS, model=MODEL, topology=TOPOLOGY, p_layers=P_LAYERS,
+                checkpoint_path=CHECKPOINT, train_if_missing=False,
+            )
+            if model is None:
+                raise RuntimeError(f"Failed to load checkpoint {CHECKPOINT}")
+            angles = _predict_theta(model, lattice, h, n_params)
+            angle_source = CHECKPOINT.split("/")[-1]
+            angle_note = "raw GNN-predicted angles, no VQE refinement"
 
         H = runner.builder.build(lattice)
         e_gnn = float(runner.noiseless.evaluate(qc_param, H, angles))
@@ -351,12 +423,33 @@ def main() -> None:
                 f"// QASM3 export failed: {exc}\n// Use circuit_bound.qpy instead.\n"
             )
 
+        # Compressed / native circuit (transpiled to IBM Heron basis)
+        if args.native:
+            from qiskit import transpile
+
+            native = transpile(
+                bound, basis_gates=HERON_BASIS, optimization_level=3, seed_transpiler=42
+            )
+            qpy.save(native, out_dir / "circuit_native.qpy")
+            try:
+                qasm3.save(native, out_dir / "circuit_native.qasm3")
+            except Exception as exc:
+                (out_dir / "circuit_native.qasm3").write_text(
+                    f"// QASM3 export failed: {exc}\n// Use circuit_native.qpy instead.\n"
+                )
+            logical_stats = _native_stats(bound)
+            native_stats = _native_stats(native)
+            metadata["native_basis"] = HERON_BASIS
+            metadata["logical_stats"] = logical_stats
+            metadata["native_stats"] = native_stats
+            metadata["transpile"] = {"optimization_level": 3, "seed_transpiler": 42}
+
         js.save(
             {
                 "theta": [float(x) for x in angles],
                 "parameter_order": _param_names(edges, N_QUBITS),
-                "checkpoint": CHECKPOINT.split("/")[-1],
-                "note": "raw GNN-predicted angles, no VQE refinement",
+                "angle_source": angle_source,
+                "note": angle_note,
             },
             out_dir / "theta_gnn.json",
         )
@@ -364,7 +457,7 @@ def main() -> None:
         metadata["abs_error"] = abs(e_gnn - e_exact)
         metadata["de_gap"] = abs(e_gnn - e_exact) / max(gap, 1e-10)
         metadata["fidelity"] = float(fid) if fid is not None else None
-        metadata["checkpoint"] = CHECKPOINT.split("/")[-1]
+        metadata["angle_source"] = angle_source
 
     js.save(metadata, out_dir / "metadata.json")
 
@@ -376,12 +469,32 @@ def main() -> None:
 
     e_zero = -h * N_QUBITS
     e_gnn_str = f"{metadata['e_gnn']:.5f}" if "e_gnn" in metadata else "n/a (--no-angles)"
+    # Real θ_zz[0] for the 2·θ example (falls back to a generic value w/o angles)
+    theta_zz0 = float(angles[0]) if angles is not None else 0.0
+    native_row = ""
+    native_section = ""
+    if "native_stats" in metadata:
+        native_row = (
+            "\n| `circuit_native.qasm3` | OpenQASM 3, transpiled to Heron basis | "
+            "qiskit + `qiskit_qasm3_import` |"
+            "\n| `circuit_native.qpy` | Qiskit QPY, transpiled to Heron basis | Qiskit |"
+        )
+        ls, ns = metadata["logical_stats"], metadata["native_stats"]
+        native_section = NATIVE_SECTION_TEMPLATE.format(
+            native_basis=metadata["native_basis"],
+            log_depth=ls["depth"], log_2qd=ls["depth_2q"], log_2q=ls["n_2q_gates"],
+            log_ops=ls["gate_counts"],
+            nat_depth=ns["depth"], nat_2qd=ns["depth_2q"], nat_2q=ns["n_2q_gates"],
+            nat_ops=ns["gate_counts"],
+        )
     (out_dir / "README.md").write_text(
         README_TEMPLATE.format(
             topology=TOPOLOGY, n=N_QUBITS, p=P_LAYERS, h=h, n_params=n_params,
             n_edges=n_edges, generated=metadata["generated_utc"],
             qiskit_version=qiskit.__version__,
             e_exact=metadata["e_exact"], e_gnn=e_gnn_str, e_zero=e_zero,
+            theta_zz0=theta_zz0, two_theta_zz0=2 * theta_zz0,
+            native_row=native_row, native_section=native_section,
         ),
         encoding="utf-8",
     )

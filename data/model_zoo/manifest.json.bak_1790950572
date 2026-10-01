@@ -1,0 +1,1708 @@
+[
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "h_range": [
+      2.0,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "pass_rate_source": "",
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260812T003023",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=100%)",
+    "sha256": "d8be48901d58a02b629a9d421f392b094912395acd1703a8416328aa321a2787",
+    "runner_tag": "XX",
+    "date_tag": "120826",
+    "training_quality_score": 0.77,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 18.2472825,
+        "abs_error_best": 7.3599,
+        "fidelity_mean": 0.005803846153846154,
+        "fidelity_min": 0.0008,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 10.897969230769231,
+            "abs_error_best": 7.3599,
+            "fidelity_mean": 0.008992307692307692,
+            "fidelity_min": 0.0049,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 8.3849,
+              "fidelity": 0.0123
+            }
+          },
+          "10": {
+            "abs_error_mean": 15.0373,
+            "abs_error_best": 10.2131,
+            "fidelity_mean": 0.0026153846153846158,
+            "fidelity_min": 0.0008,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 11.4767,
+              "fidelity": 0.0044
+            }
+          },
+          "20": {
+            "abs_error_mean": 27.089746153846153,
+            "abs_error_best": 20.4987,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 22.0358,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 40.5661,
+            "abs_error_best": 40.5661,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023957.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-10-02T06:39:08.587731+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "10": 9.24935,
+      "20": 22.92295,
+      "6": 10.50815,
+      "30": 40.5661
+    },
+    "fidelity_by_n": {
+      "10": 0.015300000000000001,
+      "20": 0.0,
+      "6": 0.008799999999999999
+    },
+    "de_gap_by_n": {
+      "10": 18.0314,
+      "20": 29.36625,
+      "6": 11.82025,
+      "30": 29.3085
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "h_range": [
+      2.5,
+      5.0
+    ],
+    "pass_rate": 0.3333333333333333,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 485,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19T06:02:07.029803+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14], 485 points | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 2/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
+    "sha256": "308c08c473344073a818383c628a0d4b1216a060e8d246078537f9f9fdc37099",
+    "runner_tag": "AC",
+    "date_tag": "190826",
+    "training_quality_score": 0.808,
+    "pass_rate_by_n": {
+      "8": 0.5,
+      "10": 0.3333333333333333,
+      "12": 0.0,
+      "4": 0.8333333333333334,
+      "6": 0.6666666666666666,
+      "14": 0.0,
+      "18": 0.0,
+      "21": 0.0,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {
+      "16": 0.2075,
+      "20": 0.2789,
+      "30": 0.4766
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "16": 0.0682,
+      "20": 0.5510999999999999,
+      "30": 1.63005
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "triangular",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "h_range": [
+      2.5,
+      5.0
+    ],
+    "pass_rate": 0.25,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 231,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19T06:11:37.946810+00:00",
+    "notes": "Multi-N training: N=[3, 4, 6], 231 points | eval@20260819 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260824 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260902 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260902 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260902 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8",
+    "sha256": "adc2d75b98f0efbf46c3bd0d7933b0b3cfebcb5fe9582f4fc4ebfa3df57d2e6f",
+    "runner_tag": "AC",
+    "date_tag": "190826",
+    "training_quality_score": 0.616,
+    "pass_rate_by_n": {
+      "4": 0.3333333333333333,
+      "6": 0.5,
+      "3": 0.0,
+      "8": 0.0,
+      "11": 0.0,
+      "12": 0.0,
+      "13": 0.0,
+      "16": 0.0,
+      "10": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {
+      "12": 0.5091,
+      "16": 1.1688,
+      "24": 1.2115
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "12": 0.2986,
+      "16": 1.3213,
+      "24": 4.62775
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "h_range": [
+      2.5,
+      5.0
+    ],
+    "pass_rate": 0.45454545454545453,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 481,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19T06:36:03.910048+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 16, 20, 26, 40], 481 points | comparison@ladder N=[4, 6, 8, 10] | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | extrap@N=[20] | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
+    "sha256": "2a037edbd8fd855d9cd7cb7777dd987176c8eed553d268f35ef58f3648f8ac10",
+    "runner_tag": "AC",
+    "date_tag": "190826",
+    "training_quality_score": 0.565,
+    "pass_rate_by_n": {
+      "4": 0.8333333333333334,
+      "6": 0.8333333333333334,
+      "8": 0.6666666666666666,
+      "10": 0.4666666666666667,
+      "12": 0.0,
+      "18": 0.0,
+      "22": 0.0,
+      "24": 0.0,
+      "16": 0.0,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {
+      "20": 0.13390000000000002,
+      "26": 0.18380000000000002,
+      "30": 0.21445,
+      "16": 0.16044999999999998
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "20": 0.07295,
+      "26": 0.1159,
+      "30": 0.1392,
+      "16": 0.0353
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "h_range": [
+      3.0,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "comparison_eval",
+    "n_training_points": 596,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-20T14:29:59.887081+00:00",
+    "notes": "Multi-N training: N=[4, 6, 10, 12, 16, 20, 40], 596 points | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | auto-deflated from 83% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | auto-deflated from 83% | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18 | auto-deflated from 44% | extrap@N=[14] | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | auto-deflated from 50%",
+    "sha256": "ac75010db266c185eeed4f37177dd076e0052a45cdae95c50a5ad3921cfb0da3",
+    "runner_tag": "AC",
+    "date_tag": "200826",
+    "training_quality_score": 0.836,
+    "pass_rate_by_n": {
+      "10": 0.0,
+      "12": 0.0,
+      "16": 0.0,
+      "4": 0.0,
+      "6": 0.0,
+      "20": 0.0,
+      "24": 0.0,
+      "29": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {
+      "20": 0.04865,
+      "30": 0.1321,
+      "16": 0.6985,
+      "40": 0.78755,
+      "50": 2.5972999999999997,
+      "60": 3.96855,
+      "14": 10.623149999999999
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "20": 0.02595,
+      "30": 0.1161,
+      "16": 0.1134,
+      "40": 0.2371,
+      "50": 0.47140000000000004,
+      "60": 1.14545,
+      "14": 1.8169499999999998
+    },
+    "warmstart_by_n": {
+      "6": {
+        "advantage_ratio": 0.5107137555786339,
+        "speedup": 2.111111111111111,
+        "zeroshot_fidelity": 0.0010327838475543715,
+        "n_points": 4
+      },
+      "12": {
+        "advantage_ratio": 1.554355830222604,
+        "speedup": 0.8365190365190365,
+        "zeroshot_fidelity": 1.5117343727088959e-06,
+        "n_points": 4
+      },
+      "16": {
+        "advantage_ratio": 3.0320904578813055,
+        "speedup": 0.9635374149659863,
+        "zeroshot_fidelity": 0.012407884451129872,
+        "n_points": 4
+      }
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "h_range": [
+      1.5,
+      4.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-25T05:44:28.116795+00:00",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40] | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "6e1640ba8047ab49feff1480789fa03f5349e88d1a46676dfca441b1e73034a7",
+    "runner_tag": "XX",
+    "date_tag": "250826",
+    "training_quality_score": 0.932,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "h_range": [
+      0.5,
+      1.5
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 422,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T21:02:38.314180+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60], 422 points, train_h_range=[0.5, 1.5] | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "c7a460119c27f7bf5ddb6491763c2fb69df43e7db51805ffcd57f634c316b2d2",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.8,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 5.1340875,
+        "abs_error_best": 1.2341,
+        "fidelity_mean": 0.57095,
+        "fidelity_min": 0.404,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 2.147507692307692,
+            "abs_error_best": 1.2341,
+            "fidelity_mean": 0.6757384615384615,
+            "fidelity_min": 0.6113,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.4398,
+              "fidelity": 0.7221
+            }
+          },
+          "10": {
+            "abs_error_mean": 4.011923076923077,
+            "abs_error_best": 2.4732,
+            "fidelity_mean": 0.46616153846153846,
+            "fidelity_min": 0.404,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 2.7823,
+              "fidelity": 0.5079
+            }
+          },
+          "20": {
+            "abs_error_mean": 8.6847,
+            "abs_error_best": 5.6427,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 6.1572,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 12.3898,
+            "abs_error_best": 12.3898,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023121.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-10-02T06:39:08.548235+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "10": 1.1302,
+      "20": 2.4508,
+      "6": 1.99545,
+      "30": 12.3898
+    },
+    "fidelity_by_n": {
+      "10": 0.5159,
+      "20": 0.0,
+      "6": 0.6498999999999999
+    },
+    "de_gap_by_n": {
+      "10": 3.6498,
+      "20": 5.23325,
+      "6": 2.242,
+      "30": 11.5916
+    },
+    "warmstart_by_n": {
+      "6": {
+        "advantage_ratio": 5.371971898478747,
+        "speedup": 0.7037037037037037,
+        "zeroshot_fidelity": 0.9607422600383868,
+        "n_points": 5
+      },
+      "10": {
+        "advantage_ratio": 85.60982725165995,
+        "speedup": 2.727272727272727,
+        "zeroshot_fidelity": 0.930557124545051,
+        "n_points": 5
+      },
+      "16": {
+        "advantage_ratio": 21.061041476916213,
+        "speedup": 1.1129032258064515,
+        "zeroshot_fidelity": 0.8876627701694473,
+        "n_points": 5
+      }
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "multi_topology",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__MT_p1_res_film_base.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.38333333333333336,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 3234,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T18:14:44.122421+00:00",
+    "notes": "Multi-topology model (residual+film): chain_1d+heavy_hex+ladder+square+triangular. p=1. MSE=2.38e-01, val=2.42e-01. 3234 graphs from 5 topologies. | eval@20260902 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60 | eval@20260902 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60 | eval@20260902 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60",
+    "sha256": "379c453b5ba1f76d57b2d5c6613110c3b9ba754daa335845be64c616a3303469",
+    "runner_tag": "XX",
+    "date_tag": "280826",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "results/experiments/exp_multi_topology_training/tfim_bond_resolved/run_20260828_181443.json",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 15.4407775,
+        "abs_error_best": 8.02,
+        "fidelity_mean": 0.0014,
+        "fidelity_min": 0.0,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 8.665646153846154,
+            "abs_error_best": 8.02,
+            "fidelity_mean": 0.0026461538461538463,
+            "fidelity_min": 0.0001,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 8.4031,
+              "fidelity": 0.0051
+            }
+          },
+          "10": {
+            "abs_error_mean": 12.755423076923078,
+            "abs_error_best": 11.5248,
+            "fidelity_mean": 0.00015384615384615385,
+            "fidelity_min": 0.0,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 12.7207,
+              "fidelity": 0.0005
+            }
+          },
+          "20": {
+            "abs_error_mean": 23.39816153846154,
+            "abs_error_best": 17.8122,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 18.2268,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 34.9811,
+            "abs_error_best": 34.9811,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_MT_20260829_024911.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-10-02T06:39:08.598957+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "6": 8.44265,
+      "10": 13.294699999999999,
+      "20": 22.1114,
+      "30": 34.9811
+    },
+    "fidelity_by_n": {
+      "6": 0.0026499999999999996,
+      "10": 5e-05
+    },
+    "de_gap_by_n": {
+      "6": 9.18605,
+      "10": 16.70775,
+      "20": 26.64855,
+      "30": 31.2138
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 4,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n4_p2_20260828T184413.pt",
+    "h_range": [
+      0.5,
+      2.3
+    ],
+    "pass_rate": 1.0,
+    "pass_rate_source": "",
+    "n_training_points": 9,
+    "seeds": [
+      42
+    ],
+    "created": "20260828T184413",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=100%)",
+    "sha256": "b4d73cb40afd7f00bb77eeef6e5dfe7926af5f029e0cc1b7071e05b84a510050",
+    "runner_tag": "XX",
+    "date_tag": "280826",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "h_range": [
+      0.5,
+      2.3
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 72,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T18:46:15.768562+00:00",
+    "notes": "Bootstrap from AcceleratedVQE N=4 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "41beff0b406f6068f9eb43c6daa23d2c2dea8232d75a8edbe970e8802618432f",
+    "runner_tag": "XX",
+    "date_tag": "280826",
+    "training_quality_score": 0.836,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "chain_1d",
+    "n_qubits": 8,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T210050.pt",
+    "h_range": [
+      2.0,
+      4.0
+    ],
+    "pass_rate": 0.8333333333333334,
+    "pass_rate_source": "",
+    "n_training_points": 6,
+    "seeds": [
+      42
+    ],
+    "created": "20260831T210050",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=83%)",
+    "sha256": "3e4aa8dca8cc26632fea47393f5a45c0c3a784795c7e2d5f44ec0fd6976f9d8b",
+    "runner_tag": "XX",
+    "date_tag": "310826",
+    "training_quality_score": 0.911,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 953,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-31T21:20:12.440516+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 953 points | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "478afd8cea1548826c9db0f60fd8b0696e3c5957a56dcedc49ea4f6b0f4a4912",
+    "runner_tag": "AC",
+    "date_tag": "310826",
+    "training_quality_score": 0.793,
+    "pass_rate_by_n": {
+      "8": 0.23333333333333334,
+      "10": 0.16666666666666666,
+      "12": 0.1,
+      "16": 0.03333333333333333,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 958,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-02T06:03:17.400016+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 958 points | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "df04897efbb5eb21cad09194d1c96afac19aa1cef102b7736da587f6b7519477",
+    "runner_tag": "AC",
+    "date_tag": "020926",
+    "training_quality_score": 0.782,
+    "pass_rate_by_n": {
+      "8": 0.2,
+      "10": 0.1,
+      "12": 0.03333333333333333,
+      "16": 0.0,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 1.2442391608391608,
+        "abs_error_best": 0.1024,
+        "fidelity_mean": 0.8099047613364639,
+        "fidelity_min": 0.4686292064617887,
+        "n_points": 143,
+        "per_n": {
+          "4": {
+            "abs_error_mean": 2.5507,
+            "abs_error_best": 2.5507,
+            "fidelity_mean": 0.9308382877608925,
+            "fidelity_min": 0.9308382877608925,
+            "n_points": 1,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 2.5507,
+              "fidelity": 0.9308382877608925
+            }
+          },
+          "8": {
+            "abs_error_mean": 0.21705,
+            "abs_error_best": 0.1146,
+            "fidelity_mean": 0.8852761592530421,
+            "fidelity_min": 0.7717740131199533,
+            "n_points": 12,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 0.3514,
+              "fidelity": 0.7717740131199533
+            }
+          },
+          "10": {
+            "abs_error_mean": 0.3678272727272727,
+            "abs_error_best": 0.1024,
+            "fidelity_mean": 0.8010683569921672,
+            "fidelity_min": 0.4686292064617887,
+            "n_points": 33,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 0.4769,
+              "fidelity": 0.6921401332953397
+            }
+          },
+          "12": {
+            "abs_error_mean": 0.3627416666666667,
+            "abs_error_best": 0.1649,
+            "fidelity_mean": 0.8120371927256121,
+            "fidelity_min": 0.6167772001294377,
+            "n_points": 12,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 0.604,
+              "fidelity": 0.6167772001294377
+            }
+          },
+          "16": {
+            "abs_error_mean": 0.6075333333333334,
+            "abs_error_best": 0.2446,
+            "fidelity_mean": 0.7466232501088516,
+            "fidelity_min": 0.482138357558483,
+            "n_points": 12,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 0.8612,
+              "fidelity": 0.482138357558483
+            }
+          },
+          "20": {
+            "abs_error_mean": 0.9985275862068965,
+            "abs_error_best": 0.2313,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 29,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 1.1209,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 1.96645625,
+            "abs_error_best": 1.2188,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 16,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 1.7752,
+              "fidelity": null
+            }
+          },
+          "40": {
+            "abs_error_mean": 2.78864375,
+            "abs_error_best": 1.6634,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 16,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 2.4328,
+              "fidelity": null
+            }
+          },
+          "50": {
+            "abs_error_mean": 3.309366666666667,
+            "abs_error_best": 2.1089,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 6,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 3.0918,
+              "fidelity": null
+            }
+          },
+          "60": {
+            "abs_error_mean": 4.0157,
+            "abs_error_best": 2.5552,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 6,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 3.7518,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "evaluation_chain_1d_p1_20260909_050743.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-10-02T06:39:08.532135+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "4": 2.5507,
+      "8": 0.10475,
+      "10": 0.19585000000000002,
+      "12": 0.1501,
+      "16": 0.1928,
+      "20": 0.62625,
+      "30": 0.2598,
+      "40": 0.5309,
+      "50": 1.6462,
+      "60": 0.818,
+      "80": 0.53935,
+      "100": 0.6052,
+      "150": 5.3052,
+      "200": 7.0857
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "4": 3.6722,
+      "8": 0.04115,
+      "10": 0.17830000000000001,
+      "12": 0.0663,
+      "16": 0.0655,
+      "20": 0.51895,
+      "30": 0.0652,
+      "40": 0.1219,
+      "50": 0.8223,
+      "60": 0.1374,
+      "80": 0.08399999999999999,
+      "100": 0.1037,
+      "150": 0.7579,
+      "200": 1.0122
+    },
+    "warmstart_by_n": {
+      "6": {
+        "advantage_ratio": 5.371971902235591,
+        "speedup": 0.7307692307692307,
+        "zeroshot_fidelity": 0.9764787499675839,
+        "n_points": 5
+      },
+      "10": {
+        "advantage_ratio": 85.60982725940151,
+        "speedup": 0.891566265060241,
+        "zeroshot_fidelity": 0.9559691585155482,
+        "n_points": 5
+      },
+      "16": {
+        "advantage_ratio": 21.061041476244668,
+        "speedup": 0.7840909090909091,
+        "zeroshot_fidelity": 0.9257807360025986,
+        "n_points": 5
+      }
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 958,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-02T06:42:29.881226+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 958 points | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "e4042c2b7a1a9fa9c231a084920bc186cb94a9d8198470bdbddaaf28e32162ea",
+    "runner_tag": "AC",
+    "date_tag": "020926",
+    "training_quality_score": 0.782,
+    "pass_rate_by_n": {
+      "8": 0.3333333333333333,
+      "10": 0.03333333333333333,
+      "12": 0.0,
+      "16": 0.0,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-21 03:47 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=4, grade B, \u0394E/gap=0.0158) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "20": 0.0,
+      "30": 0.0,
+      "10": 0.5333333333333333,
+      "16": 0.0,
+      "6": 1.0,
+      "21": 0.0,
+      "31": 0.16666666666666666,
+      "8": 1.0,
+      "12": 0.5
+    },
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 7.125392499999999,
+        "abs_error_best": 0.9156,
+        "fidelity_mean": 0.4196730769230769,
+        "fidelity_min": 0.0625,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 1.468646153846154,
+            "abs_error_best": 0.9156,
+            "fidelity_mean": 0.7486692307692308,
+            "fidelity_min": 0.7077,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.0104,
+              "fidelity": 0.7532
+            }
+          },
+          "10": {
+            "abs_error_mean": 10.637553846153846,
+            "abs_error_best": 8.8044,
+            "fidelity_mean": 0.09067692307692309,
+            "fidelity_min": 0.0625,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 9.0419,
+              "fidelity": 0.0882
+            }
+          },
+          "20": {
+            "abs_error_mean": 8.639369230769232,
+            "abs_error_best": 7.5607,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 7.6877,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 15.3233,
+            "abs_error_best": 15.3233,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023859.md",
+        "seen_in_raw_runs": true,
+        "updated": "2026-10-02T06:39:08.574680+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "20": 2.5902,
+      "30": 0.132,
+      "40": 0.1055,
+      "60": 0.1612,
+      "16": 0.18025,
+      "100": 0.584,
+      "150": 5.3052,
+      "200": 7.0857,
+      "10": 2.73,
+      "6": 1.33585
+    },
+    "fidelity_by_n": {
+      "20": 0.0,
+      "10": 0.216,
+      "6": 0.7321,
+      "16": 0.9350896260745994
+    },
+    "de_gap_by_n": {
+      "20": 4.1968,
+      "30": 0.0212,
+      "40": 0.0264,
+      "60": 0.0403,
+      "16": 0.025099999999999997,
+      "100": 0.0965,
+      "150": 0.7579,
+      "200": 1.0122,
+      "10": 11.10445,
+      "6": 1.5023499999999999
+    },
+    "warmstart_by_n": {
+      "6": {
+        "advantage_ratio": 5.371971899512376,
+        "speedup": 0.7037037037037037,
+        "zeroshot_fidelity": 0.9692044594046786,
+        "n_points": 5
+      },
+      "10": {
+        "advantage_ratio": 85.60982713027029,
+        "speedup": 0.7844827586206896,
+        "zeroshot_fidelity": 0.9310790604246326,
+        "n_points": 5
+      },
+      "16": {
+        "advantage_ratio": 21.06104147462951,
+        "speedup": 0.7575757575757576,
+        "zeroshot_fidelity": 0.8737032653118596,
+        "n_points": 5
+      },
+      "8": {
+        "advantage_ratio": 2.3405949680637175,
+        "speedup": 1.35,
+        "zeroshot_fidelity": 0.9561189656779513,
+        "n_points": 5
+      },
+      "12": {
+        "advantage_ratio": 7.426944975181713,
+        "speedup": 0.8979591836734694,
+        "zeroshot_fidelity": 0.8768638051602814,
+        "n_points": 5
+      }
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:20 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=6, grade B, \u0394E/gap=0.0224) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "16": 0.0,
+      "21": 0.0,
+      "31": 0.16666666666666666,
+      "6": 1.0,
+      "8": 1.0,
+      "10": 0.5,
+      "12": 0.5
+    },
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 7.125392499999999,
+        "abs_error_best": 0.9156,
+        "fidelity_mean": 0.4196730769230769,
+        "fidelity_min": 0.0625,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 1.468646153846154,
+            "abs_error_best": 0.9156,
+            "fidelity_mean": 0.7486692307692308,
+            "fidelity_min": 0.7077,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.0104,
+              "fidelity": 0.7532
+            }
+          },
+          "10": {
+            "abs_error_mean": 10.637553846153846,
+            "abs_error_best": 8.8044,
+            "fidelity_mean": 0.09067692307692309,
+            "fidelity_min": 0.0625,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 9.0419,
+              "fidelity": 0.0882
+            }
+          },
+          "20": {
+            "abs_error_mean": 8.639369230769232,
+            "abs_error_best": 7.5607,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 7.6877,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 15.3233,
+            "abs_error_best": 15.3233,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023808.md",
+        "seen_in_raw_runs": true,
+        "updated": "2026-10-02T06:39:08.562018+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "10": 2.2708500000000003,
+      "20": 4.75825,
+      "6": 1.33585,
+      "30": 15.3233
+    },
+    "fidelity_by_n": {
+      "10": 0.32384999999999997,
+      "20": 0.0,
+      "6": 0.7321
+    },
+    "de_gap_by_n": {
+      "10": 8.67605,
+      "20": 7.421950000000001,
+      "6": 1.5023499999999999,
+      "30": 13.9324
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-20 14:13 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=10, grade A, \u0394E/gap=0.0150) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {
+      "30": 2.6596,
+      "40": 0.8459,
+      "50": 5.96545,
+      "60": 7.73875,
+      "20": 0.17104999999999998
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "30": 0.5795,
+      "40": 0.2268,
+      "50": 1.70715,
+      "60": 2.22035,
+      "20": 0.042249999999999996
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+8+10+12+14+18+20+21+26+30+40_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-23 03:11 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=14, grade B, \u0394E/gap=0.0324) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_150926.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-10-02T06:39:08.621344+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "20": 0.3094,
+      "30": 0.0875,
+      "40": 1.035,
+      "10": 0.04315,
+      "14": 0.0838,
+      "21": 0.87975,
+      "50": 4.2131,
+      "60": 7.73875,
+      "24": 0.032549999999999996,
+      "26": 0.02925,
+      "16": 7.7973
+    },
+    "fidelity_by_n": {
+      "20": 0.9291,
+      "30": 0.9059,
+      "16": 0.3947
+    },
+    "de_gap_by_n": {
+      "20": 0.0747,
+      "30": 0.0326,
+      "40": 0.249,
+      "10": 0.0082,
+      "14": 0.0189,
+      "21": 0.221,
+      "50": 0.9914000000000001,
+      "60": 1.832,
+      "24": 0.009250000000000001,
+      "26": 0.008400000000000001,
+      "16": 3.0152
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_multiN_heavyhex_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-23 18:02 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=24, grade C, \u0394E/gap=0.0884) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151041.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-10-02T06:39:08.610086+00:00"
+      }
+    },
+    "abs_error_by_n": {
+      "30": 0.322,
+      "40": 1.5318,
+      "50": 5.4381,
+      "60": 8.4855,
+      "20": 0.4596,
+      "10": 0.1523,
+      "14": 0.35505,
+      "21": 0.95885,
+      "24": 0.032549999999999996,
+      "26": 0.02925,
+      "16": 7.7723
+    },
+    "fidelity_by_n": {
+      "30": 0.9059,
+      "20": 0.9291,
+      "16": 0.3947
+    },
+    "de_gap_by_n": {
+      "30": 0.1161,
+      "40": 0.32365,
+      "50": 1.411,
+      "60": 2.5846,
+      "20": 0.1035,
+      "10": 0.029400000000000003,
+      "14": 0.0631,
+      "21": 0.2407,
+      "24": 0.009250000000000001,
+      "26": 0.008400000000000001,
+      "16": 2.5139
+    },
+    "warmstart_by_n": {
+      "6": {
+        "advantage_ratio": 7.314980430645584,
+        "speedup": 1.0588235294117647,
+        "zeroshot_fidelity": 0.9606741351529422,
+        "n_points": 5
+      },
+      "10": {
+        "advantage_ratio": 8.123526911788323,
+        "speedup": 0.9407407407407408,
+        "zeroshot_fidelity": 0.9364951440705741,
+        "n_points": 5
+      },
+      "12": {
+        "advantage_ratio": 18.4417061722797,
+        "speedup": 1.0,
+        "zeroshot_fidelity": 0.9330603722026275,
+        "n_points": 5
+      },
+      "16": {
+        "advantage_ratio": 9.499823983499406,
+        "speedup": 1.0,
+        "zeroshot_fidelity": 0.8941799830909167,
+        "n_points": 5
+      },
+      "8": {
+        "advantage_ratio": 13.374851792396118,
+        "speedup": 0.7767857142857143,
+        "zeroshot_fidelity": 0.9587598872182665,
+        "n_points": 5
+      }
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_ladder_fromMT_4+6+8+10+12+14+20+26+30_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.45454545454545453,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-21 03:08 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for ladder N=6, grade B, \u0394E/gap=0.0376) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {
+      "16": 0.16044999999999998,
+      "20": 0.1365,
+      "26": 0.18380000000000002,
+      "30": 0.21445,
+      "40": 0.28725
+    },
+    "fidelity_by_n": {},
+    "de_gap_by_n": {
+      "16": 0.0353,
+      "20": 0.0809,
+      "26": 0.1159,
+      "30": 0.1392,
+      "40": 0.19555
+    },
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_ladder_multiN_4+6+8+10+12+14+20+26+30_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.45454545454545453,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-21 19:43 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for ladder N=10, grade C, \u0394E/gap=0.1005) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.3333333333333333,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:21 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for square N=4, grade B, \u0394E/gap=0.0232) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "4": 1.0,
+      "6": 0.8333333333333334,
+      "8": 0.8333333333333334,
+      "10": 0.0,
+      "14": 0.0,
+      "18": 0.0,
+      "21": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_longitudinal",
+    "topology": "heavy_hex",
+    "n_qubits": 6,
+    "p_layers": 3,
+    "checkpoint_file": "tfim_longitudinal_heavy_hex_n6_p3.pt",
+    "h_range": [
+      1.0,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 40,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-09T02:51:18.483430+00:00",
+    "notes": "mse=2.49e-02",
+    "sha256": "21467c7fb8e4c81e86ae704aa6299ee189d5dc863c48ddbc78c743a247ba9fcf",
+    "runner_tag": "NP",
+    "date_tag": "090926",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_signinv_fid_v1.pt",
+    "h_range": [
+      3.0,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1121,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-09T04:13:35.192923+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1121 points",
+    "sha256": "8b7183d2ef98ae704a151e46235f9ead256297250b84c134d56f8dbaa930c596",
+    "runner_tag": "AC",
+    "date_tag": "090926",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {
+      "6": {
+        "advantage_ratio": 7.314980440571357,
+        "speedup": 1.125,
+        "zeroshot_fidelity": 0.9304580332804003,
+        "n_points": 5
+      },
+      "10": {
+        "advantage_ratio": 8.123526879154719,
+        "speedup": 0.9074074074074074,
+        "zeroshot_fidelity": 0.8765044956350608,
+        "n_points": 5
+      },
+      "12": {
+        "advantage_ratio": 18.441706473211593,
+        "speedup": 1.10752688172043,
+        "zeroshot_fidelity": 0.8561884946483604,
+        "n_points": 5
+      },
+      "16": {
+        "advantage_ratio": 9.499824054742676,
+        "speedup": 1.146341463414634,
+        "zeroshot_fidelity": 0.8035075976586387,
+        "n_points": 5
+      }
+    }
+  }
+]]

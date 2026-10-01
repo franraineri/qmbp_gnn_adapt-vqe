@@ -1,0 +1,52 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/compression_shootout_p1_half_nn_rx_prune0.1_N10_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_compression_shootout.py",
+  "generated_utc": "2026-10-02T03:19:33.908991+00:00",
+  "params": {
+    "experiment": "compression_shootout",
+    "N": 10,
+    "h": 0.5,
+    "variant": "p1_half_nn_rx"
+  },
+  "description": "Circuit-compression shootout: 2q reduction + fidelity per technique on a converged ansatz",
+  "rows": [
+    {
+      "technique": "baseline(opt1)",
+      "n_2q": 48,
+      "fidelity": 0.9842684257838322,
+      "depth": 49,
+      "note": ""
+    },
+    {
+      "technique": "transpile(opt2)",
+      "n_2q": 48,
+      "fidelity": 0.9842684257838316,
+      "depth": 49,
+      "note": ""
+    },
+    {
+      "technique": "transpile(opt3)",
+      "n_2q": 48,
+      "fidelity": 0.9842684257838316,
+      "depth": 49,
+      "note": ""
+    },
+    {
+      "technique": "aqc_tensor(p1)",
+      "n_2q": 39,
+      "fidelity": 0.9642401097999356,
+      "depth": 117,
+      "note": "best_of_3 aqc_fid=0.9863 21s"
+    }
+  ],
+  "variant": "p1_half_nn_rx",
+  "N": 10,
+  "h": 0.5,
+  "J2": 0.5,
+  "e0": -9.369294164498262,
+  "gap": 0.0061323447868382175,
+  "converged_fid": 0.9842684257838278,
+  "n2q_baseline": 48,
+  "schema": "compression_shootout_v1",
+  "status": "final"
+}

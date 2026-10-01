@@ -1,0 +1,58 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/frac_sweep_square_N10_p2_h0.50.json",
+  "source_script": "frac_sweep_topk.py",
+  "generated_utc": "2026-09-30T21:54:50.050229+00:00",
+  "params": {
+    "experiment": "bond_frac_sweep",
+    "N": 10,
+    "h": 0.5,
+    "p_layers": 2
+  },
+  "description": "nnn-fraction sweep (topk) \u2014 fidelity vs 2q curve",
+  "rows": [
+    {
+      "variant": "p2_full_ref",
+      "frac": 1.0,
+      "n_nnn_bonds": 15,
+      "best_fidelity": 0.9892263356493513,
+      "n_2q_transpiled": 112,
+      "n_params": 76,
+      "fidelity_per_cx": 0.008832377996869208
+    },
+    {
+      "variant": "p2_topk_f0.3",
+      "frac": 0.3,
+      "n_nnn_bonds": 4,
+      "best_fidelity": 0.9669591634605461,
+      "n_2q_transpiled": 68,
+      "n_params": 54,
+      "fidelity_per_cx": 0.014219987697949207
+    },
+    {
+      "variant": "p2_topk_f0.5",
+      "frac": 0.5,
+      "n_nnn_bonds": 8,
+      "best_fidelity": 0.9860945482389034,
+      "n_2q_transpiled": 84,
+      "n_params": 62,
+      "fidelity_per_cx": 0.011739220812367899
+    },
+    {
+      "variant": "p2_topk_f0.7",
+      "frac": 0.7,
+      "n_nnn_bonds": 10,
+      "best_fidelity": 0.9865128213810451,
+      "n_2q_transpiled": 92,
+      "n_params": 66,
+      "fidelity_per_cx": 0.010722965449793969
+    }
+  ],
+  "topology": "square",
+  "N": 10,
+  "h": 0.5,
+  "p_layers": 2,
+  "J2": 0.5,
+  "e0": -9.369294164498228,
+  "gap": 0.006132344786855981,
+  "schema": "bond_frac_sweep_v1"
+}

@@ -36,6 +36,9 @@ vl-hva-consolidated:  ## Regenerate the consolidated VL-vs-HVA report + best-res
 	$(PYTHON) scripts/analysis/vl_vs_hva/generate_vl_hva_consolidated_report.py
 	$(PYTHON) scripts/analysis/vl_vs_hva/update_scoreboard.py
 
+warmstart-check:  ## Cheap adaptive warm-start checks (cross-N init-fid + θ_x~arctan + θ metrics table) from existing artifacts. Use NS/HS to override.
+	$(PYTHON) scripts/analysis/vl_vs_hva/check_warmstart_adaptive.py --ns $(or $(NS),8 10 12) --hs $(or $(HS),0.3 0.5 1.3)
+
 format:  ## Auto-format with ruff
 	.venv/bin/ruff format src/ tests/ scripts/ project_health/
 

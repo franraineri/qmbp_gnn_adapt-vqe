@@ -304,6 +304,99 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "Maximizes training data quality at the cost of compute time. "
             "Use --no-refine-all to cap refinements via --max-refine-per-iter.",
         )
+        parser.add_argument(
+            "--ansatz-kind",
+            type=str,
+            default="auto",
+            choices=["auto", "bond_resolved", "frustrated", "longitudinal"],
+            help="Which bond-resolved HVA ansatz to build. 'auto' (default) "
+            "preserves the historical behavior: frustrated (NN+NNN) when J2 != 0, "
+            "longitudinal when g != 0, else plain bond-resolved. The explicit "
+            "kinds pin the circuit regardless of J2/g, so the runner can be driven "
+            "on any ansatz without relying on implicit flag coupling. The resolved "
+            "kind also decides include_nnn for the prediction graph.",
+        )
+        parser.add_argument(
+            "--import-bond-ablation",
+            type=str,
+            default=None,
+            metavar="DIR",
+            help="Before running, import existing full-circuit θ from a "
+            "bond-ablation study JSON directory (e.g. "
+            "results/hva_vl_study/bond_ablation) into the training NPZ corpus so "
+            "--iterative-improve can seed from it. Only rows whose θ length matches "
+            "the full ansatz n_params for each (N, p) are imported (pruned-bond "
+            "variants are skipped). No-op when the dir has no matching data.",
+        )
+        parser.add_argument(
+            "--data-gen",
+            action="store_true",
+            default=False,
+            help="Training-data generation mode (use with --iterative-improve). "
+            "Inverts the deployment-oriented adaptive budget: EVERY failing point "
+            "gets the FULL --maxiter/--n-restarts budget (hard low-h points are no "
+            "longer starved as 'minimal' tier), priority-skipping is disabled, and "
+            "the h-grid is densified near the transition (--data-gen-hc, default "
+            "0.6) so the corpus is dense and clean exactly where the physics is "
+            "hard. Implies --skip-retrain unless --no-skip-retrain-override is set: "
+            "the goal is to GENERATE verified θ, not train an MPNN.",
+        )
+        parser.add_argument(
+            "--data-gen-hc",
+            type=float,
+            default=0.6,
+            help="Critical field for --data-gen h-grid densification "
+            "(default 0.6, the square-frustrated J2=0.5 transition region).",
+        )
+        parser.add_argument(
+            "--data-gen-dense-radius",
+            type=float,
+            default=0.3,
+            help="Half-width of the dense h region around --data-gen-hc "
+            "(default 0.3 → dense sampling in [hc-0.3, hc+0.3]). Chosen so the "
+            "0.3-1.8 range yields a clean grid with no near-duplicate h-points.",
+        )
+        parser.add_argument(
+            "--data-gen-min-fidelity",
+            type=float,
+            default=0.95,
+            help="Exact-fidelity acceptance floor for the iterative-improve "
+            "failure criterion (default 0.95). In the statevector regime the "
+            "runner computes each point's exact fidelity and feeds it to "
+            "is_point_failure, where it acts as a two-way signal: a point with "
+            "fidelity >= this floor PASSES even if ΔE/gap is large (near the "
+            "transition the gap is tiny, so ΔE/gap wrongly rejects fidelity-0.99 "
+            "states), while fidelity < floor fails a gap-masked bad state. Most "
+            "relevant with --data-gen (dense near-critical grid).",
+        )
+        parser.add_argument(
+            "--compare-warmstart",
+            action="store_true",
+            default=False,
+            help="After multi-N training, run an explicit head-to-head warm-start "
+            "A/B at each target-N h: MPNN-predicted θ vs the analytic+donor cascade "
+            "(_apply_warmstart_seed) vs a cold random seed. Each arm is refined with "
+            "the SAME L-BFGS-B optimizer (shared cost/grad) and scored by "
+            "init-fidelity, iters-to-fid-threshold, cost evals and wall time. Emits a "
+            "per-h table + per-arm winner tally. Requires a trained/loaded model "
+            "(pairs with --multi-n-train or --from-zoo/--checkpoint).",
+        )
+        parser.add_argument(
+            "--compare-fid-threshold",
+            type=float,
+            default=0.90,
+            help="Fidelity threshold for the --compare-warmstart "
+            "'iters-to-threshold' convergence metric (default 0.90). The optimizer "
+            "stops counting once F(|ψ(θ)⟩,|ψ_exact⟩) >= this value.",
+        )
+        parser.add_argument(
+            "--compare-maxiter",
+            type=int,
+            default=200,
+            help="Max L-BFGS-B iterations per arm in --compare-warmstart "
+            "(default 200). The threshold-crossing iteration is recorded; an arm "
+            "that never crosses reports its final fidelity at this cap.",
+        )
 
     def build_config(self) -> dict:
         config = self._build_physics_config()
@@ -319,6 +412,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         self._physics_model = self.resolve_model_name("tfim_bond_resolved")
         self._model_kwargs = self.model_kwargs()
         self._is_frustrated = self.is_frustrated()
+        self._ansatz_kind = self._resolve_ansatz_kind()
         self._training_data_dir = self.training_data_dir()
         if self._is_frustrated:
             logger.info(
@@ -352,6 +446,28 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
         # Round to 2 decimals for cache key stability (matches GroundTruthCache)
         self._h_values = [round(h, 2) for h in np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)]
+
+        # Data-generation mode: densify the h-grid near the transition and force
+        # skip-retrain (we want verified θ, not an MPNN). The budget inversion
+        # (full budget for every failing point) happens in the refine loop.
+        if getattr(self._args, "data_gen", False):
+            from qmbp_simulation.utils.h_grid import generate_nonuniform_h_grid
+
+            grid = generate_nonuniform_h_grid(
+                self._args.h_min,
+                self._args.h_max,
+                self._args.h_points,
+                h_critical=self._args.data_gen_hc,
+                dense_radius=self._args.data_gen_dense_radius,
+            )
+            self._h_values = [round(float(h), 2) for h in grid]
+            self._args.skip_retrain = True
+            logger.info(
+                f"  DATA-GEN mode: dense h-grid near h_c={self._args.data_gen_hc} "
+                f"(radius={self._args.data_gen_dense_radius}), {len(self._h_values)} points: "
+                f"{self._h_values}; skip_retrain forced ON; full budget per failing point."
+            )
+
         self._models = {}  # p_layers → trained model
         self._train_results = {}  # p_layers → AcceleratedResult
         # Default force_method to L-BFGS-B for noiseless backends.
@@ -359,6 +475,35 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # or downgrade to COBYLA on noisy backends automatically.
         if self._args.force_method is None:
             self._args.force_method = "L-BFGS-B"
+
+        # Optional: seed the training corpus from an existing bond-ablation study
+        # so --iterative-improve can start from known-good full-circuit θ instead
+        # of cold. Runs once here, before any section, so MultiNAggregator sees
+        # the imported NPZs. No-op when the dir has no matching full-circuit data.
+        import_dir = getattr(self._args, "import_bond_ablation", None)
+        if import_dir:
+            self._import_bond_ablation_corpus(import_dir)
+
+    def _import_bond_ablation_corpus(self, json_dir: str) -> None:
+        """Import full-circuit θ from a bond-ablation study dir into the NPZ corpus."""
+        from qmbp_simulation.framework.result_io import import_bond_ablation_to_npz
+
+        p = self._resolve_p_layers() or 1
+        j2 = float(self._model_kwargs.get("J2", 0.0) or 0.0)
+        summary = import_bond_ablation_to_npz(
+            json_dir,
+            topology=self._args.topology,
+            p_layers=p,
+            model=self._physics_model,
+            frustrated=self._is_frustrated,
+            j2=j2,
+            ansatz_kind=self._ansatz_kind,
+        )
+        logger.info(
+            f"  Bond-ablation import: {summary['imported']} full-circuit points "
+            f"(per_n={summary['per_n']}, skipped_dim_mismatch={summary['skipped_dim_mismatch']}, "
+            f"files_scanned={summary['files_scanned']})"
+        )
 
     def model_kwargs(self) -> dict:
         """Hamiltonian kwargs: J2 (frustrated) and g (longitudinal field)."""
@@ -368,11 +513,39 @@ class AcceleratedCrossNRunner(ValidationRunner):
             kwargs["g"] = float(g)
         return kwargs
 
-    def _build_circuit(self, n_qubits: int, p_layers: int, lattice):
-        """Build the bond-resolved circuit, frustrated (NN+NNN) when --j2 != 0."""
+    def _resolve_ansatz_kind(self) -> str:
+        """Resolve the concrete ansatz kind from --ansatz-kind + physics flags.
+
+        'auto' reproduces the historical implicit coupling exactly: frustrated
+        when J2 != 0, longitudinal when g != 0, else plain bond-resolved. An
+        explicit kind pins the circuit regardless of J2/g so the runner is not
+        tied to the frustrated/longitudinal family. Returns one of
+        ``"frustrated" | "longitudinal" | "bond_resolved"``.
+        """
+        kind = getattr(self._args, "ansatz_kind", "auto") or "auto"
+        if kind != "auto":
+            return kind
         if self._is_frustrated:
-            return self.hva.create_bond_resolved_frustrated(n_qubits, p_layers, lattice)
+            return "frustrated"
         if abs(getattr(self._args, "g", 0.0) or 0.0) > 1e-15:
+            return "longitudinal"
+        return "bond_resolved"
+
+    def _ansatz_includes_nnn(self) -> bool:
+        """Whether the resolved ansatz carries NNN bonds (graph include_nnn)."""
+        return getattr(self, "_ansatz_kind", "frustrated" if self._is_frustrated else "bond_resolved") == "frustrated"
+
+    def _build_circuit(self, n_qubits: int, p_layers: int, lattice):
+        """Build the HVA circuit for the resolved ansatz kind.
+
+        Dispatches on ``self._ansatz_kind`` (see :meth:`_resolve_ansatz_kind`)
+        so the circuit choice is explicit and overridable via --ansatz-kind,
+        instead of implicit from J2/g. 'auto' keeps the previous behavior.
+        """
+        kind = getattr(self, "_ansatz_kind", None) or self._resolve_ansatz_kind()
+        if kind == "frustrated":
+            return self.hva.create_bond_resolved_frustrated(n_qubits, p_layers, lattice)
+        if kind == "longitudinal":
             return self.hva.create_bond_resolved_longitudinal(n_qubits, p_layers, lattice)
         return self.hva.create_bond_resolved(n_qubits, p_layers, lattice)
 
@@ -398,9 +571,182 @@ class AcceleratedCrossNRunner(ValidationRunner):
             lattice,
             h_value=h_value,
             p_layers=p_layers,
-            include_nnn=self._is_frustrated,
+            include_nnn=self._ansatz_includes_nnn(),
             **kwargs,
         )
+
+    def _continuation_donor(self, idx: int, p_layers: int, lattice, prev_theta_by_h: dict):
+        """Cross-h continuation donor: the adjacent h-step's converged θ (same N).
+
+        In the descending h-sweep, the previous grid entry (idx-1) is the nearest
+        higher-h neighbour. If it was already converged this sweep (present in
+        ``prev_theta_by_h``) and does NOT sit across a phase boundary from the
+        current h (:func:`crosses_transition`), it is the strongest possible donor:
+        same N (layout-identical, no cross-N approximation) and same phase. Returns
+        a donor dict for :func:`best_combined_warmstart`, or ``None``.
+        """
+        from qmbp_simulation.analysis.warmstart import crosses_transition
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        if idx <= 0:
+            return None
+        h_cur = float(self._h_values[idx])
+        h_prev = float(self._h_values[idx - 1])
+        if crosses_transition(h_prev, h_cur):
+            return None  # θ does not transfer across the frustrated transition
+        prev = prev_theta_by_h.get(round(h_prev, 2))
+        if not prev or prev[0] is None:
+            return None
+        import numpy as np
+
+        theta_prev = np.asarray(prev[0], dtype=np.float64)
+        if not np.all(np.isfinite(theta_prev)):
+            return None
+        n_nn = len(lattice.edges)
+        nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice) if self._ansatz_includes_nnn() else []
+        n_nnn = len(nnn_edges)
+        return {
+            "theta": theta_prev,
+            "n_nn": n_nn,
+            "n_nnn": n_nnn,
+            "p": p_layers,
+            "n_qubits": lattice.n_qubits,
+            "nnn_edges": nnn_edges,
+            "h": h_prev,
+            "label": f"cont<h{h_prev:.2f}>",
+        }
+
+    def _apply_warmstart_seed(
+        self,
+        *,
+        circuit,
+        H,
+        lattice,
+        h: float,
+        p_layers: int,
+        gap: float,
+        theta_init,
+        e_init: float,
+        eval_fn,
+        continuation_donor=None,
+    ):
+        """Improve a VQE init with the project's combined warm-start cascade.
+
+        Statevector-regime only: computes the exact ground eigenvector ``psi``
+        from ``H`` (sparse eigsh), then calls the canonical
+        :func:`qmbp_simulation.framework.study_core.prepare_warmstart` to build
+        the best structure-aware seed (analytic Ising seeds + regime + donors,
+        ranked after an adaptive L-BFGS-B micro-descent via the fast adjoint
+        gradient). The seed is passed through ``eval_fn`` (the cached energy
+        evaluator) and adopted only if it strictly beats the incoming
+        ``e_init`` — so this can never regress the refine, only accelerate it by
+        handing VQE a better starting point.
+
+        Returns ``(theta_out, e_out, provenance)`` where ``provenance`` is the
+        warm-start label when the seed was adopted, else ``None`` (init kept).
+        """
+        import numpy as np
+        from scipy.sparse.linalg import eigsh
+
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        n_params = int(circuit.num_parameters)
+        theta_init = np.asarray(theta_init, dtype=np.float64)
+
+        # Exact ground eigenvector (statevector regime → feasible).
+        ev, evec = eigsh(H.to_matrix(sparse=True), k=2, which="SA")
+        order = np.argsort(ev)
+        psi = evec[:, order[0]].astype(complex)
+
+        n_nn = len(lattice.edges)
+        n_nnn = len(HamiltonianBuilder._generate_nnn_edges(lattice)) if self._ansatz_includes_nnn() else 0
+        j2 = float(self._model_kwargs.get("J2", 0.0) or 0.0) if self._ansatz_includes_nnn() else 0.0
+
+        # Cross-N / cross-h donors from the NPZ training corpus (the data this
+        # pipeline itself generates): converged θ at other N in the same phase,
+        # transferred onto this layout. This is the strongest warm-start lever
+        # NEAR THE TRANSITION, so we only pay the scan+transfer where it helps —
+        # gate on phase_proximity (≈0 in the easy ordered/paramagnetic phases
+        # where the analytic seed already wins). Self-reinforcing: each refined
+        # point becomes a donor for the next (N, h).
+        from qmbp_simulation.analysis.warmstart import discover_npz_donors, phase_proximity
+
+        donors = None
+        target_nnn_edges = None
+        if phase_proximity(float(h)) > 0.5:
+            donors = discover_npz_donors(
+                self._args.topology,
+                lattice.n_qubits,
+                float(h),
+                p_layers,
+                model=self._physics_model,
+                frustrated=self._ansatz_includes_nnn(),
+            )
+        # The cross-h continuation donor (same N, adjacent h) is prepended so the
+        # cascade tries it FIRST — within a phase it is the strongest donor. It is
+        # added even in the easy phases (where the NPZ cross-N scan is skipped),
+        # since reusing the neighbour θ is free and never hurts (micro-descent
+        # ranking drops it if it loses).
+        if continuation_donor is not None:
+            donors = [continuation_donor, *(donors or [])]
+        if donors and self._ansatz_includes_nnn():
+            target_nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
+
+        res = prepare_warmstart(
+            circuit,
+            H,
+            psi,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=lattice.n_qubits,
+            p_layers=p_layers,
+            h=float(h),
+            J=1.0,
+            J2=j2,
+            gap=gap,
+            donors=donors,
+            target_nnn_edges=target_nnn_edges,
+            topology=self._args.topology,
+            model=self._physics_model,
+            target_len=n_params,
+        )
+        seed = np.asarray(res.get("seed"), dtype=np.float64)
+        if seed.shape != theta_init.shape:
+            return theta_init, e_init, None
+        prov = res.get("provenance") or "warmstart"
+
+        # Data-generation mode: decide on POST-DESCENT energy, not init energy.
+        # A warm-start seed may start higher than a previously-stuck θ_prev yet
+        # relax into a strictly better basin (common at near-critical h where the
+        # old θ_prev is trapped). Comparing only init energy wrongly keeps the
+        # stuck point; a short L-BFGS probe on BOTH reveals the real winner. The
+        # subsequent full VQE then starts from the better basin. In deployment
+        # mode we keep the cheap init-energy gate (no extra descent cost).
+        if getattr(self._args, "data_gen", False):
+            from qmbp_simulation.framework.study_core import make_cost_fid
+            from qmbp_simulation.framework.study_runner import _lbfgsb
+
+            cost, _fid, grad, _ = make_cost_fid(circuit, H, psi)
+            probe = 40
+            xs, es, _ = _lbfgsb(cost, seed, maxiter=probe, grad=grad)
+            xi, ei, _ = _lbfgsb(cost, theta_init, maxiter=probe, grad=grad)
+            if np.isfinite(es) and es < ei:
+                logger.debug(
+                    f"    h={h:.2f}: [data-gen] warm-start seed wins post-probe ({prov}): "
+                    f"E_seed={es:.6f} < E_prev={ei:.6f} (init_fid={res.get('init_fidelity')})"
+                )
+                return xs, float(es), str(prov)
+            return (xi, float(ei), None) if np.isfinite(ei) and ei < e_init else (theta_init, e_init, None)
+
+        e_seed = eval_fn(seed)
+        if np.isfinite(e_seed) and e_seed < e_init:
+            logger.debug(
+                f"    h={h:.2f}: warm-start seed adopted ({prov}): "
+                f"E {e_init:.6f} → {e_seed:.6f} (init_fid={res.get('init_fidelity')})"
+            )
+            return seed, float(e_seed), str(prov)
+        return theta_init, e_init, None
 
     def run_preflight(self) -> bool:
         """Validate topology constraints before execution."""
@@ -586,6 +932,21 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     hypothesis=f"AcceleratedVQE at N={self._args.train_n} achieves >60% pass rate",
                 )
             )
+        # --compare-warmstart replaces the standard cross-N predict with an
+        # explicit MPNN-vs-analytic-vs-cold warm-start A/B at each target-N h.
+        # The comparison already predicts the MPNN θ and refines it, so running
+        # the ordinary predict section first would only duplicate that compute.
+        if getattr(self._args, "compare_warmstart", False):
+            sections.append(
+                Section(
+                    id=3,
+                    name="Warm-Start A/B (MPNN vs analytic+donor vs cold)",
+                    fn=self.section_compare_warmstart,
+                    hypothesis="One warm-start method reaches the fidelity threshold "
+                    "in fewer L-BFGS-B iterations than the others",
+                )
+            )
+            return sections
         sections.append(
             Section(
                 id=3,
@@ -766,6 +1127,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         agg = MultiNAggregator(
             topology=topo,
             model=self._physics_model,
+            frustrated=self._is_frustrated,
             results_dir=self._training_data_dir,
             max_n=max_n,
             p_layers=p,
@@ -1704,6 +2066,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 agg = MultiNAggregator(
                     topology=topo,
                     model=self._physics_model,
+                    frustrated=self._is_frustrated,
                     results_dir=self._training_data_dir,
                     max_n=self.N_MAX_VIABLE.get(topo, 20),
                     p_layers=p,
@@ -2009,20 +2372,37 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 break
 
             # ── 2c: Identify failures + ansatz-limit filter ───────────────
-            # Uses the dual energy criterion: ΔE/gap OR |ΔE| (from metrics).
-            # Fidelity is NOT a pass/fail criterion (diagnostic only).
+            # Dual energy criterion (ΔE/gap OR |ΔE|) with a fidelity override:
+            # a point with high EXACT fidelity is accepted even when ΔE/gap is
+            # large (the tiny-gap near-critical case). See is_point_failure.
             from qmbp_simulation.analysis.metrics import (
                 compute_refinement_priority,
                 is_point_failure,
             )
 
+            # Compute exact fidelity per point when cheap (statevector regime) so
+            # the fidelity override can rescue near-critical high-fidelity points.
+            _fid_statevector = n_target <= STATEVECTOR_MAX_N
+            _min_fid = getattr(self._args, "data_gen_min_fidelity", 0.95)
+
             failures = []
             ansatz_limited = []
             for i, h in enumerate(self._h_values):
                 abs_err_i = abs(energies[i] - e_exact_arr[i])
+                fid_i = None
+                if _fid_statevector:
+                    h_key = round(float(h), 2)
+                    theta_eval = predictions[i]
+                    if h_key in prev_theta_by_h and prev_theta_by_h[h_key][0] is not None:
+                        theta_eval = prev_theta_by_h[h_key][0]
+                    fid_i = self.safe_compute_fidelity(
+                        circuit_target, theta_eval, topo, n_target, float(h), model=self._physics_model
+                    )
                 is_fail = is_point_failure(
                     de_gap=de_gaps[i],
                     abs_error=abs_err_i,
+                    fidelity=fid_i,
+                    min_fidelity=_min_fid,
                 )
                 if is_fail:
                     if h_min_valid > 0 and float(h) < h_min_valid:
@@ -2084,7 +2464,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     n_prev_attempts=n_attempts,
                 )
 
-                if should_skip:
+                # Data-generation mode never skips a failing point: every point
+                # is a datum we want solved, even "hopeless"-looking ones.
+                if should_skip and not getattr(self._args, "data_gen", False):
                     n_skipped_priority += 1
                     logger.debug(f"    Skip h={h:.3f}: {reason} (priority={priority:.2f})")
                 else:
@@ -2116,6 +2498,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             refined_theta = []
             refined_energies = []
             refined_e_exact = []
+            refined_provenance = []  # warm-start seed label per improved point (StudyPersister-style)
 
             # Use adaptive VQE config per-point based on priority score.
             # High-priority (easy wins) get minimal budget; low-priority get full budget.
@@ -2147,11 +2530,39 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 refine_maxiter = adaptive_cfg["maxiter"]
                 refine_restarts = adaptive_cfg["n_restarts"]
 
+                # Data-generation mode inverts the deployment-oriented budget:
+                # the adaptive tiers starve hard low-h points ("minimal", 1
+                # restart) because they look hopeless for *deployment* — but for
+                # *data generation* those are exactly the points we must solve
+                # well. Give every failing point the full CLI budget instead.
+                if getattr(self._args, "data_gen", False):
+                    refine_maxiter = base_maxiter
+                    refine_restarts = max(base_restarts, refine_restarts)
+                    adaptive_cfg = {**adaptive_cfg, "tier": "data_gen_full"}
+
+                # Gentle gap/difficulty-adaptive restarts: spend a FEW extra
+                # restarts only on near-critical points (difficulty_index =
+                # N·phase_proximity high), where the landscape has competing
+                # basins; easy ordered/paramagnetic points keep the base count.
+                # budget_for_difficulty is difficulty-aware (the study found raw
+                # gap mis-scales the budget) and only adds +1/+2 over base,
+                # clipped to a small ceiling — kept light on purpose.
+                from qmbp_simulation.analysis.warmstart import budget_for_difficulty
+
+                _adap_restarts, _, _diff = budget_for_difficulty(
+                    n_target, h, float(gap_arr[idx]),
+                    base_restarts=refine_restarts,
+                    J2=float(self._model_kwargs.get("J2", 0.0) or 0.0),
+                    max_restarts=refine_restarts + 2,
+                )
+                if _adap_restarts > refine_restarts:
+                    refine_restarts = _adap_restarts
+
                 logger.info(
                     f"  │ Refining [{fail_idx_pos + 1}/{len(failures)}] "
                     f"h={h:.4f} (ΔE/gap={de_gaps[idx]:.4f}, "
                     f"tier={adaptive_cfg['tier']}, maxiter={refine_maxiter}, "
-                    f"restarts={refine_restarts})..."
+                    f"restarts={refine_restarts}, D={_diff:.1f})..."
                 )
                 sys.stdout.flush()
                 sys.stderr.flush()
@@ -2199,6 +2610,44 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # VQE warm-start refinement
                 lat_h = self.make_lattice(topo, n_target, J=1.0, h=h)
                 H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+
+                # ── Structure-aware warm-start seed (statevector regime only) ──
+                # Upgrade theta_init with the project's combined warm-start cascade
+                # (analytic Ising seeds + regime + donors + adaptive micro-descent,
+                # all via the fast adjoint gradient). This is the single
+                # integration point `prepare_warmstart`; it needs the exact ground
+                # eigenvector ``psi``, so it only runs when N is in the statevector
+                # regime (N ≤ STATEVECTOR_MAX_N). Above that it is a no-op and the
+                # refine keeps its MPNN/θ_prev init unchanged. The seed is adopted
+                # only when it beats the current init by energy (anti-regression).
+                ws_provenance = None
+                if n_target <= STATEVECTOR_MAX_N:
+                    # Continuation donor (cross-h, intra-sweep): the converged θ
+                    # from the ADJACENT h-step already refined this sweep. The
+                    # h-grid is descending, so the previous grid entry (idx-1) is
+                    # the nearest higher-h neighbour. Within a phase this is the
+                    # single best donor (same N → layout-identical transfer, same
+                    # physics regime); it is dropped across a phase boundary where
+                    # θ does not transfer. Same N so no cross-N approximation.
+                    cont_donor = self._continuation_donor(idx, p, lat_h, prev_theta_by_h)
+                    try:
+                        theta_init, best_e, ws_provenance = self._apply_warmstart_seed(
+                            circuit=circuit_target,
+                            H=H,
+                            lattice=lat_h,
+                            h=h,
+                            p_layers=p,
+                            gap=float(gap_arr[idx]),
+                            theta_init=theta_init,
+                            e_init=best_e,
+                            eval_fn=_eval_theta,
+                            continuation_donor=cont_donor,
+                        )
+                        if best_e < energies[idx]:
+                            energies[idx] = best_e
+                    except Exception as _ws_exc:  # noqa: BLE001
+                        logger.debug(f"    h={h:.2f}: warm-start seed skipped ({_ws_exc})")
+
                 try:
                     from qmbp_simulation import VQEConfig, VQEOptimizer
 
@@ -2217,7 +2666,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     e_refined = float(vqe_result.energy)
                     res_x = vqe_result.theta_opt
                     t_refine_elapsed = time.perf_counter() - t_refine_start
-                    logger.info(f"    h={h:.2f}: VQE done in {t_refine_elapsed:.1f}s, E={e_refined:.6f}")
+                    _ws_note = f" [seed={ws_provenance}]" if ws_provenance else ""
+                    logger.info(f"    h={h:.2f}: VQE done in {t_refine_elapsed:.1f}s, E={e_refined:.6f}{_ws_note}")
 
                     # ── Validate refined result before storing ────────────
                     # 1. Energy must be finite
@@ -2266,14 +2716,22 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         refined_theta.append(res_x.copy())
                         refined_energies.append(e_refined)
                         refined_e_exact.append(float(e_exact_arr[idx]))
+                        refined_provenance.append(ws_provenance or "no_warmstart")
                         # Update tracking
                         prev_theta_by_h[h_key] = (res_x.copy(), e_refined)
                         # Reset stale counter — this point just improved
                         self._refine_attempts.pop(h_key, None)
 
                         # ── Immediate persist: NPZ upsert per-point ───────
-                        # Ensures no refined θ is lost on interrupt.
+                        # Ensures no refined θ is lost on interrupt. Record the
+                        # warm-start provenance (which seed fed this VQE) in the
+                        # source_ckpt field so later analysis knows WHICH
+                        # technique produced each training point (analytic
+                        # calibrated/structural/second_order vs transferred NPZ
+                        # donor vs cross-h continuation). Empty when the warm-start
+                        # seed was not adopted (MPNN/prev init kept).
                         gap_i = float(gap_arr[idx])
+                        _ws_src = f"warmstart:{ws_provenance}" if ws_provenance else "vqe_refined"
                         self.persist_theta_npz(
                             npz_path,
                             np.array([h]),
@@ -2283,6 +2741,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             gaps_new=np.array([gap_i]),
                             method_new=["vqe_refined"],
                             quality_tier_new=["verified"],
+                            source_ckpt_new=[_ws_src],
                         )
                         # Note: eval_cache auto-flushes every 50 puts.
                         # Full flush deferred to end of iteration (avoid 5MB
@@ -2304,7 +2763,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
             # ── 2e: Summary (NPZ already persisted per-point above) ───────
             n_updated = len(refined_h)  # all persisted incrementally via upsert_theta_npz
             if refined_h:
-                logger.info(f"  │ VQE refinement: {n_updated} points improved and persisted")
+                from collections import Counter
+
+                _prov_tally = Counter(refined_provenance)
+                _prov_str = ", ".join(f"{k}×{v}" for k, v in _prov_tally.most_common())
+                logger.info(
+                    f"  │ VQE refinement: {n_updated} points improved and persisted "
+                    f"(warm-start seeds: {_prov_str})"
+                )
 
             # Note: All data (predictions + refinements) was persisted immediately
             # via upsert_theta_npz calls above. No bulk save needed.
@@ -2325,6 +2791,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             agg = MultiNAggregator(
                 topology=topo,
                 model=self._physics_model,
+                frustrated=self._is_frustrated,
                 results_dir=self._training_data_dir,
                 max_n=self.N_MAX_VIABLE.get(topo, 20),
                 h_min=getattr(self._args, "train_h_min", None),
@@ -2537,6 +3004,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 _agg_report = MultiNAggregator(
                     topology=topo,
                     model=self._physics_model,
+                    frustrated=self._is_frustrated,
                     results_dir=self._training_data_dir,
                     p_layers=p,
                 )
@@ -2594,6 +3062,381 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "eval_cache_hits": eval_hits,
             "elapsed_s": elapsed_s,
         }
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 3 (alt): Warm-Start A/B comparison
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _descend_to_threshold(self, cost, fid, grad, x0, *, threshold: float, maxiter: int):
+        """L-BFGS-B from ``x0``, recording iters/evals to first reach ``fid>=threshold``.
+
+        Runs ONE L-BFGS-B optimization in the ``[-pi, pi]`` box with the shared
+        adjoint gradient, wrapping ``cost`` to count evaluations and attaching a
+        per-iteration callback that stamps the first iterate whose exact
+        fidelity crosses ``threshold``. This is the honest convergence metric: a
+        warm-start that starts closer is only "better" if it reaches the target
+        state in fewer iterations/evals, not merely at a higher init-fid.
+
+        Returns a dict with ``init_fid``, ``final_fid``, ``final_energy``,
+        ``iters_to_threshold`` (None if never crossed), ``n_iters``, ``n_evals``,
+        and ``reached`` (bool).
+        """
+        import numpy as np
+        from scipy.optimize import minimize
+
+        x0 = np.asarray(x0, dtype=np.float64)
+        init_fid = float(fid(x0))
+
+        n_evals = {"count": 0}
+
+        def _counted_cost(x):
+            n_evals["count"] += 1
+            return cost(x)
+
+        crossing = {"iter": None}
+        it = {"count": 0}
+
+        def _callback(xk):
+            it["count"] += 1
+            if crossing["iter"] is None and fid(xk) >= threshold:
+                crossing["iter"] = it["count"]
+
+        # Init already above threshold → zero refinement iterations needed.
+        if init_fid >= threshold:
+            return {
+                "init_fid": init_fid,
+                "final_fid": init_fid,
+                "final_energy": float(cost(x0)),
+                "iters_to_threshold": 0,
+                "n_iters": 0,
+                "n_evals": 0,
+                "reached": True,
+            }
+
+        r = minimize(
+            _counted_cost,
+            x0,
+            method="L-BFGS-B",
+            jac=grad,
+            bounds=[(-np.pi, np.pi)] * len(x0),
+            options={"maxiter": maxiter, "ftol": 1e-12},
+            callback=_callback,
+        )
+        final_fid = float(fid(r.x))
+        # The callback fires once per accepted iteration; if the final point
+        # crosses but no intermediate iterate did (rare, e.g. a single big
+        # step), attribute the crossing to the last recorded iteration.
+        if crossing["iter"] is None and final_fid >= threshold:
+            crossing["iter"] = int(r.nit)
+        return {
+            "init_fid": init_fid,
+            "final_fid": final_fid,
+            "final_energy": float(r.fun),
+            "iters_to_threshold": crossing["iter"],
+            "n_iters": int(r.nit),
+            "n_evals": n_evals["count"],
+            "reached": crossing["iter"] is not None,
+        }
+
+    def section_compare_warmstart(self) -> dict:
+        """Head-to-head warm-start A/B at each target-N h (held-out N).
+
+        Three arms, each refined by the SAME L-BFGS-B optimizer (shared
+        cost/grad built once per h via :func:`make_cost_fid`):
+
+        - **mpnn**: θ predicted by the multi-N UnifiedMPNN (trained in
+          section_multi_n_train or loaded from the zoo).
+        - **analytic**: the project warm-start cascade via
+          :meth:`_apply_warmstart_seed` (analytic Ising seeds + regime + NPZ
+          cross-N / cross-h donors, ranked by micro-descent).
+        - **cold**: a seeded random θ in ``[-pi, pi]`` (honest baseline).
+
+        For each arm we record init-fidelity, final fidelity, the iteration at
+        which exact fidelity first reaches ``--compare-fid-threshold``, cost
+        evaluations and wall time. A per-arm winner tally (fewest iters-to-
+        threshold, ties broken by higher final fidelity) is reported — honestly,
+        whether or not the MPNN wins.
+
+        Statevector-regime only (N ≤ STATEVECTOR_MAX_N), since the exact ground
+        eigenvector is needed for the fidelity metric.
+        """
+        import time
+
+        import numpy as np
+        import torch
+        from scipy.sparse.linalg import eigsh
+
+        from qmbp_simulation.framework.study_core import make_cost_fid
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors.unified_graph import UNIFIED_NODE_FEATURES
+
+        topo = self._args.topology
+        threshold = float(getattr(self._args, "compare_fid_threshold", 0.90))
+        maxiter = int(getattr(self._args, "compare_maxiter", 200))
+        spec = get_model_spec(self._physics_model).with_params(**self._model_kwargs)
+
+        all_results: dict = {}
+        for p in self._args.p_layers:
+            # Reuse the exact model-resolution path from section_cross_n_predict:
+            # memory (just trained) → zoo best → optional train. Never silently
+            # fabricate a model.
+            model = self._models.get(p)
+            if model is None:
+                _train_if_missing = not (self._args.from_zoo or bool(getattr(self._args, "checkpoint", None)))
+                model = self.load_best_mpnn_for_cross_n(
+                    n_target=self._args.target_n[0],
+                    model=self._physics_model,
+                    topology=topo,
+                    p_layers=p,
+                    checkpoint_path=self._args.checkpoint,
+                    train_if_missing=_train_if_missing,
+                    train_epochs=FULL_TRAIN_EPOCHS,
+                )
+            if model is None:
+                all_results[f"p{p}"] = {"pass": False, "error": "No model available for comparison"}
+                continue
+            model.eval()
+
+            # Match the prediction graph feature dim to the loaded model.
+            _model_feat = getattr(model, "node_features", UNIFIED_NODE_FEATURES)
+            self._orbit_feature_effective = _model_feat > UNIFIED_NODE_FEATURES
+
+            for n_target in self._args.target_n:
+                if n_target > STATEVECTOR_MAX_N:
+                    logger.warning(
+                        f"  Skipping N={n_target}: compare-warmstart needs the exact "
+                        f"ground state (N ≤ {STATEVECTOR_MAX_N})."
+                    )
+                    all_results[f"p{p}_N{n_target}"] = {
+                        "pass": False,
+                        "error": f"N={n_target} > STATEVECTOR_MAX_N",
+                    }
+                    continue
+
+                logger.info(
+                    f"  Warm-start A/B: N={n_target}, p={p}, topology={topo}, "
+                    f"threshold F≥{threshold:.2f}, maxiter={maxiter}"
+                )
+                lattice = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+                circuit, _ = self._build_circuit(n_target, p, lattice)
+                n_params = circuit.num_parameters
+                rng_cold = np.random.default_rng(123)
+
+                per_h: list[dict] = []
+                for h in self._h_values:
+                    lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                    H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+
+                    # Exact ground eigenvector + gap (statevector regime).
+                    ev, evec = eigsh(H.to_matrix(sparse=True), k=2, which="SA")
+                    order = np.argsort(ev)
+                    psi = evec[:, order[0]].astype(complex)
+                    e0 = float(ev[order[0]])
+                    gap = float(ev[order[1]] - ev[order[0]])
+
+                    # Shared cost/fid/grad for ALL arms at this h (one build).
+                    cost, fid, grad, _backend = make_cost_fid(circuit, H, psi)
+
+                    def _eval_theta(th, _c=cost):
+                        return float(_c(th))
+
+                    arms: dict = {}
+
+                    # ── Arm 1: MPNN prediction ─────────────────────────────
+                    try:
+                        g = self._build_graph(lat_h, float(h), p, include_circuit_nodes=True)
+                        with torch.no_grad():
+                            theta_mpnn = model(g).numpy().flatten()
+                        theta_mpnn = np.clip(theta_mpnn, -np.pi, np.pi)
+                        if len(theta_mpnn) != n_params:
+                            theta_mpnn = (
+                                np.pad(theta_mpnn, (0, n_params - len(theta_mpnn)))
+                                if len(theta_mpnn) < n_params
+                                else theta_mpnn[:n_params]
+                            )
+                        t0 = time.perf_counter()
+                        arms["mpnn"] = self._descend_to_threshold(
+                            cost, fid, grad, theta_mpnn, threshold=threshold, maxiter=maxiter
+                        )
+                        arms["mpnn"]["seconds"] = time.perf_counter() - t0
+                        arms["mpnn"]["provenance"] = "mpnn"
+                    except Exception as e:  # noqa: BLE001
+                        logger.debug(f"    h={h:.2f}: MPNN arm failed: {e}")
+                        arms["mpnn"] = {"error": str(e)}
+
+                    # ── Arm 2: analytic + donor cascade ────────────────────
+                    try:
+                        theta_zero = np.zeros(n_params)
+                        seed_theta, _e_seed, prov = self._apply_warmstart_seed(
+                            circuit=circuit,
+                            H=H,
+                            lattice=lat_h,
+                            h=float(h),
+                            p_layers=p,
+                            gap=gap,
+                            theta_init=theta_zero,
+                            e_init=float(cost(theta_zero)),
+                            eval_fn=_eval_theta,
+                        )
+                        t0 = time.perf_counter()
+                        arms["analytic"] = self._descend_to_threshold(
+                            cost, fid, grad, seed_theta, threshold=threshold, maxiter=maxiter
+                        )
+                        arms["analytic"]["seconds"] = time.perf_counter() - t0
+                        arms["analytic"]["provenance"] = prov or "regime"
+                    except Exception as e:  # noqa: BLE001
+                        logger.debug(f"    h={h:.2f}: analytic arm failed: {e}")
+                        arms["analytic"] = {"error": str(e)}
+
+                    # ── Arm 3: cold random seed ────────────────────────────
+                    try:
+                        theta_cold = rng_cold.uniform(-np.pi, np.pi, n_params)
+                        t0 = time.perf_counter()
+                        arms["cold"] = self._descend_to_threshold(
+                            cost, fid, grad, theta_cold, threshold=threshold, maxiter=maxiter
+                        )
+                        arms["cold"]["seconds"] = time.perf_counter() - t0
+                        arms["cold"]["provenance"] = "cold_random"
+                    except Exception as e:  # noqa: BLE001
+                        logger.debug(f"    h={h:.2f}: cold arm failed: {e}")
+                        arms["cold"] = {"error": str(e)}
+
+                    winner = self._compare_arms_winner(arms, threshold)
+                    per_h.append(
+                        {
+                            "h": float(h),
+                            "e0": e0,
+                            "gap": gap,
+                            "arms": arms,
+                            "winner": winner,
+                        }
+                    )
+                    _fmt = self._fmt_arm_row(arms)
+                    logger.info(f"    h={float(h):.2f}: {_fmt} → winner={winner}")
+
+                summary = self._summarize_compare(per_h, threshold)
+                self._log_compare_table(per_h, n_target, p, threshold, summary)
+                all_results[f"p{p}_N{n_target}"] = {
+                    "pass": summary["mpnn_reached"] > 0,
+                    "threshold": threshold,
+                    "maxiter": maxiter,
+                    "per_h": per_h,
+                    "summary": summary,
+                }
+
+        passed = any(r.get("pass") for r in all_results.values())
+        return {"pass": passed, "per_config": all_results}
+
+    @staticmethod
+    def _compare_arms_winner(arms: dict, threshold: float) -> str:
+        """Pick the arm with fewest iters-to-threshold; tie → higher final fid.
+
+        Arms that never reached the threshold rank below any that did. Among
+        non-reaching arms, higher final fidelity wins. Errored arms are excluded.
+        """
+        valid = {k: v for k, v in arms.items() if isinstance(v, dict) and "error" not in v}
+        if not valid:
+            return "none"
+
+        def _key(item):
+            _name, a = item
+            reached = a.get("iters_to_threshold") is not None
+            iters = a.get("iters_to_threshold")
+            iters = iters if iters is not None else float("inf")
+            # Sort: reached-first (0 before 1), then fewer iters, then higher fid.
+            return (0 if reached else 1, iters, -float(a.get("final_fid", 0.0)))
+
+        return min(valid.items(), key=_key)[0]
+
+    @staticmethod
+    def _fmt_arm_row(arms: dict) -> str:
+        """Compact one-line per-h arm summary for the live log."""
+        parts = []
+        for name in ("mpnn", "analytic", "cold"):
+            a = arms.get(name)
+            if not isinstance(a, dict) or "error" in a:
+                parts.append(f"{name}=ERR")
+                continue
+            itx = a.get("iters_to_threshold")
+            itx_s = str(itx) if itx is not None else "∞"
+            parts.append(f"{name}[F0={a.get('init_fid', 0):.3f}→{a.get('final_fid', 0):.3f} it={itx_s}]")
+        return " ".join(parts)
+
+    @staticmethod
+    def _summarize_compare(per_h: list[dict], threshold: float) -> dict:
+        """Aggregate per-arm wins, reach counts, and mean iters/init-fid."""
+        import numpy as np
+
+        arms = ("mpnn", "analytic", "cold")
+        wins = {a: 0 for a in arms}
+        reached = {a: 0 for a in arms}
+        iters_when_reached = {a: [] for a in arms}
+        init_fids = {a: [] for a in arms}
+        for row in per_h:
+            w = row.get("winner")
+            if w in wins:
+                wins[w] += 1
+            for a in arms:
+                arm = row["arms"].get(a)
+                if not isinstance(arm, dict) or "error" in arm:
+                    continue
+                init_fids[a].append(float(arm.get("init_fid", 0.0)))
+                if arm.get("iters_to_threshold") is not None:
+                    reached[a] += 1
+                    iters_when_reached[a].append(int(arm["iters_to_threshold"]))
+        return {
+            "n_points": len(per_h),
+            "wins": wins,
+            "mpnn_reached": reached["mpnn"],
+            "reached": reached,
+            "mean_iters_when_reached": {
+                a: (float(np.mean(iters_when_reached[a])) if iters_when_reached[a] else None) for a in arms
+            },
+            "mean_init_fid": {a: (float(np.mean(init_fids[a])) if init_fids[a] else None) for a in arms},
+        }
+
+    @staticmethod
+    def _log_compare_table(per_h: list[dict], n_target: int, p: int, threshold: float, summary: dict) -> None:
+        """Emit the per-h comparison table + aggregate verdict to the log."""
+        lines = [
+            "",
+            f"  ┌─ Warm-start A/B — N={n_target} p={p} (F≥{threshold:.2f}) " + "─" * 20,
+            "  │  h     | MPNN F0→Ff it  | ANALYTIC F0→Ff it  | COLD F0→Ff it   | winner",
+            "  │  " + "-" * 78,
+        ]
+        for row in per_h:
+            h = row["h"]
+            cells = []
+            for name in ("mpnn", "analytic", "cold"):
+                a = row["arms"].get(name)
+                if not isinstance(a, dict) or "error" in a:
+                    cells.append("   ERR         ")
+                    continue
+                itx = a.get("iters_to_threshold")
+                itx_s = f"{itx:>3}" if itx is not None else "  ∞"
+                cells.append(f"{a.get('init_fid', 0):.3f}→{a.get('final_fid', 0):.3f} {itx_s}")
+            lines.append(f"  │  {h:<5.2f} | {cells[0]} | {cells[1]}  | {cells[2]}  | {row['winner']}")
+        wins = summary["wins"]
+        reached = summary["reached"]
+        mean_it = summary["mean_iters_when_reached"]
+        lines.append("  │  " + "-" * 78)
+        lines.append(
+            f"  │  WINS: mpnn={wins['mpnn']} analytic={wins['analytic']} cold={wins['cold']}  "
+            f"(of {summary['n_points']} points)"
+        )
+        lines.append(
+            f"  │  REACHED F≥{threshold:.2f}: "
+            f"mpnn={reached['mpnn']} analytic={reached['analytic']} cold={reached['cold']}"
+        )
+
+        def _mi(a):
+            return f"{mean_it[a]:.1f}" if mean_it[a] is not None else "n/a"
+
+        lines.append(f"  │  MEAN ITERS→thr: mpnn={_mi('mpnn')} analytic={_mi('analytic')} cold={_mi('cold')}")
+        lines.append("  └" + "─" * 70)
+        logger.info("\n".join(lines))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

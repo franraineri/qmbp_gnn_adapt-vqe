@@ -85,6 +85,80 @@ def build_trotter_step_from_topology(
     return build_trotter_step(lattice, dt, order=order, model=model)
 
 
+def build_frustrated_trotter_step(
+    n_qubits: int,
+    nn_edges: list[tuple[int, int]],
+    nnn_edges: list[tuple[int, int]],
+    h: float,
+    dt: float,
+    *,
+    j2: float = 0.5,
+    order: int = 2,
+) -> QuantumCircuit:
+    """Second-order Trotter step of the frustrated TFIM (J1-J2).
+
+    H = -J₁·Σ_nn Z_iZ_j + J₂·Σ_nnn Z_iZ_j - h·Σ X_i  (J₁ = 1).
+
+    nn bonds are ferromagnetic (−J₁), nnn bonds antiferromagnetic (+J₂). The
+    nnn layer flips the sign via ``J=-j2`` so the shared ``_apply_zz_layer``
+    (which emits ``RZZ(-2·J·dt)``) produces the ``+j2`` coupling.
+    """
+    if order not in (1, 2):
+        raise ValueError(f"Trotter order must be 1 or 2, got {order}")
+    qc = QuantumCircuit(n_qubits)
+
+    def _zz_layers(step_dt: float) -> None:
+        _apply_zz_layer(qc, nn_edges, 1.0, step_dt)
+        _apply_zz_layer(qc, nnn_edges, -j2, step_dt)
+
+    if order == 1:
+        _zz_layers(dt)
+        _apply_x_layer(qc, n_qubits, h, dt)
+    else:
+        _zz_layers(dt / 2.0)
+        _apply_x_layer(qc, n_qubits, h, dt)
+        _zz_layers(dt / 2.0)
+    return qc
+
+
+def build_kitaev_trotter_step(
+    n_qubits: int,
+    edges: list[tuple[int, int]],
+    mu: float,
+    dt: float,
+    *,
+    delta: float = 0.0,
+    order: int = 2,
+) -> QuantumCircuit:
+    """Second-order Trotter step of the anisotropic Kitaev-like chain.
+
+    H = -J·Σ_edges [ (1+Δ)/2·X_iX_j + (1-Δ)/2·Y_iY_j ] - μ·Σ Z_i  (J = 1).
+
+    The transverse field favours |0⟩^N, so the natural initial state for a
+    quench from this model is ``"zero"`` (not ``"plus"``).
+    """
+    if order not in (1, 2):
+        raise ValueError(f"Trotter order must be 1 or 2, got {order}")
+    qc = QuantumCircuit(n_qubits)
+    a_xx = (1.0 + delta) / 2.0
+    a_yy = (1.0 - delta) / 2.0
+
+    def _two_body(step_dt: float) -> None:
+        for i, j in edges:
+            qc.rxx(-2 * step_dt * a_xx, i, j)
+            if abs(a_yy) > 1e-15:
+                qc.ryy(-2 * step_dt * a_yy, i, j)
+
+    if order == 1:
+        _two_body(dt)
+        _apply_z_layer(qc, n_qubits, mu, dt)
+    else:
+        _two_body(dt / 2.0)
+        _apply_z_layer(qc, n_qubits, mu, dt)
+        _two_body(dt / 2.0)
+    return qc
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Internal: model-specific Trotter decompositions
 # ═══════════════════════════════════════════════════════════════════════════════

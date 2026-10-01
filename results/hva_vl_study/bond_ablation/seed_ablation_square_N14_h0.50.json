@@ -1,0 +1,121 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/seed_ablation_square_N14_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_seed_ablation_study.py",
+  "generated_utc": "2026-10-02T14:15:21.019900+00:00",
+  "params": {
+    "experiment": "seed_ablation",
+    "N": 14,
+    "h": 0.5
+  },
+  "description": "Structure-vs-warmstart: pruned ans\u00e4tze optimized from 4 seeds",
+  "rows": [
+    {
+      "variant": "p2_half_nn_rx_prune0.15_nn11_nnn8",
+      "n_qubits": 14,
+      "n_2q": 98,
+      "n_params": 105,
+      "queue_fidelity": 0.8967117545380447,
+      "best_fidelity": 0.9042790528571358,
+      "best_seed": "transfer<full>",
+      "per_seed_fidelity": {
+        "analytic": 0.8499363165865115,
+        "transfer<full>": 0.9042790528571358,
+        "random1": 0.8212412969572342,
+        "random2": 0.8173005381756956
+      },
+      "seconds": 288.3,
+      "verdict": "structure-limited"
+    },
+    {
+      "variant": "p2_half_nn_rx_prune0.2_nn9_nnn7",
+      "n_qubits": 14,
+      "n_2q": 82,
+      "n_params": 97,
+      "queue_fidelity": 0.7510641385500839,
+      "best_fidelity": 0.7201930403408998,
+      "best_seed": "transfer<full>",
+      "per_seed_fidelity": {
+        "analytic": 0.6755653599140748,
+        "transfer<full>": 0.7201930403408998,
+        "random1": 0.2048972025695887,
+        "random2": 0.02737214664066752
+      },
+      "seconds": 165.1,
+      "verdict": "structure-limited"
+    },
+    {
+      "variant": "p2_half_nn_rx_prune0.3_nn8_nnn6",
+      "n_qubits": 14,
+      "n_2q": 72,
+      "n_params": 92,
+      "queue_fidelity": 0.7079194004206223,
+      "best_fidelity": 0.7079543722423375,
+      "best_seed": "analytic",
+      "per_seed_fidelity": {
+        "analytic": 0.7079543722423375,
+        "transfer<full>": 0.70786534508103,
+        "random1": 0.20307192001185703,
+        "random2": 0.20160742215561409
+      },
+      "seconds": 90.9,
+      "verdict": "structure-limited"
+    },
+    {
+      "variant": "p2_half_nn_rx_topk4of27_nn12of20",
+      "n_qubits": 14,
+      "n_2q": 88,
+      "n_params": 100,
+      "queue_fidelity": 0.615892000768847,
+      "best_fidelity": 0.615845689416381,
+      "best_seed": "analytic",
+      "per_seed_fidelity": {
+        "analytic": 0.615845689416381,
+        "transfer<full>": 0.6046976194347518,
+        "random1": 0.6055274207476266,
+        "random2": 0.6066142138356907
+      },
+      "seconds": 102.1,
+      "verdict": "structure-limited"
+    },
+    {
+      "variant": "p2_half_nn_rx_topk5of27_nn12of20",
+      "n_qubits": 14,
+      "n_2q": 92,
+      "n_params": 102,
+      "queue_fidelity": 0.6148280699404383,
+      "best_fidelity": 0.6138214556884056,
+      "best_seed": "analytic",
+      "per_seed_fidelity": {
+        "analytic": 0.6138214556884056,
+        "transfer<full>": 0.6130960922782904,
+        "random1": 0.5852327882634157,
+        "random2": 0.607297733434635
+      },
+      "seconds": 100.4,
+      "verdict": "structure-limited"
+    },
+    {
+      "variant": "prune0.3",
+      "n_qubits": 14,
+      "n_2q": 120,
+      "n_params": 102,
+      "queue_fidelity": 0.9127161274356126,
+      "best_fidelity": 0.5103376850330159,
+      "best_seed": "analytic",
+      "per_seed_fidelity": {
+        "analytic": 0.5103376850330159,
+        "random1": 0.48351637598022884,
+        "random2": 0.3944697048986684
+      },
+      "seconds": 53.9,
+      "verdict": "structure-limited"
+    }
+  ],
+  "topology": "square",
+  "N": 14,
+  "h": 0.5,
+  "e0": -13.161349053308468,
+  "gap": 0.008926523961518384,
+  "maxiter": 800,
+  "schema": "seed_ablation_v1"
+}

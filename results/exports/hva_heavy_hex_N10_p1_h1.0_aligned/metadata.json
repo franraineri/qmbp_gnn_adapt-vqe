@@ -1,0 +1,112 @@
+{
+  "topology": "heavy_hex",
+  "n_qubits": 10,
+  "p_layers": 1,
+  "model": "tfim_bond_resolved",
+  "h": 1.0,
+  "J": 1.0,
+  "ansatz": "bond_resolved_hva",
+  "n_parameters": 19,
+  "n_edges": 9,
+  "edges": [
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      3,
+      4
+    ],
+    [
+      4,
+      5
+    ],
+    [
+      5,
+      6
+    ],
+    [
+      1,
+      7
+    ],
+    [
+      3,
+      8
+    ],
+    [
+      5,
+      9
+    ]
+  ],
+  "parameter_order": [
+    "theta_zz[0] (edge 0-1)",
+    "theta_zz[1] (edge 1-2)",
+    "theta_zz[2] (edge 2-3)",
+    "theta_zz[3] (edge 3-4)",
+    "theta_zz[4] (edge 4-5)",
+    "theta_zz[5] (edge 5-6)",
+    "theta_zz[6] (edge 1-7)",
+    "theta_zz[7] (edge 3-8)",
+    "theta_zz[8] (edge 5-9)",
+    "theta_x[0] (qubit 0)",
+    "theta_x[1] (qubit 1)",
+    "theta_x[2] (qubit 2)",
+    "theta_x[3] (qubit 3)",
+    "theta_x[4] (qubit 4)",
+    "theta_x[5] (qubit 5)",
+    "theta_x[6] (qubit 6)",
+    "theta_x[7] (qubit 7)",
+    "theta_x[8] (qubit 8)",
+    "theta_x[9] (qubit 9)"
+  ],
+  "gate_convention": "RZZ(2*theta_zz_k) per edge; RX(2*theta_x_i) per qubit; init |+>^N",
+  "hamiltonian": "H = -J * sum_edges Z_i Z_j - h * sum_i X_i",
+  "e_exact": -12.472174782078312,
+  "gap": 0.2201304286897603,
+  "qiskit_version": "2.2.3",
+  "generated_utc": "2026-09-30T20:59:43.733983+00:00",
+  "native_basis": [
+    "cz",
+    "rz",
+    "sx",
+    "x"
+  ],
+  "logical_stats": {
+    "depth": 9,
+    "depth_2q": 7,
+    "n_2q_gates": 9,
+    "gate_counts": {
+      "h": 10,
+      "rx": 10,
+      "rzz": 9
+    }
+  },
+  "native_stats": {
+    "depth": 57,
+    "depth_2q": 14,
+    "n_2q_gates": 18,
+    "gate_counts": {
+      "rz": 59,
+      "sx": 57,
+      "cz": 18,
+      "x": 7
+    }
+  },
+  "transpile": {
+    "optimization_level": 3,
+    "seed_transpiler": 42
+  },
+  "e_gnn": -11.830233233324094,
+  "abs_error": 0.6419415487542182,
+  "de_gap": 2.9161872466933465,
+  "fidelity": 0.7290311778371005,
+  "angle_source": "hardware_job_initial (theta_gnn_initial, matches experiment 2)"
+}

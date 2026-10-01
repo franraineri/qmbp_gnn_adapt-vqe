@@ -1,6 +1,6 @@
 # Cross-Topology Unified Report
 
-**Generated**: 2026-09-30 14:28 UTC
+**Generated**: 2026-10-02 19:17 UTC
 **Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)
 **Model**: TFIM bond-resolved, HVA p=1
 

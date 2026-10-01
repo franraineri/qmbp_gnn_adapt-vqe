@@ -154,22 +154,35 @@ def is_point_failure(
     fidelity_is_bound: bool = False,
 ) -> bool:
     """Determine if a single evaluation point is a failure using the dual
-    energy criterion.
+    energy criterion with an optional fidelity override.
 
-    A point fails if ANY of these conditions hold:
+    Base (energy) criterion — a point fails if ANY of these hold:
     1. ΔE/gap >= threshold (relative error too large)
     2. |ΔE| > max_abs_error (absolute error too large, prevents gap masking)
 
-    Fidelity is OFF by default as a pass/fail criterion (recorded as a
-    diagnostic only), because at large N it is a lower bound and would
-    misclassify good points. It can be OPTIONALLY enabled by passing both
-    ``fidelity`` and ``min_fidelity``: a point then also fails if
-    ``fidelity < min_fidelity``. A ``fidelity_is_bound=True`` value (Eckart
-    lower bound at large N) is NEVER used to fail a point, since a low bound is
-    inconclusive — only an exact fidelity below the threshold gates.
+    Fidelity (optional, both ``fidelity`` and ``min_fidelity`` supplied, and the
+    value is EXACT — ``fidelity_is_bound=False``) acts as a TWO-WAY signal:
+
+    - OVERRIDE (rescue): an exact fidelity ``>= min_fidelity`` makes the point
+      PASS even when ΔE/gap is large. Near a quantum phase transition the
+      spectral gap becomes tiny, so ΔE/gap explodes for a state that is actually
+      excellent (e.g. fidelity 0.99 with ΔE/gap=1.35 when gap≈0.01). Fidelity is
+      the physically meaningful signal there; without this override the loop
+      would refine such a prime point forever and mislabel good training data.
+    - GATE: an exact fidelity ``< min_fidelity`` fails the point even if the
+      energy criterion passes (guards against gap-masked low-fidelity states).
+
+    A lower-bound fidelity (``fidelity_is_bound=True``, Eckart bound at large N)
+    is NEVER used to override OR gate — a low bound is inconclusive — so such
+    points fall back to the pure energy criterion.
+
+    When no fidelity is supplied the behavior is IDENTICAL to the pure dual
+    energy criterion (backward compatible).
 
     Handles edge cases:
-    - NaN/Inf in de_gap or abs_error → automatic failure (corrupted data)
+    - NaN/Inf in de_gap or abs_error → automatic failure (corrupted data),
+      unless an exact fidelity override applies (a non-finite ΔE/gap from a
+      divide-by-tiny-gap must not override a genuinely good state).
     - abs_error not available → only ΔE/gap is checked
     - Negative de_gap → flagged as failure (indicates variational violation)
 
@@ -184,12 +197,35 @@ def is_point_failure(
         Threshold for ΔE/gap criterion (default: 0.05).
     max_abs_error : float
         Cap on absolute error (default: 0.10).
+    fidelity : float | None
+        State fidelity F(|ψ(θ)>, |ψ_exact>) in [0, 1], or None if unavailable.
+    min_fidelity : float | None
+        Fidelity acceptance floor. Enables the two-way fidelity signal above
+        when both this and an EXACT ``fidelity`` are supplied.
+    fidelity_is_bound : bool
+        True if ``fidelity`` is a lower bound (large-N Eckart estimate) rather
+        than an exact value — then it is ignored for pass/fail.
 
     Returns
     -------
     bool
         True if the point is a failure (should be refined).
     """
+    # An EXACT fidelity is authoritative for this ansatz family: use it as the
+    # primary signal when available. Checked BEFORE the ΔE/gap guards, because
+    # near-critical points legitimately produce huge or even non-finite ΔE/gap
+    # (gap→0) while the state itself is excellent.
+    have_exact_fid = (
+        min_fidelity is not None
+        and fidelity is not None
+        and not fidelity_is_bound
+        and np.isfinite(fidelity)
+    )
+    if have_exact_fid:
+        if fidelity >= min_fidelity:
+            return False  # OVERRIDE: high-fidelity state passes regardless of ΔE/gap
+        return True  # GATE: low exact fidelity fails (gap-masked bad state)
+
     # Guard: NaN/Inf in de_gap is always a failure
     if not np.isfinite(de_gap):
         return True
@@ -208,13 +244,6 @@ def is_point_failure(
         if not np.isfinite(abs_error):
             return True
         if abs_error > max_abs_error:
-            return True
-
-    # Criterion 3 (OPT-IN): fidelity floor. Only when a threshold is supplied
-    # and the fidelity is an EXACT value (never gate on a lower bound, which is
-    # inconclusive when low). Off by default → identical to the dual criterion.
-    if min_fidelity is not None and fidelity is not None and not fidelity_is_bound:
-        if np.isfinite(fidelity) and fidelity < min_fidelity:
             return True
 
     return False

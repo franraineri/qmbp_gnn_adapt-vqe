@@ -1,8 +1,8 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-09-30 14:28 UTC
-**Elapsed**: 0.4s
-**Models evaluated**: 20
+**Generated**: 2026-10-02 19:18 UTC
+**Elapsed**: 1.1s
+**Models evaluated**: 23
 
 ---
 
@@ -86,6 +86,18 @@
 
 *No evaluation data available.*
 
+## square — `unified_tfim_br_square_multiN_8_p2.pt`
+
+*No evaluation data available.*
+
+## square — `unified_tfim_br_square_multiN_8+10_p2.pt`
+
+*No evaluation data available.*
+
+## square — `unified_tfim_br_square_multiN_8+10_p2_v2.pt`
+
+*No evaluation data available.*
+
 ---
 
 ## Summary Ranking
@@ -112,12 +124,15 @@
 | ladder | unified_tfim_br_ladder_multiN_4+6+8+10+12+14+20+26 | — | — | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4 | — | — | F (failing) |
 | heavy_hex | unifMPNN__heavy_hex_p1_signinv_fid_v1.pt | — | — | F (failing) |
+| square | unified_tfim_br_square_multiN_8_p2.pt | — | — | F (failing) |
+| square | unified_tfim_br_square_multiN_8+10_p2.pt | — | — | F (failing) |
+| square | unified_tfim_br_square_multiN_8+10_p2_v2.pt | — | — | F (failing) |
 
 ---
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-09-30 14:28 UTC
+**Generated**: 2026-10-02 19:18 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

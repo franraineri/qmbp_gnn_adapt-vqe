@@ -268,3 +268,29 @@ def _upsert_npz(npz_path, h_new, theta_new, e_vqe_new, ...):
         ...
     np.savez(npz_path, ...)
 ```
+
+
+## vl_vs_hva Study Runner Helpers (MANDATORY — no re-implementation)
+
+Every `scripts/analysis/vl_vs_hva/run_*.py` study runner shares four concerns
+that are now centralized. When writing or editing a study runner, REUSE these —
+never re-implement the row dict, the optimize wrapper, the per-bond weights, or
+the persist/on_restart boilerplate (they diverged silently in the past: `de_gap`
+was missing in some rows).
+
+| Need | Reuse (never inline) |
+|------|----------------------|
+| Converge one circuit (cost/fid build + best-of) | `study_core.converge_circuit(qc, H, psi, *, restarts, maxiter, seed0, warm_theta, on_restart, backend)` |
+| The per-variant result dict | `study_core.build_variant_row(name, fid, e_best, runs, *, n_2q, n_params, e0, gap, blocks=, rx_final=, bond_selection=, seed_kind=, seconds=, **extra)` |
+| Crash-safe partial+final persist | `hva_vl_study_common.StudyPersister(subdir, out_file, fingerprint, extra, params, description, rows_ref, total_restarts)` → `.persist(rows, status)`, `.restart_callback(label, n2q, npar)` |
+| Post-run scoreboard refresh | `hva_vl_study_common.sync_scoreboard()` at end of `run()`, gated by a `--no-sync` flag (fire-and-forget, idempotent) |
+| Per-bond \|θ\| for standard `[nn,nnn,x]*p` | `bond_mask.bond_weights_from_theta(theta, n_nn, n_nnn, n_qubits, p)` |
+| Per-bond \|θ\| for arbitrary structure (half_nn_rx, …) | `bond_mask.bond_weights_for_blocks(theta, blocks, n_nn, n_nnn, n_qubits, rx_final=, rz_final=)` |
+| θ → BondSelection (T1 prune / T2 top-k) on any structure | `bond_mask.selection_from_variant_theta(theta, blocks, nn_edges, nnn_edges, n_qubits, *, rx_final=, method='top_k'|'prune', keep_frac=, tol=)` |
+
+Rules:
+
+- **MANDATORY warm-start**: every converged circuit (reference/full AND every masked/pruned variant) must get its seed from `study_core.prepare_warmstart` (the full cascade: calibrated + regime + transferred donors + micro-descent). Never converge from θ=0 or a bare analytic seed. Pass `ws["seed"]` to `converge_circuit(warm_theta=...)` and persist `ws["provenance"]` as `seed_kind`. For non-standard structures, inject structure-aware seeds as `extra_candidates` with `target_len=qc.num_parameters`.
+- A shared `NoiselessBackend()` per sweep passed to `converge_circuit(..., backend=backend)` reuses the cached dense Hamiltonian across variants — create ONE, not one per circuit.
+- To prune/subset bonds on a structure variant, use `selection_from_variant_theta`, NOT hand-sliced θ assuming the uniform-layer offset.
+- Detect new duplication by searching for repeated helper names across runners (`_bond_weights`, `_optimize`, inline result dicts, inline `build_resumable_payload` wrappers) — if two runners share it, it belongs in `study_core` / `bond_mask` / `hva_vl_study_common`.

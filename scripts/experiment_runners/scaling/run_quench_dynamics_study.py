@@ -204,6 +204,8 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             "When set, Section 1 iterates over all N values, producing one trajectory "
             "per N. Required for validate_dqpt_results scaling checks (needs >=4 N).",
         )
+        # NOTE: --j2 is provided by the base parser (runner_base) and consumed via
+        # self.model_kwargs(); do not redefine it here (argparse conflict).
 
     def build_config(self) -> dict:
         args = self._args
@@ -216,6 +218,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                 "topology": topo,
                 "model": args.model or "tfim",
                 "p_layers": args.p_layers,
+                "j2": args.j2,
             },
             "quench": {
                 "h1": args.h1,
@@ -249,6 +252,16 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                     "demonstrated quantum advantage regime."
                 ),
                 fn=self.section_mps_crossover,
+            ),
+            Section(
+                id=4,
+                name="Resource + noise budget (heavy-hex, t_noise vs t*)",
+                hypothesis=(
+                    "A quantum-advantage window exists only if the hardware "
+                    "noise horizon t_noise (predicted circuit fidelity > 1/e) "
+                    "exceeds the classical crossover t*."
+                ),
+                fn=self.section_resource_noise_budget,
             ),
             Section(
                 id=3,
@@ -349,7 +362,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             lattice_h2, H2_op = self._h2_op_cache[cache_key_h2]
         else:
             lattice_h2 = self.make_lattice(topo, n, J=1.0, h=args.h2)
-            H2_op = self.builder.build(lattice_h2)
+            H2_op = self._build_quench_hamiltonian(lattice_h2)
             self._h2_op_cache[cache_key_h2] = (lattice_h2, H2_op)
 
         if n > _ED_MAX_N:
@@ -575,6 +588,252 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
 
     # ─── Section 3: Preparation Cost ─────────────────────────────────────────
 
+    def section_resource_noise_budget(self) -> dict:
+        """Resource count + error-budget model over the full Trotter evolution.
+
+        For each accumulated Trotter depth k = 0..n_trotter, transpile the
+        evolution circuit to the real heavy-hex backend (FakeTorino, Heron) and
+        apply the gate-count error model F ≈ exp(−Σ nᵢ·εᵢ). Estimates t_noise =
+        the step where the predicted circuit fidelity drops below 1/e, i.e. where
+        hardware noise overwhelms the signal. Compared against the classical
+        crossover t* (section 2): a quantum-advantage window exists only when
+        t*_classical < t_noise.
+
+        Runs automatically on every quench run. Diagnostic — never gates pass.
+        """
+        args = self._args
+        n = args.n_qubits
+        topo = self._topology
+        curve = self._estimate_tnoise_curve(n, topo, args.h2, args.dt, args.n_trotter)
+
+        t_noise = curve["t_noise_step"]
+        logger.info(f"  Resource/noise budget ({curve['backend']}, {curve['error_rates_source']}):")
+        logger.info(
+            f"    logical 2q/step={curve['logical_2q_per_step']}, "
+            f"transpiled 2q/step≈{curve['transpiled_2q_per_step']:.0f} "
+            f"(routing overhead ×{curve['routing_overhead']:.1f})"
+        )
+        logger.info(
+            f"    t_noise = step {t_noise} (t={curve['t_noise_time']}) "
+            f"[F<1/e]; F@last_step={curve['fidelity_curve'][-1]:.3f}"
+        )
+
+        # Compare against the classical crossover if section 2 produced one.
+        window = None
+        t_star = self._last_crossover_step()
+        if t_star is not None:
+            window = {
+                "t_star_classical": t_star,
+                "t_noise": t_noise,
+                "has_advantage_window": t_noise is not None and t_star < t_noise,
+            }
+            verdict = "WINDOW ✅" if window["has_advantage_window"] else "no window ❌"
+            logger.info(f"    vs classical crossover t*={t_star}: {verdict}")
+
+        result = {
+            "n_qubits": n,
+            "topology": topo,
+            **curve,
+            "window": window,
+            "pass": True,
+        }
+        try:
+            self._persist_resource_noise_json(result)
+        except Exception as e:
+            logger.warning(f"  resource/noise JSON persistence failed (non-blocking): {e}")
+        return result
+
+    def _estimate_tnoise_curve(self, n, topo, h2, dt, n_steps, fidelity_floor=None):
+        """Transpile prep + k Trotter steps to real HW and apply exp(−budget).
+
+        Returns the fidelity-vs-depth curve and t_noise (first step with
+        predicted fidelity < fidelity_floor, default 1/e). Prep is |+⟩^N (the
+        minimal-cost preparation); the evolution circuit is what scales with
+        depth, so it dominates the resource/noise budget.
+        """
+        from qiskit import transpile
+        from qiskit.circuit import QuantumCircuit
+
+        from qmbp_simulation.analysis.circuit_visualizer import compute_error_budget
+
+        if fidelity_floor is None:
+            fidelity_floor = float(np.exp(-1.0))  # 1/e ≈ 0.368
+
+        backend, backend_name = self._get_fake_backend()
+
+        trotter_step = self._build_trotter_step_circuit(n, topo, h2, dt)
+        logical_2q_per_step = sum(
+            1 for inst in trotter_step.data if inst.operation.num_qubits == 2
+        )
+
+        prep = QuantumCircuit(n)
+        prep.h(range(n))  # |+⟩^N minimal-cost preparation
+
+        # Resume from checkpoint if a prior run was interrupted mid-sweep.
+        cp_label = f"tnoise_N{n}_{topo}_h{h2:.2f}_dt{dt:.3f}"
+        cp = self.load_checkpoint(cp_label)
+        if cp and cp.get("n_steps") == n_steps and abs(cp.get("dt", -1) - dt) < 1e-12:
+            fidelity_curve = list(cp["fidelity_curve"])
+            error_budget_curve = list(cp["error_budget_curve"])
+            cz_cumulative = list(cp["cz_cumulative"])
+            source = cp.get("source", "typical_fallback")
+            start_step = len(fidelity_curve)
+            logger.info(f"    resuming t_noise curve from step {start_step}")
+        else:
+            fidelity_curve, error_budget_curve, cz_cumulative = [], [], []
+            source = "typical_fallback"
+            start_step = 0
+
+        # Rebuild the accumulated circuit up to the resume point.
+        full = prep.copy()
+        for _ in range(start_step):
+            full = full.compose(trotter_step)
+
+        _CP_STRIDE = 10
+        early_stopped = False
+        for step in range(start_step, n_steps + 1):
+            if backend is not None:
+                try:
+                    tqc = transpile(full, backend=backend, optimization_level=3, seed_transpiler=42)
+                    # Pass the ACTUAL layout: the chip-wide error mean on fake
+                    # backends is poisoned by dead edges (error=1.0). Averaging
+                    # only the used qubits/edges gives a physical budget.
+                    lay = tqc.layout.final_index_layout() if tqc.layout else None
+                    budget = compute_error_budget(tqc, backend=backend, layout=lay)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(f"    transpile/budget failed at step {step}: {e}")
+                    budget = compute_error_budget(full, backend=None)
+            else:
+                budget = compute_error_budget(full, backend=None)
+            source = budget["source"]
+            fidelity_curve.append(float(budget["fidelity_estimate"]))
+            error_budget_curve.append(float(budget["error_budget"]))
+            cz_cumulative.append(int(budget["n_2q_gates"]))
+
+            # Early stop: once fidelity is firmly below the floor, t_noise is
+            # already determined and deeper transpilations add no information.
+            if budget["fidelity_estimate"] < fidelity_floor:
+                early_stopped = True
+                break
+
+            if step % _CP_STRIDE == 0:
+                self.save_checkpoint(
+                    cp_label,
+                    {
+                        "n_steps": n_steps,
+                        "dt": dt,
+                        "source": source,
+                        "fidelity_curve": fidelity_curve,
+                        "error_budget_curve": error_budget_curve,
+                        "cz_cumulative": cz_cumulative,
+                    },
+                )
+            if step < n_steps:
+                full = full.compose(trotter_step)
+        self.cleanup_checkpoints(cp_label)
+
+        t_noise_step = next(
+            (s for s, f in enumerate(fidelity_curve) if f < fidelity_floor), None
+        )
+        # transpiled 2q per step: slope of the cumulative count over the steps
+        # actually computed (robust to early stop), excluding the prep layer.
+        n_computed = len(cz_cumulative)
+        transpiled_2q_per_step = (
+            (cz_cumulative[-1] - cz_cumulative[1]) / max(n_computed - 2, 1)
+            if n_computed > 2
+            else float(cz_cumulative[-1] if cz_cumulative else 0.0)
+        )
+        routing_overhead = (
+            transpiled_2q_per_step / logical_2q_per_step if logical_2q_per_step else 1.0
+        )
+
+        return {
+            "backend": backend_name,
+            "error_rates_source": source,
+            "fidelity_floor": fidelity_floor,
+            "dt": dt,
+            "n_trotter": n_steps,
+            "n_steps_computed": n_computed - 1,
+            "early_stopped": early_stopped,
+            "h2": h2,
+            "logical_2q_per_step": logical_2q_per_step,
+            "transpiled_2q_per_step": transpiled_2q_per_step,
+            "routing_overhead": routing_overhead,
+            "fidelity_curve": fidelity_curve,
+            "error_budget_curve": error_budget_curve,
+            "cz_cumulative": cz_cumulative,
+            "t_noise_step": t_noise_step,
+            "t_noise_time": (t_noise_step * dt if t_noise_step is not None else None),
+        }
+
+    def _get_fake_backend(self):
+        """Return (FakeTorino, name) for heavy-hex transpilation, or (None, ...)."""
+        try:
+            from qiskit_ibm_runtime.fake_provider import FakeTorino
+
+            return FakeTorino(), "FakeTorino"
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"  FakeTorino unavailable ({e}); using typical-rate fallback")
+            return None, "typical_fallback"
+
+    def _last_crossover_step(self):
+        """χ=64 classical crossover step from this run's section 2, if available."""
+        try:
+            for sr in getattr(self, "_section_results", []) or []:
+                data = getattr(sr, "data", None) or {}
+                if data.get("method", "").startswith("exact_reference"):
+                    return data.get("chi64_crossover_step")
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
+    def _persist_resource_noise_json(self, result: dict) -> None:
+        """Write the resource/noise analysis to a dedicated, well-named JSON.
+
+        Path: results/experiments/exp_frustrated/resource_noise/{model}/
+              {topology}_N{n}_p{p}_h{h1}to{h2}/resource_noise_{timestamp}.json
+        """
+        import json
+        from datetime import datetime
+
+        from qmbp_simulation.utils.helpers import json_serialize
+
+        args = self._args
+        model = args.model or "tfim"
+        p = getattr(args, "p_layers", 1)
+        n = args.n_qubits
+        topo = self._topology
+        subdir = (
+            self._get_project_root()
+            / "results" / "experiments" / "exp_frustrated" / "resource_noise"
+            / model
+            / f"{topo}_N{n}_p{p}_h{args.h1:.2f}to{args.h2:.2f}"
+        )
+        subdir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        doc = {
+            "schema": "resource_noise_budget_v1",
+            "experiment": "quench_resource_noise",
+            "specs": {
+                "model": model,
+                "j2": getattr(args, "j2", 0.0),
+                "topology": topo,
+                "n_qubits": n,
+                "p_layers": p,
+                "h1": args.h1,
+                "h2": args.h2,
+                "dt": args.dt,
+                "n_trotter": args.n_trotter,
+                "chi_values": list(args.chi_values),
+            },
+            "result": result,
+            "timestamp": ts,
+        }
+        out = subdir / f"resource_noise_{ts}.json"
+        with open(out, "w") as f:
+            json.dump(doc, f, indent=2, default=json_serialize)
+        logger.info(f"  resource/noise JSON → {out.relative_to(self._get_project_root())}")
+
     def section_preparation_cost(self) -> dict:
         """Quantify GNN vs VQE preparation cost across the phase diagram."""
         args = self._args
@@ -739,84 +998,95 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
     # ═══════════════════════════════════════════════════════════════════════════
 
     def _mps_crossover_exact_reference(self, n, topo, args, chi_values):
-        """MPS crossover with exact ED reference (N ≤ 22)."""
+        """MPS crossover measured against the EXACT evolved state (N ≤ 22).
+
+        The classical→quantum crossover is the Trotter step at which a
+        bond-dimension-χ MPS can no longer track the true state. We measure
+        this against ground truth (exact time evolution), not the MPS's own
+        energy-conservation drift — the latter is non-monotone in χ under the
+        simulator's greedy truncation and does NOT measure error vs the truth.
+
+        Per step we truncate the exact state to χ (variational SVD truncation,
+        monotone in χ) and record the infidelity 1−|⟨ψ_exact|ψ_χ⟩|² and the
+        relative energy error |E_χ−E_exact|/|E_exact|. Crossover = first step
+        where infidelity exceeds INFIDELITY_THRESHOLD.
+        """
         from scipy.sparse.linalg import expm_multiply
 
         dt, n_steps = args.dt, args.n_trotter
+        infidelity_threshold = 0.01  # 99% fidelity floor
 
-        # Reuse cached H2_op from section 1 if available (avoids rebuild)
         cache_key_h2 = (topo, n, round(args.h2, 2))
         _h2_cache = getattr(self, "_h2_op_cache", {})
         if cache_key_h2 in _h2_cache:
             lattice_h2, H2_op = _h2_cache[cache_key_h2]
         else:
             lattice_h2 = self.make_lattice(topo, n, J=1.0, h=args.h2)
-            H2_op = self.builder.build(lattice_h2)
+            H2_op = self._build_quench_hamiltonian(lattice_h2)
         psi_0 = self._ground_state_vector(n, topo, args.h1)
 
         if n <= _DENSE_LIMIT:
             H2_matrix = np.asarray(H2_op.to_matrix())
             U_dt = expm(-1j * H2_matrix * dt)
+            H2_for_energy = H2_matrix
             use_sparse = False
         else:
             H2_sparse = H2_op.to_matrix(sparse=True)
             A = -1j * H2_sparse * dt
+            H2_for_energy = H2_sparse
             use_sparse = True
 
-        # Exact evolution entropy trajectory
+        def _energy(psi):
+            return float(np.real(psi.conj() @ (H2_for_energy @ psi)))
+
+        # Exact evolution: store the true state at every step (ground truth).
         psi_t = psi_0.copy().astype(complex)
-        exact_entropies = [self._half_chain_entropy(psi_t, n)]
+        exact_states = [psi_t.copy()]
+        exact_entropies = [self._entanglement_entropy(psi_t, n, topo)]
         for _ in range(n_steps):
             psi_t = expm_multiply(A, psi_t) if use_sparse else U_dt @ psi_t
             psi_t /= np.linalg.norm(psi_t)
-            exact_entropies.append(self._half_chain_entropy(psi_t, n))
+            exact_states.append(psi_t.copy())
+            exact_entropies.append(self._entanglement_entropy(psi_t, n, topo))
 
+        e_exact_ref = abs(_energy(exact_states[0])) or 1.0
         logger.info(f"  Exact: S_max={max(exact_entropies):.4f}")
 
-        # MPS comparison via energy drift (faster than get_statevector per step)
+        # Per-χ error vs the exact state (variational SVD truncation, monotone).
         crossover_data = []
         for chi in chi_values:
-            mps_backend = self.MPSBackend(chi_max=chi)
-            trotter_step = self._build_trotter_step_circuit(n, topo, args.h2, dt)
+            infidelities = []
+            rel_energy_errors = []
+            for psi_exact in exact_states:
+                psi_chi = self.truncate_statevector_mps(psi_exact, n, chi_max=chi)
+                fid = abs(np.vdot(psi_exact, psi_chi)) ** 2
+                infidelities.append(1.0 - float(fid))
+                rel_energy_errors.append(abs(_energy(psi_chi) - _energy(psi_exact)) / e_exact_ref)
 
-            from qiskit.circuit import QuantumCircuit
-
-            init_qc = QuantumCircuit(n)
-            init_qc.initialize(psi_0, range(n))
-
-            energies_mps = []
-            full_circuit = init_qc.copy()
-            empty_params = np.array([])
-
-            for step in range(n_steps + 1):
-                try:
-                    e = mps_backend.evaluate(full_circuit, H2_op, empty_params)
-                    energies_mps.append(float(e))
-                except Exception:
-                    energies_mps.append(energies_mps[-1] if energies_mps else 0.0)
-                if step < n_steps:
-                    full_circuit = full_circuit.compose(trotter_step)
-
-            # Energy should be conserved — drift = truncation error
-            e0 = energies_mps[0]
-            drifts = [abs(e - e0) for e in energies_mps]
-            crossover_step = next((s for s, d in enumerate(drifts) if d > 0.05), None)
-
+            crossover_step = next(
+                (s for s, inf in enumerate(infidelities) if inf > infidelity_threshold), None
+            )
             crossover_data.append(
                 {
                     "chi": chi,
                     "crossover_step": crossover_step,
-                    "max_drift": max(drifts),
-                    "energies": energies_mps,
+                    "max_infidelity": max(infidelities),
+                    "max_rel_energy_error": max(rel_energy_errors),
+                    "infidelities": infidelities,
+                    "rel_energy_errors": rel_energy_errors,
                 }
             )
-            logger.info(f"    χ={chi:>3}: crossover@step={crossover_step}, max_drift={max(drifts):.4f}")
+            logger.info(
+                f"    χ={chi:>3}: crossover@step={crossover_step}, "
+                f"max_infid={max(infidelities):.4f}, max_relE={max(rel_energy_errors):.4f}"
+            )
 
         chi64_crossover = next((d["crossover_step"] for d in crossover_data if d["chi"] == 64), None)
         return {
             "n_qubits": n,
             "topology": topo,
-            "method": "exact_reference",
+            "method": "exact_reference_fidelity",
+            "infidelity_threshold": infidelity_threshold,
             "exact_entropies": exact_entropies,
             "crossover_data": crossover_data,
             "chi64_crossover_step": chi64_crossover,
@@ -829,7 +1099,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         dt, n_steps = args.dt, args.n_trotter
 
         lattice_h2 = self.make_lattice(topo, n, J=1.0, h=args.h2)
-        H2_op = self.builder.build(lattice_h2)
+        H2_op = self._build_quench_hamiltonian(lattice_h2)
         trotter_step = self._build_trotter_step_circuit(n, topo, args.h2, dt)
 
         # Resume from checkpoint if available (per-χ persistence)
@@ -962,7 +1232,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
 
         mps_backend = self.MPSBackend(chi_max=chi)
         lattice_h2 = self.make_lattice(topology, n_qubits, J=1.0, h=h2)
-        H2_op = self.builder.build(lattice_h2)
+        H2_op = self._build_quench_hamiltonian(lattice_h2)
         trotter_step = self._build_trotter_step_circuit(n_qubits, topology, h2, dt)
 
         init_qc = QuantumCircuit(n_qubits)
@@ -987,28 +1257,51 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
     # Private helpers — Trotter circuit
     # ═══════════════════════════════════════════════════════════════════════════
 
+    def _build_quench_hamiltonian(self, lattice):
+        """Build the quench Hamiltonian for the given lattice.
+
+        Routes through the frustrated TFIM (−J₁ Σ_nn ZZ + J₂ Σ_nnn ZZ − h Σ X)
+        when --j2 ≠ 0, otherwise the standard TFIM via builder.build. The same
+        H must generate both the ground state and the time evolution, so this
+        is the single source of truth for both.
+        """
+        j2 = float(getattr(self._args, "j2", 0.0) or 0.0)
+        if abs(j2) > 1e-15:
+            return self.builder.build_frustrated_tfim(lattice, J2=j2)
+        return self.builder.build(lattice)
+
     def _build_trotter_step_circuit(self, n_qubits, topology, h, dt):
-        """Second-order Suzuki-Trotter step for TFIM.
+        """Second-order Suzuki-Trotter step.
 
         U₂(dt) = e^{-i(dt/2)H_ZZ} · e^{-i(dt)H_X} · e^{-i(dt/2)H_ZZ}
-        H = -Σ Z_iZ_j - h Σ X_i
+        H = -J₁ Σ_nn Z_iZ_j (+ J₂ Σ_nnn Z_iZ_j) - h Σ X_i
+
+        The NNN term (sign +J₂) is included only when --j2 ≠ 0, matching
+        build_frustrated_tfim. NNN edges come from builder._generate_nnn_edges
+        so the Trotter generator and the energy observable share the same bonds.
         """
         from qiskit.circuit import QuantumCircuit
 
         lattice = self.make_lattice(topology, n_qubits, J=1.0, h=h)
         edges = lattice.edges
+        j2 = float(getattr(self._args, "j2", 0.0) or 0.0)
+        nnn_edges = self.builder._generate_nnn_edges(lattice) if abs(j2) > 1e-15 else []
         qc = QuantumCircuit(n_qubits)
         half_dt = dt / 2.0
 
-        # exp(-i(dt/2)H_ZZ) = Π exp(+i(dt/2) Z_iZ_j) → RZZ(-dt)
-        for i, j in edges:
-            qc.rzz(-2 * half_dt, i, j)
+        def _zz_half():
+            # NN ferromagnetic (-J₁): exp(+i(dt/2) Z_iZ_j) → RZZ(-dt)
+            for i, j in edges:
+                qc.rzz(-2 * half_dt, i, j)
+            # NNN antiferromagnetic (+J₂): exp(-i(dt/2) J₂ Z_iZ_j) → RZZ(+J₂ dt)
+            for i, j in nnn_edges:
+                qc.rzz(2 * half_dt * j2, i, j)
+
+        _zz_half()
         # exp(-i(dt)H_X) = Π exp(+i dt h X_i) → RX(-2 dt h)
         for i in range(n_qubits):
             qc.rx(-2 * dt * h, i)
-        # Second half ZZ
-        for i, j in edges:
-            qc.rzz(-2 * half_dt, i, j)
+        _zz_half()
         return qc
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1042,7 +1335,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             logger.debug(f"  GT cache hit: {topology} N={n_qubits} h={h}")
 
         lattice = self.make_lattice(topology, n_qubits, J=1.0, h=h)
-        H_op = self.builder.build(lattice)
+        H_op = self._build_quench_hamiltonian(lattice)
 
         e_gs = None
         gap = 0.0
@@ -1142,9 +1435,11 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
 
     @staticmethod
     def _half_chain_entropy(psi, n_qubits):
-        """Von Neumann entropy of half-chain bipartition via SVD, in bits (log2).
+        """Von Neumann entropy of the index-contiguous bipartition, in bits.
 
-        Uses log2 to match EntanglementAnalyzer and the repo-wide bit convention.
+        Splits by qubit INDEX (first n/2 vs rest). This is a genuine spatial cut
+        only for 1D chains. For 2D lattices use _entanglement_entropy, which cuts
+        along the lattice geometry. Kept for 1D and backward compatibility.
         """
         n_a = n_qubits // 2
         psi_matrix = psi.reshape(2**n_a, 2 ** (n_qubits - n_a))
@@ -1152,6 +1447,50 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         probs = sv**2
         probs = probs[probs > 1e-15]
         return float(-np.sum(probs * np.log2(probs)))
+
+    def _entanglement_entropy(self, psi, n_qubits, topology):
+        """Von Neumann entropy of a SPATIAL bipartition, in bits (log2).
+
+        For 2D grids (square) the qubit index does not map to a contiguous
+        spatial region, so an index cut mixes the two halves. Here we split the
+        lattice into left/right column blocks (partition A = the leftmost
+        columns) and trace out the complement, giving a geometrically meaningful
+        cut. For 1D/index-contiguous topologies this reduces to the half-chain
+        cut.
+        """
+        partition_a = self._spatial_partition_a(n_qubits, topology)
+        if partition_a is None:
+            return self._half_chain_entropy(psi, n_qubits)
+
+        # Reorder axes so partition_a qubits come first, then reshape & SVD.
+        state = np.asarray(psi).reshape([2] * n_qubits)
+        rest = [q for q in range(n_qubits) if q not in partition_a]
+        state = np.transpose(state, partition_a + rest)
+        mat = state.reshape(2 ** len(partition_a), 2 ** len(rest))
+        sv = np.linalg.svd(mat, compute_uv=False)
+        probs = sv**2
+        probs = probs[probs > 1e-15]
+        return float(-np.sum(probs * np.log2(probs)))
+
+    def _spatial_partition_a(self, n_qubits, topology):
+        """Qubit indices of the left spatial half of the lattice, or None.
+
+        Infers the grid width from the first vertical edge (j−i > 1) of the
+        square lattice and returns the leftmost ⌈ncols/2⌉ columns. Returns None
+        for topologies where the index order is already spatially contiguous
+        (chain/ladder) so the caller falls back to the half-chain cut.
+        """
+        if topology != "square":
+            return None
+        lattice = self.make_lattice(topology, n_qubits, J=1.0, h=1.0)
+        verticals = [j - i for i, j in lattice.edges if j - i > 1]
+        if not verticals:
+            return None
+        ncols = min(verticals)  # grid width (row stride)
+        if ncols < 2 or ncols >= n_qubits:
+            return None
+        cut_col = ncols // 2
+        return [q for q in range(n_qubits) if (q % ncols) < cut_col]
 
     @staticmethod
     def _magnetization_z(psi, n_qubits):

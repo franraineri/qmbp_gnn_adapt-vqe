@@ -271,6 +271,46 @@ def collect(root: Path, *, recompute_gates: bool = True) -> dict[tuple, Scenario
                 )
             )
 
+    # ── Bond-selection ablation (masked HVA: pruned / top-k / ADAPT / frac) ──
+    # One folder, several schemas; each row is a masked/grown HVA ansatz with its
+    # own 2q cost. ADAPT rows are per growth step; the rest per variant.
+    for f in sorted(glob.glob(str(study / "bond_ablation" / "*.json"))):
+        d = _load(Path(f))
+        if not d:
+            continue
+        gap, e0 = d.get("gap"), d.get("e0")
+        schema = d.get("schema", "")
+        for r in d.get("rows", []):
+            fid = r.get("best_fidelity")
+            if fid is None:
+                continue
+            s = get(d["N"], d["h"], gap=gap, e0=e0)
+            if schema == "adapt_bonds_v1":
+                label = f"adapt step{r.get('step')} ({r.get('n_bonds')} bonds)"
+            else:
+                label = r.get("variant", "?")
+                nnnb = r.get("n_nnn_bonds")
+                if nnnb is not None:
+                    label = f"{label} (nnn={nnnb})"
+            e_best = r.get("e_best")
+            abs_err = (abs(e_best - e0) if (e_best is not None and e0 is not None)
+                       else r.get("abs_error"))
+            s.recs.append(
+                Rec(
+                    method="HVA",
+                    variant=label,
+                    fidelity=fid,
+                    abs_error=abs_err,
+                    de_gap=r.get("de_gap"),
+                    n_2q=r.get("n_2q_transpiled"),
+                    total_gates=None,
+                    depth=None,
+                    converged=r.get("seed_name") or r.get("converged") or "masked",
+                    note=f"bond-selection ({schema})",
+                    source=f"bond_ablation:{Path(f).name}",
+                )
+            )
+
     # ── VL default h-sweep ───────────────────────────────────────────────
     d = _load(study / "vl_h_sweep" / "vl_h_sweep_frustrated.json")
     if d:

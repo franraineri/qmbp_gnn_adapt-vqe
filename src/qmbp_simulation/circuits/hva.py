@@ -665,6 +665,50 @@ class HVACircuitBuilder:
 
         return qc, theta
 
+    def create_kitaev_bond_resolved(
+        self,
+        n_qubits: int,
+        p_layers: int,
+        lattice: LatticeConfig,
+        *,
+        initial_state: str = "zero",
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Bond-resolved HVA for the Kitaev chain — independent θ per edge.
+
+        Like :meth:`create_kitaev` but each RXX and RYY carries its OWN parameter
+        per edge (not one shared θ per layer). On irregular graphs (heavy-hex:
+        mixed coordination 2–3, backbone + bridges) the ground state has
+        inhomogeneous bond correlations a single global coupling cannot express;
+        per-edge parameters recover high fidelity, mirroring the bond-resolved
+        frustrated-TFIM ansatz. Per layer: RXX(θ_e) on each edge, RYY(θ_e) on each
+        edge, RZ(θ_i) on each site. Params per layer = 2·n_edges + n_qubits.
+
+        The field term is −μZ, so the natural initial state is |0⟩^N (default),
+        not |+⟩^N: in the trivial phase (|μ|>2J) the ground state → |0⟩^N, and the
+        entangling RXX/RYY layers build correlations on top of it. Starting from
+        |+⟩^N would force the ansatz to undo the X-basis first.
+        """
+        do_checks(p_layers, n_qubits, lattice)
+
+        edges = list(lattice.edges)
+        n_edges = len(edges)
+        per_layer = 2 * n_edges + n_qubits
+        qc, theta = _init_circuit(n_qubits, p_layers * per_layer, initial_state=initial_state)
+
+        off = 0
+        for _ in range(p_layers):
+            for k, (i, j) in enumerate(edges):
+                qc.rxx(2 * theta[off + k], i, j)
+            off += n_edges
+            for k, (i, j) in enumerate(edges):
+                qc.ryy(2 * theta[off + k], i, j)
+            off += n_edges
+            for q in range(n_qubits):
+                qc.rz(2 * theta[off + q], q)
+            off += n_qubits
+
+        return qc, theta
+
     def create_bond_resolved_frustrated_configurable(
         self,
         n_qubits: int,
@@ -712,6 +756,96 @@ class HVACircuitBuilder:
         for b in blocks:
             if b not in block_sizes:
                 raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+
+        n_params = sum(block_sizes[b] for b in blocks)
+        n_params += n_qubits if rx_final else 0
+        n_params += n_qubits if rz_final else 0
+
+        qc, theta = _init_circuit(n_qubits, n_params)
+        off = 0
+        for b in blocks:
+            if b == "nn":
+                for k, (i, j) in enumerate(nn_edges):
+                    qc.rzz(2 * theta[off + k], i, j)
+            elif b == "nnn":
+                for k, (i, j) in enumerate(nnn_edges):
+                    qc.rzz(2 * theta[off + k], i, j)
+            elif b == "x":
+                for i in range(n_qubits):
+                    qc.rx(2 * theta[off + i], i)
+            elif b == "z":
+                for i in range(n_qubits):
+                    qc.rz(2 * theta[off + i], i)
+            off += block_sizes[b]
+        if rx_final:
+            for i in range(n_qubits):
+                qc.rx(2 * theta[off + i], i)
+            off += n_qubits
+        if rz_final:
+            for i in range(n_qubits):
+                qc.rz(2 * theta[off + i], i)
+            off += n_qubits
+        return qc, theta
+
+    def create_bond_resolved_masked(
+        self,
+        n_qubits: int,
+        lattice: LatticeConfig,
+        *,
+        blocks: list[str],
+        bond_selection,
+        rx_final: bool = False,
+        rz_final: bool = False,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Masked bond-resolved frustrated HVA — RZZ only on SELECTED bonds.
+
+        Generalizes :meth:`create_bond_resolved_frustrated_configurable`: an
+        ``"nn"`` / ``"nnn"`` block places RZZ only on the edges named in
+        ``bond_selection`` (a :class:`qmbp_simulation.circuits.bond_mask.BondSelection`),
+        not on every edge of that type. This is the reusable engine for pruning
+        (T1), highest-weight subsets (T2), and gradient-grown ADAPT ansätze: each
+        approach is just a different way to build the selection.
+
+        A ``bond_selection`` holding every nn and nnn bond of the lattice makes
+        this method IDENTICAL to the configurable builder (a strict
+        generalization — covered by an equivalence test).
+
+        Parameters
+        ----------
+        n_qubits, lattice : system definition.
+        blocks : list[str]
+            Ordered block sequence over ``nn | nnn | x | z`` (same grammar as the
+            configurable builder). ``nn``/``nnn`` blocks are masked by the
+            selection; ``x``/``z`` are full single-qubit layers (0 CX).
+        bond_selection : BondSelection
+            The nn/nnn edges that carry an RZZ. Edges are used exactly as listed
+            (the builder does not re-derive them from the lattice), so a subset
+            or reordering is honored verbatim.
+        rx_final, rz_final : bool
+            Append a final RX / RZ block (0 CX) after the sequence.
+
+        Returns
+        -------
+        (qc, theta)
+            Bond-resolved circuit and its ParameterVector. Parameter ordering
+            follows ``blocks`` in sequence (masked counts), then rx_final, rz_final.
+        """
+        do_checks(1, n_qubits, lattice)
+
+        nn_edges = list(bond_selection.nn_edges)
+        nnn_edges = list(bond_selection.nnn_edges)
+        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges),
+                       "x": n_qubits, "z": n_qubits}
+        for b in blocks:
+            if b not in block_sizes:
+                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+
+        # Edge bounds: a hand-built selection could name an out-of-range qubit.
+        for i, j in nn_edges + nnn_edges:
+            if not (0 <= i < n_qubits and 0 <= j < n_qubits) or i == j:
+                raise ValueError(
+                    f"bond_selection edge ({i}, {j}) invalid for N={n_qubits}"
+                )
 
         n_params = sum(block_sizes[b] for b in blocks)
         n_params += n_qubits if rx_final else 0

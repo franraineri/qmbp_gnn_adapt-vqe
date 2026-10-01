@@ -79,7 +79,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023957.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-30T14:28:10.311388+00:00"
+        "updated": "2026-10-02T19:17:41.651336+00:00"
       }
     },
     "abs_error_by_n": {
@@ -432,7 +432,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023121.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-30T14:28:10.273712+00:00"
+        "updated": "2026-10-02T19:17:41.429596+00:00"
       }
     },
     "abs_error_by_n": {
@@ -553,7 +553,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_MT_20260829_024911.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-30T14:28:10.324971+00:00"
+        "updated": "2026-10-02T19:17:41.705587+00:00"
       }
     },
     "abs_error_by_n": {
@@ -862,7 +862,7 @@
         "grade": "F",
         "source_report": "evaluation_chain_1d_p1_20260909_050743.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-30T14:28:10.259501+00:00"
+        "updated": "2026-10-02T19:17:41.375496+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1045,7 +1045,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023859.md",
         "seen_in_raw_runs": true,
-        "updated": "2026-09-30T14:28:10.299560+00:00"
+        "updated": "2026-10-02T19:17:41.574607+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1199,7 +1199,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023808.md",
         "seen_in_raw_runs": true,
-        "updated": "2026-09-30T14:28:10.287491+00:00"
+        "updated": "2026-10-02T19:17:41.522128+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1335,7 +1335,7 @@
         "grade": "F",
         "source_report": "eval_heavy_hex_20260831_150926.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-30T14:28:10.354305+00:00"
+        "updated": "2026-10-02T19:17:41.828774+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1443,7 +1443,7 @@
         "grade": "F",
         "source_report": "eval_heavy_hex_20260831_151041.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-30T14:28:10.339306+00:00"
+        "updated": "2026-10-02T19:17:41.771673+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1704,5 +1704,95 @@
         "n_points": 5
       }
     }
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_square_multiN_8_p2.pt",
+    "h_range": [
+      0.3,
+      1.8
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "",
+    "n_training_points": 24,
+    "seeds": [
+      42
+    ],
+    "created": "2026-10-02T15:21:14.906606+00:00",
+    "notes": "Bootstrap from AcceleratedVQE N=8",
+    "sha256": "95a30d3c0b414bf678eeda9c2a766ab54f625e50b4fca123ab645d9e0768014e",
+    "runner_tag": "XX",
+    "date_tag": "021026",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_square_multiN_8+10_p2.pt",
+    "h_range": [
+      0.3,
+      1.8
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 44,
+    "seeds": [
+      42
+    ],
+    "created": "2026-10-02T16:05:04.754910+00:00",
+    "notes": "Iterative improve iter 1: N=[8, 10]",
+    "sha256": "dba0a89be92585002c085e7ddc8736bed32eabead42a6486417af6e7a8eb8ae0",
+    "runner_tag": "XX",
+    "date_tag": "021026",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_square_multiN_8+10_p2_v2.pt",
+    "h_range": [
+      0.3,
+      1.8
+    ],
+    "pass_rate": 0.3333333333333333,
+    "pass_rate_source": "",
+    "n_training_points": 48,
+    "seeds": [
+      42
+    ],
+    "created": "2026-10-02T16:07:55.087689+00:00",
+    "notes": "Iterative improve iter 2: N=[8, 10]",
+    "sha256": "f7db7f84b30211d2880b0ddf4429c2a94d3538e43348d87022c34e3299d2ac47",
+    "runner_tag": "XX",
+    "date_tag": "021026",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
   }
 ]
