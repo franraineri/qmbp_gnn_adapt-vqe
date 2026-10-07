@@ -397,6 +397,20 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "(default 200). The threshold-crossing iteration is recorded; an arm "
             "that never crosses reports its final fidelity at this cap.",
         )
+        parser.add_argument(
+            "--residual-seed",
+            action="store_true",
+            default=False,
+            help="RESIDUAL training mode: the MPNN predicts a CORRECTION Δ over "
+            "the analytic regime seed instead of raw θ, i.e. θ_pred = "
+            "select_regime_seed(N,h) + MPNN_Δ. The target becomes θ_canon − seed "
+            "(both in the nn-based Z₂ gauge, so Δ is small), trained with plain "
+            "theta_mse (the seed already fixes the sign). The seed pins the right "
+            "basin (init-fidelity ≈ 0.90 by construction), so the network only "
+            "learns the per-bond shape the uniform seed misses — a far more "
+            "transferable cross-N target. The checkpoint records residual_seed=True "
+            "so --compare-warmstart adds the seed back at inference (predict_residual).",
+        )
 
     def build_config(self) -> dict:
         config = self._build_physics_config()
@@ -615,6 +629,39 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "h": h_prev,
             "label": f"cont<h{h_prev:.2f}>",
         }
+
+    def _exact_fidelity_model_aware(self, circuit, theta, spec, topo, n_qubits, h):
+        """Exact state fidelity against the CORRECT (model_kwargs-aware) ground state.
+
+        ``ValidationRunner.safe_compute_fidelity`` rebuilds the Hamiltonian from
+        ``get_model_spec(model).hamiltonian_kwargs``, which for the frustrated
+        model carries the DEFAULT J2 (0.0) — not the run's ``--j2``. That silently
+        computes fidelity against the unfrustrated ground state, so the fidelity
+        gate in :func:`is_point_failure` sees a meaningless value and never
+        rejects gap-masked bad states.
+
+        This helper takes the already-``with_params``-bound ``spec`` in the
+        caller's scope (frustrated J2 included), builds the exact Hamiltonian for
+        this ``(topo, N, h)``, gets the ground eigenvector via the shared solver,
+        and returns ``compute_fidelity(circuit, theta, psi)``. Statevector-regime
+        only (N ≤ STATEVECTOR_MAX_N); returns ``None`` above or on error.
+        """
+        import numpy as np
+
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        if n_qubits > STATEVECTOR_MAX_N:
+            return None
+        try:
+            lat = self.make_lattice(topo, n_qubits, J=1.0, h=float(h))
+            H = spec.build_hamiltonian(lat, **spec.hamiltonian_kwargs)
+            psi = self.solver.ground_state_vector(H)
+            if psi is None:
+                return None
+            return float(self.compute_fidelity(circuit, np.asarray(theta, dtype=np.float64), psi))
+        except (MemoryError, ValueError, AttributeError, KeyError) as exc:
+            logger.debug("_exact_fidelity_model_aware failed (%s N=%d h=%.2f): %s", topo, n_qubits, h, exc)
+            return None
 
     def _apply_warmstart_seed(
         self,
@@ -1200,6 +1247,21 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 film_conditioning=getattr(self._args, "film", False),
             )
 
+            # Residual mode: build a pure analytic-seed fn so the network learns
+            # Δ over the regime seed (θ = seed + Δ). The seed is J2-aware (uses
+            # the run's --j2) and reads each graph's physics metadata.
+            _residual = getattr(self._args, "residual_seed", False)
+            _residual_seed_fn = None
+            if _residual:
+                from qmbp_simulation.predictors.unified_mpnn import residual_seed_for_graph
+
+                _j2 = float(self._model_kwargs.get("J2", 0.0) or 0.0)
+
+                def _residual_seed_fn(data, _m=self._physics_model, _j2=_j2):
+                    return residual_seed_for_graph(data, model=_m, j2=_j2)
+
+                logger.info("  RESIDUAL mode ON: MPNN predicts Δ over the analytic regime seed (J2=%s).", _j2)
+
             logger.info("  Training UnifiedMPNN (multi-N, norm_type=none)...")
             t0 = time.perf_counter()
             train_result = train_unified_mpnn(
@@ -1212,6 +1274,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 loss_type=getattr(self._args, "loss_type", "sign_invariant"),
                 physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
                 fidelity_loss_weight=getattr(self._args, "fidelity_loss_weight", 0.1),
+                residual_seed_fn=_residual_seed_fn,
+                residual_j2=float(self._model_kwargs.get("J2", 0.0) or 0.0),
             )
             elapsed = time.perf_counter() - t0
 
@@ -1259,7 +1323,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 created=datetime.now(UTC).isoformat(),
                 notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points"
                 + self._train_h_range_note()
-                + (", arch=residual" if getattr(self._args, "use_residual", False) else ""),
+                + (", arch=residual" if getattr(self._args, "use_residual", False) else "")
+                + (", residual_seed=analytic" if _residual else ""),
                 runner_tag=get_runner_tag(self.runner_id),
                 date_tag=make_date_tag(),
             )
@@ -1275,6 +1340,12 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     "dropout": 0.1,
                     "use_residual": getattr(self._args, "use_residual", False),
                     "film_conditioning": getattr(self._args, "film", False),
+                    # Residual-over-seed contract: a True value means the model
+                    # outputs Δ and inference MUST add select_regime_seed back
+                    # (predict_residual). Persisted so the eval/compare path never
+                    # has to assume — it reads this flag.
+                    "residual_seed": bool(_residual),
+                    "residual_j2": float(self._model_kwargs.get("J2", 0.0) or 0.0),
                 },
             )
             logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
@@ -2316,6 +2387,21 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # Confirm MPNN agrees: e_pred is close to e_prev (same basin)
                 if abs(energies[i] - e_prev) > 0.01:
                     continue  # Significant disagreement → don't promote
+                # Data-gen fidelity gate: dual_mask is energy-only, so a
+                # gap-masked near-critical point (small ΔE/gap, F≈0.3) would be
+                # promoted to 'verified' and poison training. Require the exact
+                # model-aware fidelity to clear the floor before promoting.
+                if getattr(self._args, "data_gen", False):
+                    _promo_fid = self._exact_fidelity_model_aware(
+                        circuit_target, theta_prev, spec, topo, n_target, float(h)
+                    )
+                    _promo_floor = getattr(self._args, "data_gen_min_fidelity", 0.95)
+                    if _promo_fid is not None and _promo_fid < _promo_floor:
+                        logger.info(
+                            f"  │ h={float(h):.2f}: NOT promoted to verified "
+                            f"(F={_promo_fid:.4f} < floor {_promo_floor:.2f}, gap-masked)"
+                        )
+                        continue
                 # Promote via upsert (tier upgrade path: "approximate"→"verified")
                 self.persist_theta_npz(
                     npz_path,
@@ -2395,9 +2481,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     theta_eval = predictions[i]
                     if h_key in prev_theta_by_h and prev_theta_by_h[h_key][0] is not None:
                         theta_eval = prev_theta_by_h[h_key][0]
-                    fid_i = self.safe_compute_fidelity(
-                        circuit_target, theta_eval, topo, n_target, float(h), model=self._physics_model
-                    )
+                    # Model-aware fidelity: against the frustrated (J2) ground
+                    # state, NOT safe_compute_fidelity's J2=0 rebuild. Only an
+                    # exact fidelity vs the CORRECT physics can gate gap-masked
+                    # near-critical states (see _exact_fidelity_model_aware).
+                    fid_i = self._exact_fidelity_model_aware(circuit_target, theta_eval, spec, topo, n_target, float(h))
                 is_fail = is_point_failure(
                     de_gap=de_gaps[i],
                     abs_error=abs_err_i,
@@ -2550,7 +2638,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 from qmbp_simulation.analysis.warmstart import budget_for_difficulty
 
                 _adap_restarts, _, _diff = budget_for_difficulty(
-                    n_target, h, float(gap_arr[idx]),
+                    n_target,
+                    h,
+                    float(gap_arr[idx]),
                     base_restarts=refine_restarts,
                     J2=float(self._model_kwargs.get("J2", 0.0) or 0.0),
                     max_restarts=refine_restarts + 2,
@@ -2697,16 +2787,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         abs_err_new = abs(e_refined - e_exact_arr[idx])
                         # Only log as improvement if ΔE/gap actually changed visibly
                         if abs(de_gaps[idx] - de_gap_new) > 1e-4:
-                            # Compute state fidelity when feasible (N ≤ statevector limit).
-                            # safe_compute_fidelity returns None for large N or on error.
-                            fid = self.safe_compute_fidelity(
-                                circuit_target,
-                                res_x,
-                                topo,
-                                n_target,
-                                h,
-                                model=self._physics_model,
-                            )
+                            # Model-aware fidelity for the display (J2-correct).
+                            # safe_compute_fidelity would show the J2=0 value here,
+                            # which is misleading for frustrated runs.
+                            fid = self._exact_fidelity_model_aware(circuit_target, res_x, spec, topo, n_target, h)
                             fid_str = f" F={fid:.4f}" if fid is not None else ""
                             logger.info(
                                 f"    h={h:.2f}: ΔE/gap {de_gaps[idx]:.4f} → {de_gap_new:.4f} "
@@ -2732,17 +2816,43 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         # seed was not adopted (MPNN/prev init kept).
                         gap_i = float(gap_arr[idx])
                         _ws_src = f"warmstart:{ws_provenance}" if ws_provenance else "vqe_refined"
-                        self.persist_theta_npz(
-                            npz_path,
-                            np.array([h]),
-                            np.array([res_x]),
-                            np.array([e_refined]),
-                            np.array([float(e_exact_arr[idx])]),
-                            gaps_new=np.array([gap_i]),
-                            method_new=["vqe_refined"],
-                            quality_tier_new=["verified"],
-                            source_ckpt_new=[_ws_src],
+                        # Fidelity GATE for data-gen (statevector regime): a
+                        # refined θ with a small ΔE/gap can still sit at F≈0.3 in
+                        # the frustrated near-critical region (gap-masked wrong
+                        # basin). Such a θ is NOT a usable training label — the
+                        # 'verified' tier is trusted unconditionally by
+                        # build_combined_dataset, and even the 'approximate' path
+                        # re-checks only ENERGY (so it would still slip in). So in
+                        # data-gen mode we REJECT (skip persist) a point whose
+                        # exact model-aware fidelity is below the floor, rather
+                        # than mislabel it. Non-data-gen runs and N > statevector
+                        # (fid=None) keep the historical 'verified' behavior.
+                        _is_datagen = getattr(self._args, "data_gen", False)
+                        _min_fid_tier = getattr(self._args, "data_gen_min_fidelity", 0.95)
+                        _ref_fid = (
+                            self._exact_fidelity_model_aware(circuit_target, res_x, spec, topo, n_target, h)
+                            if _is_datagen
+                            else None
                         )
+                        if _is_datagen and _ref_fid is not None and _ref_fid < _min_fid_tier:
+                            logger.info(
+                                f"    h={h:.2f}: REJECTED as training label "
+                                f"(F={_ref_fid:.4f} < floor {_min_fid_tier:.2f}, gap-masked wrong basin — "
+                                f"ΔE/gap={de_gap_new:.4f} is misleading near the tiny-gap transition). "
+                                f"Not persisted."
+                            )
+                        else:
+                            self.persist_theta_npz(
+                                npz_path,
+                                np.array([h]),
+                                np.array([res_x]),
+                                np.array([e_refined]),
+                                np.array([float(e_exact_arr[idx])]),
+                                gaps_new=np.array([gap_i]),
+                                method_new=["vqe_refined"],
+                                quality_tier_new=["verified"],
+                                source_ckpt_new=[_ws_src],
+                            )
                         # Note: eval_cache auto-flushes every 50 puts.
                         # Full flush deferred to end of iteration (avoid 5MB
                         # JSON write per point).
@@ -2768,8 +2878,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 _prov_tally = Counter(refined_provenance)
                 _prov_str = ", ".join(f"{k}×{v}" for k, v in _prov_tally.most_common())
                 logger.info(
-                    f"  │ VQE refinement: {n_updated} points improved and persisted "
-                    f"(warm-start seeds: {_prov_str})"
+                    f"  │ VQE refinement: {n_updated} points improved and persisted (warm-start seeds: {_prov_str})"
                 )
 
             # Note: All data (predictions + refinements) was persisted immediately
@@ -3168,7 +3277,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
         from qmbp_simulation.framework.study_core import make_cost_fid
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
-        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import UNIFIED_NODE_FEATURES
 
@@ -3202,6 +3310,17 @@ class AcceleratedCrossNRunner(ValidationRunner):
             # Match the prediction graph feature dim to the loaded model.
             _model_feat = getattr(model, "node_features", UNIFIED_NODE_FEATURES)
             self._orbit_feature_effective = _model_feat > UNIFIED_NODE_FEATURES
+
+            # Residual contract: a residual-trained model outputs Δ, so the MPNN
+            # arm must add the analytic seed back via predict_residual. For a
+            # just-trained model the run flag is authoritative; a zoo-loaded
+            # model carries residual_seed in its metadata (checked defensively).
+            _is_residual = bool(getattr(self._args, "residual_seed", False)) or bool(
+                getattr(getattr(self, "_model_provenance", None) or {}, "get", lambda *_: False)("residual_seed")
+            )
+            _residual_j2 = float(self._model_kwargs.get("J2", 0.0) or 0.0)
+            if _is_residual:
+                logger.info("  Compare: MPNN arm uses predict_residual (θ = analytic_seed + Δ).")
 
             for n_target in self._args.target_n:
                 if n_target > STATEVECTOR_MAX_N:
@@ -3247,8 +3366,20 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     # ── Arm 1: MPNN prediction ─────────────────────────────
                     try:
                         g = self._build_graph(lat_h, float(h), p, include_circuit_nodes=True)
-                        with torch.no_grad():
-                            theta_mpnn = model(g).numpy().flatten()
+                        if _is_residual:
+                            from qmbp_simulation.predictors.unified_mpnn import predict_residual
+
+                            theta_mpnn = predict_residual(
+                                model,
+                                g,
+                                model_name=self._physics_model,
+                                j2=_residual_j2,
+                                h_override=float(h),
+                                p_override=p,
+                            ).flatten()
+                        else:
+                            with torch.no_grad():
+                                theta_mpnn = model(g).numpy().flatten()
                         theta_mpnn = np.clip(theta_mpnn, -np.pi, np.pi)
                         if len(theta_mpnn) != n_params:
                             theta_mpnn = (

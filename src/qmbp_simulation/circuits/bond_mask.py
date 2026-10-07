@@ -115,12 +115,11 @@ def prune_by_theta(
     if t_nnn.shape[0] != len(nnn):
         raise ValueError(f"theta_nnn length {t_nnn.shape[0]} != n_nnn {len(nnn)}")
 
-    keep_nn = [e for e, t in zip(nn, t_nn, strict=True)
-               if np.isfinite(t) and abs(t) > tol]
-    keep_nnn = [e for e, t in zip(nnn, t_nnn, strict=True)
-                if np.isfinite(t) and abs(t) > tol]
+    keep_nn = [e for e, t in zip(nn, t_nn, strict=True) if np.isfinite(t) and abs(t) > tol]
+    keep_nnn = [e for e, t in zip(nnn, t_nnn, strict=True) if np.isfinite(t) and abs(t) > tol]
     return BondSelection(
-        nn_edges=keep_nn, nnn_edges=keep_nnn,
+        nn_edges=keep_nn,
+        nnn_edges=keep_nnn,
         provenance=f"prune_by_theta(tol={tol})",
     )
 
@@ -229,8 +228,8 @@ def bond_weights_from_theta(
     w_nnn = np.zeros(n_nnn)
     for layer in range(p_layers):
         o = layer * per
-        w_nn = np.maximum(w_nn, np.abs(theta[o:o + n_nn]))
-        w_nnn = np.maximum(w_nnn, np.abs(theta[o + n_nn:o + n_nn + n_nnn]))
+        w_nn = np.maximum(w_nn, np.abs(theta[o : o + n_nn]))
+        w_nnn = np.maximum(w_nnn, np.abs(theta[o + n_nn : o + n_nn + n_nnn]))
     return w_nn, w_nnn
 
 
@@ -277,9 +276,9 @@ def bond_weights_for_blocks(
     off = 0
     for b in blocks:
         if b == "nn" and n_nn:
-            w_nn = np.maximum(w_nn, np.abs(theta[off:off + n_nn]))
+            w_nn = np.maximum(w_nn, np.abs(theta[off : off + n_nn]))
         elif b == "nnn" and n_nnn:
-            w_nnn = np.maximum(w_nnn, np.abs(theta[off + 0:off + n_nnn]))
+            w_nnn = np.maximum(w_nnn, np.abs(theta[off + 0 : off + n_nnn]))
         off += size[b]
     return w_nn, w_nnn
 
@@ -318,11 +317,80 @@ def selection_from_variant_theta(
     nn_edges = _normalize_edges(nn_edges)
     nnn_edges = _normalize_edges(nnn_edges)
     w_nn, w_nnn = bond_weights_for_blocks(
-        theta, blocks, len(nn_edges), len(nnn_edges), n_qubits,
-        rx_final=rx_final, rz_final=rz_final)
+        theta, blocks, len(nn_edges), len(nnn_edges), n_qubits, rx_final=rx_final, rz_final=rz_final
+    )
     if method == "top_k":
         k = max(1, int(round(keep_frac * len(nnn_edges))))
         return top_k_by_weight(nn_edges, nnn_edges, w_nn, w_nnn, k_nn=None, k_nnn=k)
     if method == "prune":
         return prune_by_theta(nn_edges, nnn_edges, w_nn, w_nnn, tol=tol)
     raise ValueError(f"unknown method {method!r}; expected 'top_k' or 'prune'")
+
+
+def rank_correlation(weight_a, weight_b) -> float | None:
+    """Spearman rank correlation between two per-bond importance signals.
+
+    The decision metric for the ADAPT Gate 0 question: does the energy-gradient
+    ranking of the candidate bonds agree with the ``|θ|`` ranking of the fully
+    converged ansatz? ``weight_a`` / ``weight_b`` are aligned per-bond arrays
+    (e.g. ``|∂E/∂θ|`` and ``|θ_full|`` over the same nnn edges). Returns
+    Spearman ρ in ``[-1, 1]`` (Pearson on the rank-transformed values, averaging
+    tied ranks), or ``None`` when either input is degenerate (fewer than three
+    points, or all values equal) so the caller treats it as "no signal".
+
+    Pure numpy — no scipy — so it runs anywhere the bond helpers do. Mirrors the
+    ``_spearman`` previously duplicated in ``analyze_bond_importance.py``.
+    """
+    import numpy as np
+
+    a = np.asarray(weight_a, dtype=float)
+    b = np.asarray(weight_b, dtype=float)
+    if a.shape != b.shape:
+        raise ValueError(f"weight_a shape {a.shape} != weight_b shape {b.shape}")
+    if a.size < 3 or np.allclose(a, a.flat[0]) or np.allclose(b, b.flat[0]):
+        return None
+
+    def _rank(x):
+        _, inv, counts = np.unique(x, return_inverse=True, return_counts=True)
+        csum = np.cumsum(counts)
+        start = csum - counts
+        avg = (start + csum - 1) / 2.0  # average rank within each tie group
+        return avg[inv]
+
+    ra = _rank(a) - _rank(a).mean()
+    rb = _rank(b) - _rank(b).mean()
+    denom = np.sqrt((ra**2).sum() * (rb**2).sum())
+    return float((ra * rb).sum() / denom) if denom > 0 else None
+
+
+def rank_agreement_topk(weight_a, weight_b, k: int) -> float | None:
+    """Overlap fraction of the top-``k`` bonds selected by two importance signals.
+
+    Complements :func:`rank_correlation` with the metric that matters for bond
+    GROWTH: of the ``k`` bonds each signal ranks highest, what fraction do they
+    agree on? ``1.0`` means the two signals would grow the exact same ``k`` bonds
+    (ADAPT by gradient ≡ top-k by ``|θ|``); ``0.0`` means fully disjoint choices.
+
+    ``k`` is clamped to ``[1, n_bonds]``. Returns ``None`` only when there are no
+    bonds. Ties at the ``k``-th boundary follow the stable descending-``|weight|``
+    order used by :func:`top_k_by_weight`, so this is consistent with the actual
+    selection. Pure numpy.
+    """
+    import numpy as np
+
+    a = np.asarray(weight_a, dtype=float)
+    b = np.asarray(weight_b, dtype=float)
+    if a.shape != b.shape:
+        raise ValueError(f"weight_a shape {a.shape} != weight_b shape {b.shape}")
+    n = a.size
+    if n == 0:
+        return None
+    k = max(1, min(int(k), n))
+
+    def _topk_set(w):
+        score = np.where(np.isfinite(w), np.abs(w), -np.inf)
+        order = sorted(range(n), key=lambda idx: (-score[idx], idx))
+        return set(order[:k])
+
+    sa, sb = _topk_set(a), _topk_set(b)
+    return len(sa & sb) / float(k)

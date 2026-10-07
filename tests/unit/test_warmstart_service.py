@@ -372,8 +372,9 @@ class TestTransferTheta:
         from qmbp_simulation.analysis.warmstart import transfer_theta
 
         donor = self._donor(5, 6, 4, 2)
-        out = transfer_theta(donor, donor_n_nn=5, donor_n_nnn=6, donor_p=2,
-                             target_n_nn=5, target_n_nnn=6, target_p=2, n_qubits=4)
+        out = transfer_theta(
+            donor, donor_n_nn=5, donor_n_nnn=6, donor_p=2, target_n_nn=5, target_n_nnn=6, target_p=2, n_qubits=4
+        )
         # same sizes, no edge map → nn/nnn/x copied verbatim (within clip range)
         assert out.shape == donor.shape
 
@@ -381,8 +382,9 @@ class TestTransferTheta:
         from qmbp_simulation.analysis.warmstart import transfer_theta
 
         donor = self._donor(27, 39, 18, 3)  # p3
-        out = transfer_theta(donor, donor_n_nn=27, donor_n_nnn=39, donor_p=3,
-                             target_n_nn=27, target_n_nnn=39, target_p=2, n_qubits=18)
+        out = transfer_theta(
+            donor, donor_n_nn=27, donor_n_nnn=39, donor_p=3, target_n_nn=27, target_n_nnn=39, target_p=2, n_qubits=18
+        )
         assert out.shape[0] == (27 + 39 + 18) * 2
 
     def test_nnn_subset_aligned_by_edge(self):
@@ -395,9 +397,18 @@ class TestTransferTheta:
         donor = np.zeros((2 + len(donor_nnn) + n_q) * 1)
         # layout layer0: [nn(2), nnn(4), x(6)] → nnn at idx 2..6 (values in [-π,π])
         donor[2:6] = [0.10, 0.11, 0.12, 0.13]  # (0,2)=.10 (1,3)=.11 (2,4)=.12 (3,5)=.13
-        out = transfer_theta(donor, donor_n_nn=2, donor_n_nnn=4, donor_p=1,
-                             target_n_nn=2, target_n_nnn=2, target_p=1, n_qubits=n_q,
-                             donor_nnn_edges=donor_nnn, target_nnn_edges=target_nnn)
+        out = transfer_theta(
+            donor,
+            donor_n_nn=2,
+            donor_n_nnn=4,
+            donor_p=1,
+            target_n_nn=2,
+            target_n_nnn=2,
+            target_p=1,
+            n_qubits=n_q,
+            donor_nnn_edges=donor_nnn,
+            target_nnn_edges=target_nnn,
+        )
         # target nnn at idx 2..4 → should be [.12 (2,4), .10 (0,2)]
         assert out[2] == pytest.approx(0.12)
         assert out[3] == pytest.approx(0.10)
@@ -409,10 +420,19 @@ class TestTransferTheta:
         target_nnn = [(0, 2), (9, 9)]  # second not in donor
         # clean donor: nn=1, nnn=1, x=1, p=1 → len 3 (values in [-π,π])
         donor = np.array([0.5, 0.7, 0.1])
-        out = transfer_theta(donor, donor_n_nn=1, donor_n_nnn=1, donor_p=1,
-                             target_n_nn=1, target_n_nnn=2, target_p=1, n_qubits=1,
-                             donor_nnn_edges=donor_nnn, target_nnn_edges=target_nnn,
-                             fill_value=0.0)
+        out = transfer_theta(
+            donor,
+            donor_n_nn=1,
+            donor_n_nnn=1,
+            donor_p=1,
+            target_n_nn=1,
+            target_n_nnn=2,
+            target_p=1,
+            n_qubits=1,
+            donor_nnn_edges=donor_nnn,
+            target_nnn_edges=target_nnn,
+            fill_value=0.0,
+        )
         # layout: [nn(1), nnn(2), x(1)] → out[1]=(0,2)=0.7, out[2]=(9,9) missing=0.0
         assert out[1] == pytest.approx(0.7)
         assert out[2] == pytest.approx(0.0)
@@ -420,8 +440,16 @@ class TestTransferTheta:
     def test_bad_donor_length_returns_none(self):
         from qmbp_simulation.analysis.warmstart import transfer_theta
 
-        out = transfer_theta(np.zeros(5), donor_n_nn=27, donor_n_nnn=39, donor_p=3,
-                             target_n_nn=27, target_n_nnn=20, target_p=2, n_qubits=18)
+        out = transfer_theta(
+            np.zeros(5),
+            donor_n_nn=27,
+            donor_n_nnn=39,
+            donor_p=3,
+            target_n_nn=27,
+            target_n_nnn=20,
+            target_p=2,
+            n_qubits=18,
+        )
         assert out is None
 
 
@@ -431,8 +459,7 @@ class TestBestWarmStartSeed:
     def test_fallback_to_regime_when_no_donors(self):
         from qmbp_simulation.analysis.warmstart import best_warm_start_seed
 
-        seed, prov, fi = best_warm_start_seed(n_nn=13, n_nnn=15, n_qubits=10,
-                                              p_layers=2, h=0.5, J2=0.5)
+        seed, prov, fi = best_warm_start_seed(n_nn=13, n_nnn=15, n_qubits=10, p_layers=2, h=0.5, J2=0.5)
         assert len(seed) == (13 + 15 + 10) * 2
         assert prov == "second_order"
         assert fi is None
@@ -442,14 +469,21 @@ class TestBestWarmStartSeed:
 
         donor = np.zeros((13 + 15 + 10) * 2)
         seed, prov, _ = best_warm_start_seed(
-            n_nn=13, n_nnn=15, n_qubits=10, p_layers=2, h=0.5, J2=0.5,
-            donors=[{"theta": donor, "n_nn": 13, "n_nnn": 15, "p": 2, "label": "p2x"}])
+            n_nn=13,
+            n_nnn=15,
+            n_qubits=10,
+            p_layers=2,
+            h=0.5,
+            J2=0.5,
+            donors=[{"theta": donor, "n_nn": 13, "n_nnn": 15, "p": 2, "label": "p2x"}],
+        )
         assert "transfer" in prov
 
     def test_fid_fn_selects_highest_fidelity_candidate(self):
         from qmbp_simulation.analysis.warmstart import best_warm_start_seed
 
         donor = np.full((13 + 15 + 10) * 2, 0.9)  # distinctive donor
+
         # fid_fn rewards the donor transfer over regime. best_warm_start_seed now
         # Z2-canonicalizes the donor before transfer (sign of the ZZ blocks is a
         # gauge), so key on |θ[0]| (invariant under the Z2 flip) not its sign.
@@ -457,9 +491,15 @@ class TestBestWarmStartSeed:
             return 0.95 if abs(abs(float(theta[0])) - 0.9) < 1e-6 else 0.40
 
         seed, prov, fi = best_warm_start_seed(
-            n_nn=13, n_nnn=15, n_qubits=10, p_layers=2, h=0.5, J2=0.5,
+            n_nn=13,
+            n_nnn=15,
+            n_qubits=10,
+            p_layers=2,
+            h=0.5,
+            J2=0.5,
             donors=[{"theta": donor, "n_nn": 13, "n_nnn": 15, "p": 2, "label": "d"}],
-            fid_fn=fid_fn)
+            fid_fn=fid_fn,
+        )
         assert "transfer" in prov
         assert fi == pytest.approx(0.95)
 
@@ -468,10 +508,24 @@ class TestBestWarmStartSeed:
 
         donor = np.zeros((27 + 39 + 18) * 3)  # p3 donor
         seed, _prov, _ = best_warm_start_seed(
-            n_nn=27, n_nnn=20, n_qubits=18, p_layers=2, h=0.5, J2=0.5,
-            donors=[{"theta": donor, "n_nn": 27, "n_nnn": 39, "p": 3, "label": "p3",
-                     "nnn_edges": [(i, i + 2) for i in range(39)]}],
-            target_nnn_edges=[(i, i + 2) for i in range(20)])
+            n_nn=27,
+            n_nnn=20,
+            n_qubits=18,
+            p_layers=2,
+            h=0.5,
+            J2=0.5,
+            donors=[
+                {
+                    "theta": donor,
+                    "n_nn": 27,
+                    "n_nnn": 39,
+                    "p": 3,
+                    "label": "p3",
+                    "nnn_edges": [(i, i + 2) for i in range(39)],
+                }
+            ],
+            target_nnn_edges=[(i, i + 2) for i in range(20)],
+        )
         assert len(seed) == (27 + 20 + 18) * 2
 
 
@@ -486,9 +540,17 @@ class TestWarmStartImprovements:
 
         # layout layer0: [nn(2), nnn(1), x(2)] → len 5, p=1
         donor = np.array([0.3, 0.5, 0.2, 1.1, 1.2])  # nn-sum = +0.8 > 0
-        out = transfer_theta(donor, donor_n_nn=2, donor_n_nnn=1, donor_p=1,
-                             target_n_nn=2, target_n_nnn=1, target_p=1, n_qubits=2,
-                             canonicalize=True)
+        out = transfer_theta(
+            donor,
+            donor_n_nn=2,
+            donor_n_nnn=1,
+            donor_p=1,
+            target_n_nn=2,
+            target_n_nnn=1,
+            target_p=1,
+            n_qubits=2,
+            canonicalize=True,
+        )
         # ZZ blocks flipped, θ_x untouched
         assert out[0] == pytest.approx(-0.3)
         assert out[1] == pytest.approx(-0.5)
@@ -501,8 +563,9 @@ class TestWarmStartImprovements:
         from qmbp_simulation.analysis.warmstart import transfer_theta
 
         donor = np.array([0.3, 0.5, 0.2, 1.1, 1.2])
-        out = transfer_theta(donor, donor_n_nn=2, donor_n_nnn=1, donor_p=1,
-                             target_n_nn=2, target_n_nnn=1, target_p=1, n_qubits=2)
+        out = transfer_theta(
+            donor, donor_n_nn=2, donor_n_nnn=1, donor_p=1, target_n_nn=2, target_n_nnn=1, target_p=1, n_qubits=2
+        )
         np.testing.assert_allclose(out, donor)
 
     def test_regime_fill_used_for_missing_bond(self):
@@ -515,11 +578,20 @@ class TestWarmStartImprovements:
         donor = np.array([0.5, 0.7, 0.1])  # nn=1 nnn=1 x=1 p=1
         # fill_theta layout: [nn(1), nnn(2), x(1)] → regime nnn angles at idx 1,2
         fill = np.array([-0.11, -0.22, -0.33, 0.4])
-        out = transfer_theta(donor, donor_n_nn=1, donor_n_nnn=1, donor_p=1,
-                             target_n_nn=1, target_n_nnn=2, target_p=1, n_qubits=1,
-                             donor_nnn_edges=donor_nnn, target_nnn_edges=target_nnn,
-                             fill_theta=fill)
-        assert out[1] == pytest.approx(0.7)    # donor bond kept
+        out = transfer_theta(
+            donor,
+            donor_n_nn=1,
+            donor_n_nnn=1,
+            donor_p=1,
+            target_n_nn=1,
+            target_n_nnn=2,
+            target_p=1,
+            n_qubits=1,
+            donor_nnn_edges=donor_nnn,
+            target_nnn_edges=target_nnn,
+            fill_theta=fill,
+        )
+        assert out[1] == pytest.approx(0.7)  # donor bond kept
         assert out[2] == pytest.approx(-0.33)  # missing bond → regime fill (not 0)
 
     def test_micro_descent_cascade_picks_best_basin(self):
@@ -540,9 +612,16 @@ class TestWarmStartImprovements:
             return 0.95 if abs(abs(float(theta[0])) - 0.9) < 1e-6 else 0.10
 
         seed, prov, fi = best_warm_start_seed(
-            n_nn=2, n_nnn=1, n_qubits=2, p_layers=1, h=0.5, J2=0.5,
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=2,
+            p_layers=1,
+            h=0.5,
+            J2=0.5,
             donors=[{"theta": donor, "n_nn": 2, "n_nnn": 1, "p": 1, "label": "d"}],
-            fid_fn=fid_fn, descent_fn=descent_fn)
+            fid_fn=fid_fn,
+            descent_fn=descent_fn,
+        )
         assert "descent" in prov
         assert fi == pytest.approx(0.99)
         assert float(seed[0]) < 0  # regime (negative-NN) basin won
@@ -558,8 +637,8 @@ class TestWarmStartImprovements:
             return 0.60
 
         seed, prov, fi = best_warm_start_seed(
-            n_nn=2, n_nnn=1, n_qubits=2, p_layers=1, h=0.5, J2=0.5,
-            fid_fn=fid_fn, descent_fn=descent_fn)
+            n_nn=2, n_nnn=1, n_qubits=2, p_layers=1, h=0.5, J2=0.5, fid_fn=fid_fn, descent_fn=descent_fn
+        )
         assert "descent" not in prov
         assert fi == pytest.approx(0.60)
 
@@ -591,7 +670,7 @@ class TestGapAdaptiveBudget:
     def test_topk_frac_shrinks_only_at_tiny_gap(self):
         from qmbp_simulation.analysis.warmstart import SMALL_GAP, topk_frac_for_gap
 
-        assert topk_frac_for_gap(1.0, 0.5) == 0.5          # large gap → unchanged
+        assert topk_frac_for_gap(1.0, 0.5) == 0.5  # large gap → unchanged
         assert topk_frac_for_gap(SMALL_GAP / 2, 0.5) == 0.5  # small but not tiny
         assert topk_frac_for_gap(SMALL_GAP / 100, 0.5) == pytest.approx(0.33)  # tiny
 
@@ -660,8 +739,8 @@ class TestBondResolvedRegimeSeed:
         rng = np.random.default_rng(1)
         donor = rng.normal(0.0, 0.2, (13 + 15 + 10) * 2)
         seed, name = bond_resolved_regime_seed(
-            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor,
-            donor_n_nn=13, donor_n_nnn=15, donor_p=2)
+            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor, donor_n_nn=13, donor_n_nnn=15, donor_p=2
+        )
         plain, _ = select_regime_seed(13, 15, 10, 2, 0.5, J2=0.5)
         assert len(seed) == (13 + 15 + 10) * 2
         assert "bondshape" in name
@@ -676,22 +755,23 @@ class TestBondResolvedRegimeSeed:
         rng = np.random.default_rng(2)
         donor = rng.normal(0.0, 0.2, (13 + 15 + 10) * 2)
         seed, _ = bond_resolved_regime_seed(
-            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor,
-            donor_n_nn=13, donor_n_nnn=15, donor_p=2, strength=0.0)
+            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor, donor_n_nn=13, donor_n_nnn=15, donor_p=2, strength=0.0
+        )
         # strength=0 → canonicalized plain regime seed (sign-canonical compare)
         from qmbp_simulation.analysis.theta_patterns import canonicalize_z2
+
         plain, _ = select_regime_seed(13, 15, 10, 2, 0.5, J2=0.5)
         np.testing.assert_allclose(
-            canonicalize_z2(seed, 13, 15, 10, 2),
-            canonicalize_z2(plain, 13, 15, 10, 2), atol=1e-9)
+            canonicalize_z2(seed, 13, 15, 10, 2), canonicalize_z2(plain, 13, 15, 10, 2), atol=1e-9
+        )
 
     def test_mismatched_layout_falls_back_to_plain(self):
         from qmbp_simulation.analysis.warmstart import bond_resolved_regime_seed
 
         donor = np.zeros((27 + 39 + 18) * 3)  # different layout
         seed, name = bond_resolved_regime_seed(
-            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor,
-            donor_n_nn=27, donor_n_nnn=39, donor_p=3)
+            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor, donor_n_nn=27, donor_n_nnn=39, donor_p=3
+        )
         assert len(seed) == (13 + 15 + 10) * 2
         assert "bondshape" not in name  # fell back to the plain regime seed
 
@@ -705,10 +785,11 @@ class TestBondResolvedRegimeSeed:
         rng = np.random.default_rng(3)
         donor = rng.normal(0.0, 0.2, (13 + 15 + 10) * 2)
         seed, _ = bond_resolved_regime_seed(
-            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor,
-            donor_n_nn=13, donor_n_nnn=15, donor_p=2)
+            13, 15, 10, 2, 0.5, J2=0.5, donor_theta=donor, donor_n_nn=13, donor_n_nnn=15, donor_p=2
+        )
         plain, _ = select_regime_seed(13, 15, 10, 2, 0.5, J2=0.5)
         from qmbp_simulation.analysis.theta_patterns import canonicalize_z2
+
         x_idx = theta_x_indices(13, 15, 10, 2)
         # θ_x is Z2-invariant; compare on the canonical seeds at x positions
         s_c = canonicalize_z2(seed, 13, 15, 10, 2)
@@ -724,9 +805,16 @@ class TestWarmstartInitFidelity:
 
         donor = np.full((13 + 15 + 10) * 2, 0.1)
         fi, seed = warmstart_init_fidelity(
-            donor, donor_n_nn=13, donor_n_nnn=15, donor_p=2,
-            target_n_nn=13, target_n_nnn=15, target_p=2, n_qubits=10,
-            fid_fn=lambda t: 0.873)
+            donor,
+            donor_n_nn=13,
+            donor_n_nnn=15,
+            donor_p=2,
+            target_n_nn=13,
+            target_n_nnn=15,
+            target_p=2,
+            n_qubits=10,
+            fid_fn=lambda t: 0.873,
+        )
         assert fi == pytest.approx(0.873)
         assert seed is not None and seed.size == (13 + 15 + 10) * 2
 
@@ -740,17 +828,32 @@ class TestWarmstartInitFidelity:
             return 0.5
 
         warmstart_init_fidelity(
-            np.zeros((2 + 1 + 4) * 1), donor_n_nn=2, donor_n_nnn=1, donor_p=1,
-            target_n_nn=2, target_n_nnn=1, target_p=1, n_qubits=4, fid_fn=fid_fn)
+            np.zeros((2 + 1 + 4) * 1),
+            donor_n_nn=2,
+            donor_n_nnn=1,
+            donor_p=1,
+            target_n_nn=2,
+            target_n_nnn=1,
+            target_p=1,
+            n_qubits=4,
+            fid_fn=fid_fn,
+        )
         assert seen["len"] == (2 + 1 + 4) * 1
 
     def test_bad_donor_returns_none(self):
         from qmbp_simulation.analysis.warmstart import warmstart_init_fidelity
 
         fi, seed = warmstart_init_fidelity(
-            np.zeros(5), donor_n_nn=27, donor_n_nnn=39, donor_p=3,
-            target_n_nn=27, target_n_nnn=39, target_p=2, n_qubits=18,
-            fid_fn=lambda t: 1.0)
+            np.zeros(5),
+            donor_n_nn=27,
+            donor_n_nnn=39,
+            donor_p=3,
+            target_n_nn=27,
+            target_n_nnn=39,
+            target_p=2,
+            n_qubits=18,
+            fid_fn=lambda t: 1.0,
+        )
         assert fi is None and seed is None
 
     def test_fid_fn_exception_returns_none_fid_but_keeps_seed(self):
@@ -760,8 +863,16 @@ class TestWarmstartInitFidelity:
             raise RuntimeError("eval failed")
 
         fi, seed = warmstart_init_fidelity(
-            np.zeros((2 + 1 + 4) * 1), donor_n_nn=2, donor_n_nnn=1, donor_p=1,
-            target_n_nn=2, target_n_nnn=1, target_p=1, n_qubits=4, fid_fn=boom)
+            np.zeros((2 + 1 + 4) * 1),
+            donor_n_nn=2,
+            donor_n_nnn=1,
+            donor_p=1,
+            target_n_nn=2,
+            target_n_nnn=1,
+            target_p=1,
+            n_qubits=4,
+            fid_fn=boom,
+        )
         assert fi is None
         assert seed is not None  # transfer succeeded, only the eval failed
 
@@ -853,14 +964,13 @@ class TestDifficultyIndex:
         from qmbp_simulation.analysis.warmstart import budget_for_difficulty
 
         r, _frac, D = budget_for_difficulty(18, 1.3, 1.1, base_restarts=1)
-        assert D == pytest.approx(0.0)
+        assert pytest.approx(0.0) == D
         assert r == 1  # paramagnet stays at base, no extra restarts
 
     def test_budget_clips_to_max(self):
         from qmbp_simulation.analysis.warmstart import budget_for_difficulty
 
-        r, _frac, _D = budget_for_difficulty(40, 0.5, 0.006, base_restarts=3,
-                                             max_restarts=4)
+        r, _frac, _D = budget_for_difficulty(40, 0.5, 0.006, base_restarts=3, max_restarts=4)
         assert r == 4
 
 
@@ -954,17 +1064,16 @@ class TestCalibratedWarmstart:
         from qmbp_simulation.analysis.warmstart import (
             calibrated_warmstart_theta,
             calibrated_x_scale,
-            first_order_warmstart_theta,
             calibrated_zz_coef,
+            first_order_warmstart_theta,
         )
 
         h = 0.7
         cal = calibrated_warmstart_theta(13, 15, 10, 2, h, J2=0.5)
-        base = first_order_warmstart_theta(13, 15, 10, 2, h, J2=0.5,
-                                           zz_coef=calibrated_zz_coef(h))
+        base = first_order_warmstart_theta(13, 15, 10, 2, h, J2=0.5, zz_coef=calibrated_zz_coef(h))
         # x block (last 10 of layer 0) is the base θ_x times x_scale(h)
-        x0_cal = cal[13 + 15:13 + 15 + 10]
-        x0_base = base[13 + 15:13 + 15 + 10]
+        x0_cal = cal[13 + 15 : 13 + 15 + 10]
+        x0_base = base[13 + 15 : 13 + 15 + 10]
         np.testing.assert_allclose(x0_cal, x0_base * calibrated_x_scale(h), atol=1e-9)
 
 
@@ -987,8 +1096,7 @@ class TestRegimeSeedCalibratedFlag:
 
         seed, name = select_regime_seed(13, 15, 10, 2, 0.5, J2=0.5, use_calibrated=True)
         assert name == "calibrated"
-        np.testing.assert_allclose(
-            seed, calibrated_warmstart_theta(13, 15, 10, 2, 0.5, J2=0.5))
+        np.testing.assert_allclose(seed, calibrated_warmstart_theta(13, 15, 10, 2, 0.5, J2=0.5))
 
     def test_calibrated_flag_length_matches(self):
         from qmbp_simulation.analysis.warmstart import select_regime_seed
@@ -1055,8 +1163,12 @@ class TestBestCombinedWarmstart:
         # a donor from a smaller N (9 qubits) at a different layout, carrying its
         # own n_qubits → transferred via donor_n_qubits
         donor = {
-            "theta": np.zeros((11 + 13 + 9) * 2), "n_nn": 11, "n_nnn": 13, "p": 2,
-            "n_qubits": 9, "label": "crossN9",
+            "theta": np.zeros((11 + 13 + 9) * 2),
+            "n_nn": 11,
+            "n_nnn": 13,
+            "p": 2,
+            "n_qubits": 9,
+            "label": "crossN9",
         }
         r = best_combined_warmstart(**self._kw(fid_fn=lambda t: 0.5, donors=[donor]))
         labels = [x["label"] for x in r["report"]]
@@ -1068,14 +1180,17 @@ class TestBestCombinedWarmstart:
         # rigorous divide-&-conquer: a cross-N donor automatically contributes
         # BOTH a full transfer and an nn+x-only transfer (nnn left at regime).
         donor = {
-            "theta": np.zeros((11 + 13 + 9) * 2), "n_nn": 11, "n_nnn": 13, "p": 2,
-            "n_qubits": 9, "label": "crossN9",
+            "theta": np.zeros((11 + 13 + 9) * 2),
+            "n_nn": 11,
+            "n_nnn": 13,
+            "p": 2,
+            "n_qubits": 9,
+            "label": "crossN9",
         }
         r = best_combined_warmstart(**self._kw(fid_fn=lambda t: 0.5, donors=[donor]))
         labels = [x["label"] for x in r["report"]]
-        assert any(lbl.endswith("|nn+x") for lbl in labels)   # nn+x variant
-        assert any("crossN9>" in lbl and not lbl.endswith("|nn+x")
-                   for lbl in labels)                          # full variant
+        assert any(lbl.endswith("|nn+x") for lbl in labels)  # nn+x variant
+        assert any("crossN9>" in lbl and not lbl.endswith("|nn+x") for lbl in labels)  # full variant
 
     def test_same_layout_donor_full_only(self):
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
@@ -1083,8 +1198,12 @@ class TestBestCombinedWarmstart:
         # same N and same nnn count → only the full transfer (nnn is reliable)
         n_nn, n_nnn, n_q, _p = self.L
         donor = {
-            "theta": np.zeros((n_nn + n_nnn + n_q) * 2), "n_nn": n_nn,
-            "n_nnn": n_nnn, "p": 2, "n_qubits": n_q, "label": "sameL",
+            "theta": np.zeros((n_nn + n_nnn + n_q) * 2),
+            "n_nn": n_nn,
+            "n_nnn": n_nnn,
+            "p": 2,
+            "n_qubits": n_q,
+            "label": "sameL",
         }
         r = best_combined_warmstart(**self._kw(fid_fn=lambda t: 0.5, donors=[donor]))
         labels = [x["label"] for x in r["report"]]
@@ -1094,16 +1213,14 @@ class TestBestCombinedWarmstart:
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
 
         guess = np.full((13 + 15 + 10) * 2, 0.05)
-        r = best_combined_warmstart(
-            **self._kw(fid_fn=lambda t: 0.5, extra_candidates=[(guess, "myguess")]))
+        r = best_combined_warmstart(**self._kw(fid_fn=lambda t: 0.5, extra_candidates=[(guess, "myguess")]))
         labels = [x["label"] for x in r["report"]]
         assert "myguess" in labels
 
     def test_toggles_exclude_builtins(self):
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
 
-        r = best_combined_warmstart(
-            **self._kw(include_calibrated=False, include_regime=True))
+        r = best_combined_warmstart(**self._kw(include_calibrated=False, include_regime=True))
         labels = [x["label"] for x in r["report"]]
         assert "calibrated" not in labels
 
@@ -1112,8 +1229,7 @@ class TestBestCombinedWarmstart:
 
         # exclude both built-ins and give no donors/extras → still returns a valid
         # seed (regime fallback), never empty
-        r = best_combined_warmstart(
-            **self._kw(include_calibrated=False, include_regime=False))
+        r = best_combined_warmstart(**self._kw(include_calibrated=False, include_regime=False))
         assert r["seed"].size == (13 + 15 + 10) * 2
 
     def test_descent_exception_falls_back_to_fid(self):
@@ -1122,8 +1238,7 @@ class TestBestCombinedWarmstart:
         def boom(theta):
             raise RuntimeError("descent failed")
 
-        r = best_combined_warmstart(
-            **self._kw(descent_fn=boom, fid_fn=lambda t: 0.7))
+        r = best_combined_warmstart(**self._kw(descent_fn=boom, fid_fn=lambda t: 0.7))
         # all descents failed → fid_fn path, provenance has no +descent
         assert not r["provenance"].endswith("+descent")
         assert r["init_fidelity"] == pytest.approx(0.7)
@@ -1145,8 +1260,8 @@ class TestTransferThetaForBlocks:
         # donor θ: nn=[0.1,0.2] nnn=[0.3,0.4] x=[0.5,0.6]
         donor = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
         out = transfer_theta_for_blocks(
-            donor, blocks, donor_nnn_edges=donor_nnn, target_nnn_edges=target_nnn,
-            n_nn=n_nn, n_qubits=nq)
+            donor, blocks, donor_nnn_edges=donor_nnn, target_nnn_edges=target_nnn, n_nn=n_nn, n_qubits=nq
+        )
         # target layout: nn=[0.1,0.2] nnn=[0.4] (edge (1,3)) x=[0.5,0.6]
         np.testing.assert_allclose(out, [0.1, 0.2, 0.4, 0.5, 0.6])
 
@@ -1161,8 +1276,8 @@ class TestTransferThetaForBlocks:
         # donor: nn=[0.1] nnn=[0.2] x=[0.3,0.4] rx_final=[0.7,0.8]
         donor = np.array([0.1, 0.2, 0.3, 0.4, 0.7, 0.8])
         out = transfer_theta_for_blocks(
-            donor, blocks, donor_nnn_edges=donor_nnn, target_nnn_edges=donor_nnn,
-            n_nn=n_nn, n_qubits=nq, rx_final=True)
+            donor, blocks, donor_nnn_edges=donor_nnn, target_nnn_edges=donor_nnn, n_nn=n_nn, n_qubits=nq, rx_final=True
+        )
         # full-bond target (same nnn) → identical to donor
         np.testing.assert_allclose(out, donor)
 
@@ -1172,9 +1287,124 @@ class TestTransferThetaForBlocks:
         from qmbp_simulation.analysis.warmstart import transfer_theta_for_blocks
 
         out = transfer_theta_for_blocks(
-            np.zeros(3), ["nn", "nnn", "x"], donor_nnn_edges=[(0, 2)],
-            target_nnn_edges=[(0, 2)], n_nn=2, n_qubits=2)
+            np.zeros(3), ["nn", "nnn", "x"], donor_nnn_edges=[(0, 2)], target_nnn_edges=[(0, 2)], n_nn=2, n_qubits=2
+        )
         assert out is None
+
+
+class TestGeometricCrossNMatching:
+    """Grid-cell alignment for cross-N donor transfer (M1 migrated to core)."""
+
+    def test_lattice_coords_square_grid(self):
+        from qmbp_simulation.analysis.warmstart import lattice_coords
+
+        # square N=18 → ceil(sqrt(18))=5 cols; qubit 7 is row1,col2.
+        c = lattice_coords("square", 18)
+        assert c[0] == (0, 0)
+        assert c[7] == (1, 2)
+        assert c[17] == (3, 2)
+        assert len(c) == 18
+
+    def test_lattice_coords_nongrid_is_none(self):
+        from qmbp_simulation.analysis.warmstart import lattice_coords
+
+        # Non-grid topologies have no trivial embedding → index-match fallback.
+        assert lattice_coords("triangular", 12) is None
+        assert lattice_coords("kagome", 12) is None
+
+    def test_remap_none_coords_is_identity(self):
+        from qmbp_simulation.analysis.warmstart import remap_edges_by_coords
+
+        edges = [(0, 1), (2, 3)]
+        # Missing either coord map → edges returned unchanged (back-compat).
+        assert remap_edges_by_coords(edges, None, {0: (0, 0)}) == edges
+        assert remap_edges_by_coords(edges, {0: (0, 0)}, None) == edges
+
+    def test_remap_aligns_by_cell_across_widths(self):
+        from qmbp_simulation.analysis.warmstart import lattice_coords, remap_edges_by_coords
+
+        # Same physical bond gets DIFFERENT raw indices at N10 (4 cols) vs N18
+        # (5 cols). Remapping by cell must translate the donor edge to the target
+        # index for the SAME two grid cells.
+        dc = lattice_coords("square", 10)  # 4 cols
+        tc = lattice_coords("square", 18)  # 5 cols
+        # donor edge (0,1): cells (0,0)-(0,1). In the target those cells are
+        # qubits 0 and 1 as well (both top-left) → maps to (0,1).
+        remapped = remap_edges_by_coords([(0, 1)], dc, tc)
+        assert remapped == [(0, 1)]
+        # donor edge (0,4): cells (0,0)-(1,0) [col width 4]. Target cell (1,0) is
+        # qubit 5 (col width 5) → donor (0,4) must remap to (0,5), NOT stay (0,4).
+        remapped2 = remap_edges_by_coords([(0, 4)], dc, tc)
+        assert remapped2 == [(0, 5)]
+
+    def test_remap_absent_cell_sentinel(self):
+        from qmbp_simulation.analysis.warmstart import lattice_coords, remap_edges_by_coords
+
+        # A donor cell that doesn't exist in a SMALLER target → sentinel (-1,-1).
+        dc = lattice_coords("square", 18)
+        tc = lattice_coords("square", 10)
+        # qubit 17 in N18 is cell (3,2); N10 has no row 3 → sentinel.
+        out = remap_edges_by_coords([(0, 17)], dc, tc)
+        assert out[0] == (-1, -1)
+
+    def test_geometric_transfer_matches_more_than_raw(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            lattice_coords,
+            transfer_theta_for_blocks,
+        )
+        from qmbp_simulation.models import make_lattice
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        # Donor N10 → target N18, single [nn,nnn,x] block. The geometric path must
+        # fill MORE target nn entries (non-fill) than the raw-index path, because
+        # grid widths differ (4 vs 5 cols).
+        ld = make_lattice("square", 10, J=1.0, h=0.5)
+        lt = make_lattice("square", 18, J=1.0, h=0.5)
+        nn_d, nn_t = list(ld.edges), list(lt.edges)
+        nnn_d = HamiltonianBuilder._generate_nnn_edges(ld)
+        nnn_t = HamiltonianBuilder._generate_nnn_edges(lt)
+        donor = np.linspace(0.1, 1.0, len(nn_d) + len(nnn_d) + 10)
+        common = dict(
+            donor_nnn_edges=nnn_d,
+            target_nnn_edges=nnn_t,
+            n_nn=len(nn_t),
+            n_qubits=18,
+            donor_n_nn=len(nn_d),
+            donor_n_qubits=10,
+            donor_nn_edges=nn_d,
+            target_nn_edges=nn_t,
+        )
+        raw = transfer_theta_for_blocks(donor, ["nn", "nnn", "x"], **common)
+        geo = transfer_theta_for_blocks(
+            donor,
+            ["nn", "nnn", "x"],
+            **common,
+            donor_coords=lattice_coords("square", 10),
+            target_coords=lattice_coords("square", 18),
+        )
+        assert raw is not None and geo is not None
+        # nn block is the first len(nn_t) entries; count non-zero (transferred).
+        raw_nn_filled = int(np.sum(np.abs(raw[: len(nn_t)]) > 1e-12))
+        geo_nn_filled = int(np.sum(np.abs(geo[: len(nn_t)]) > 1e-12))
+        assert geo_nn_filled > raw_nn_filled
+
+    def test_no_coords_is_backcompat(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import transfer_theta_for_blocks
+
+        # Without coords the result must be byte-identical to the pre-migration
+        # behavior (same-N verbatim transfer).
+        n_nn, nq = 2, 2
+        donor_nnn = [(0, 2), (1, 3)]
+        blocks = ["nn", "nnn", "x"]
+        donor = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+        out = transfer_theta_for_blocks(
+            donor, blocks, donor_nnn_edges=donor_nnn, target_nnn_edges=donor_nnn, n_nn=n_nn, n_qubits=nq
+        )
+        np.testing.assert_allclose(out, donor)
 
 
 class TestTransferDonorBlocks:
@@ -1188,8 +1418,9 @@ class TestTransferDonorBlocks:
         from qmbp_simulation.analysis.warmstart import transfer_theta
 
         donor = self._donor()
-        out = transfer_theta(donor, donor_n_nn=2, donor_n_nnn=2, donor_p=1,
-                             target_n_nn=2, target_n_nnn=2, target_p=1, n_qubits=4)
+        out = transfer_theta(
+            donor, donor_n_nn=2, donor_n_nnn=2, donor_p=1, target_n_nn=2, target_n_nnn=2, target_p=1, n_qubits=4
+        )
         np.testing.assert_allclose(out, donor)  # all blocks from donor
 
     def test_exclude_nnn_uses_fill(self):
@@ -1197,9 +1428,18 @@ class TestTransferDonorBlocks:
 
         donor = self._donor()
         fill = np.array([-0.11, -0.11, -0.33, -0.33, 0.9, 0.9, 0.9, 0.9])
-        out = transfer_theta(donor, donor_n_nn=2, donor_n_nnn=2, donor_p=1,
-                             target_n_nn=2, target_n_nnn=2, target_p=1, n_qubits=4,
-                             fill_theta=fill, donor_blocks=("nn", "x"))
+        out = transfer_theta(
+            donor,
+            donor_n_nn=2,
+            donor_n_nnn=2,
+            donor_p=1,
+            target_n_nn=2,
+            target_n_nnn=2,
+            target_p=1,
+            n_qubits=4,
+            fill_theta=fill,
+            donor_blocks=("nn", "x"),
+        )
         # nn + x from donor, nnn from fill
         assert out[0] == pytest.approx(-0.9) and out[1] == pytest.approx(-0.8)
         assert out[2] == pytest.approx(-0.33) and out[3] == pytest.approx(-0.33)  # nnn = fill
@@ -1209,9 +1449,18 @@ class TestTransferDonorBlocks:
         from qmbp_simulation.analysis.warmstart import transfer_theta
 
         donor = self._donor()
-        out = transfer_theta(donor, donor_n_nn=2, donor_n_nnn=2, donor_p=1,
-                             target_n_nn=2, target_n_nnn=2, target_p=1, n_qubits=4,
-                             donor_blocks=("nn", "x"), fill_value=0.0)
+        out = transfer_theta(
+            donor,
+            donor_n_nn=2,
+            donor_n_nnn=2,
+            donor_p=1,
+            target_n_nn=2,
+            target_n_nnn=2,
+            target_p=1,
+            n_qubits=4,
+            donor_blocks=("nn", "x"),
+            fill_value=0.0,
+        )
         assert out[2] == pytest.approx(0.0) and out[3] == pytest.approx(0.0)
 
 
@@ -1235,8 +1484,8 @@ class TestStructuralWarmstart:
         s = structural_warmstart_theta(n_nn, n_nnn, n_q, p, 0.5, J2=0.5)
         c = calibrated_warmstart_theta(n_nn, n_nnn, n_q, p, 0.5, J2=0.5)
         per = n_nn + n_nnn + n_q
-        s_nnn = np.abs(s[n_nn:n_nn + n_nnn]).mean()
-        c_nnn = np.abs(c[n_nn:n_nn + n_nnn]).mean()
+        s_nnn = np.abs(s[n_nn : n_nn + n_nnn]).mean()
+        c_nnn = np.abs(c[n_nn : n_nn + n_nnn]).mean()
         assert s_nnn < c_nnn  # structural suppresses the nnn block
 
     def test_theta_x_matches_calibrated(self):
@@ -1249,22 +1498,22 @@ class TestStructuralWarmstart:
         s = structural_warmstart_theta(n_nn, n_nnn, n_q, p, 0.5, J2=0.5)
         c = calibrated_warmstart_theta(n_nn, n_nnn, n_q, p, 0.5, J2=0.5)
         # θ_x block (same calibrated x_scale) must match
-        np.testing.assert_allclose(s[n_nn + n_nnn:n_nn + n_nnn + n_q],
-                                   c[n_nn + n_nnn:n_nn + n_nnn + n_q], atol=1e-9)
+        np.testing.assert_allclose(
+            s[n_nn + n_nnn : n_nn + n_nnn + n_q], c[n_nn + n_nnn : n_nn + n_nnn + n_q], atol=1e-9
+        )
 
     def test_appears_in_combined_cascade(self):
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
 
-        r = best_combined_warmstart(n_nn=13, n_nnn=15, n_qubits=10, p_layers=2,
-                                    h=0.5, J2=0.5, fid_fn=lambda t: 0.5)
+        r = best_combined_warmstart(n_nn=13, n_nnn=15, n_qubits=10, p_layers=2, h=0.5, J2=0.5, fid_fn=lambda t: 0.5)
         assert "structural" in [x["label"] for x in r["report"]]
 
     def test_toggle_off_excludes_structural(self):
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
 
-        r = best_combined_warmstart(n_nn=13, n_nnn=15, n_qubits=10, p_layers=2,
-                                    h=0.5, J2=0.5, fid_fn=lambda t: 0.5,
-                                    include_structural=False)
+        r = best_combined_warmstart(
+            n_nn=13, n_nnn=15, n_qubits=10, p_layers=2, h=0.5, J2=0.5, fid_fn=lambda t: 0.5, include_structural=False
+        )
         assert "structural" not in [x["label"] for x in r["report"]]
 
 
@@ -1275,15 +1524,15 @@ class TestEnsembleDonorSeed:
         from qmbp_simulation.analysis.warmstart import select_regime_seed
 
         base, _ = select_regime_seed(n_nn, n_nnn, n_q, p, h, J=J, J2=J2)
-        return {"theta": base + fill, "n_nn": n_nn, "n_nnn": n_nnn, "p": p,
-                "n_qubits": n_q, "h": h}
+        return {"theta": base + fill, "n_nn": n_nn, "n_nnn": n_nnn, "p": p, "n_qubits": n_q, "h": h}
 
     def test_none_when_too_few_same_phase(self):
         from qmbp_simulation.analysis.warmstart import ensemble_donor_seed
 
         # Only one near-h_c donor → below min_donors=2 → None.
-        out = ensemble_donor_seed([self._donor(0.5)], n_nn=N_NN, n_nnn=N_NNN,
-                                  n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2)
+        out = ensemble_donor_seed(
+            [self._donor(0.5)], n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2
+        )
         assert out is None
 
     def test_pools_only_same_phase(self):
@@ -1291,8 +1540,7 @@ class TestEnsembleDonorSeed:
 
         # Two near-h_c donors + one paramagnet donor; target near-h_c pools 2.
         donors = [self._donor(0.5), self._donor(0.6), self._donor(1.4)]
-        out = ensemble_donor_seed(donors, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS,
-                                  p_layers=P, h=0.5, J=J, J2=J2)
+        out = ensemble_donor_seed(donors, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2)
         assert out is not None
         seed, k = out
         assert k == 2
@@ -1310,17 +1558,27 @@ class TestEnsembleDonorSeed:
         from qmbp_simulation.analysis.warmstart import ensemble_donor_seed
 
         d = self._donor(0.5)
-        out = ensemble_donor_seed([d, dict(d)], n_nn=N_NN, n_nnn=N_NNN,
-                                  n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2)
+        out = ensemble_donor_seed(
+            [d, dict(d)], n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2
+        )
         assert out is not None
         seed, k = out
         assert k == 2
         # Mean of two identical transferred seeds equals that seed (wrapped).
         from qmbp_simulation.analysis.warmstart import transfer_theta
+
         single = transfer_theta(
-            d["theta"], donor_n_nn=d["n_nn"], donor_n_nnn=d["n_nnn"], donor_p=d["p"],
-            target_n_nn=N_NN, target_n_nnn=N_NNN, target_p=P, n_qubits=N_QUBITS,
-            canonicalize=True, donor_n_qubits=d["n_qubits"])
+            d["theta"],
+            donor_n_nn=d["n_nn"],
+            donor_n_nnn=d["n_nnn"],
+            donor_p=d["p"],
+            target_n_nn=N_NN,
+            target_n_nnn=N_NNN,
+            target_p=P,
+            n_qubits=N_QUBITS,
+            canonicalize=True,
+            donor_n_qubits=d["n_qubits"],
+        )
         np.testing.assert_allclose(np.sin(seed), np.sin(single), atol=1e-6)
         np.testing.assert_allclose(np.cos(seed), np.cos(single), atol=1e-6)
 
@@ -1329,11 +1587,29 @@ class TestEnsembleDonorSeed:
 
         donors = [self._donor(0.5), self._donor(0.6)]
         on = best_combined_warmstart(
-            n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2,
-            donors=donors, fid_fn=lambda t: 0.5, include_ensemble=True)
+            n_nn=N_NN,
+            n_nnn=N_NNN,
+            n_qubits=N_QUBITS,
+            p_layers=P,
+            h=0.5,
+            J=J,
+            J2=J2,
+            donors=donors,
+            fid_fn=lambda t: 0.5,
+            include_ensemble=True,
+        )
         off = best_combined_warmstart(
-            n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, h=0.5, J=J, J2=J2,
-            donors=donors, fid_fn=lambda t: 0.5, include_ensemble=False)
+            n_nn=N_NN,
+            n_nnn=N_NNN,
+            n_qubits=N_QUBITS,
+            p_layers=P,
+            h=0.5,
+            J=J,
+            J2=J2,
+            donors=donors,
+            fid_fn=lambda t: 0.5,
+            include_ensemble=False,
+        )
         on_labels = [x["label"] for x in on["report"]]
         off_labels = [x["label"] for x in off["report"]]
         assert any(l.startswith("ensemble<") for l in on_labels)
@@ -1358,9 +1634,9 @@ class TestBlockMixWarmstart:
     def test_policy_is_phase_gated(self):
         from qmbp_simulation.analysis.warmstart import block_mix_policy_for
 
-        assert block_mix_policy_for(0.3)["nnn"] == "structural"   # ordered
-        assert block_mix_policy_for(0.5)["x"] == "regime"         # near_hc
-        assert block_mix_policy_for(1.3)["nnn"] == "regime"       # paramag
+        assert block_mix_policy_for(0.3)["nnn"] == "structural"  # ordered
+        assert block_mix_policy_for(0.5)["x"] == "regime"  # near_hc
+        assert block_mix_policy_for(1.3)["nnn"] == "regime"  # paramag
         # nn is calibrated in every phase
         for h in (0.3, 0.5, 1.3):
             assert block_mix_policy_for(h)["nn"] == "calibrated"
@@ -1370,8 +1646,7 @@ class TestBlockMixWarmstart:
 
         src = self._sources()
         policy = {"nn": "calibrated", "nnn": "structural", "x": "regime"}
-        mix = block_mix_warmstart(src, policy, n_nn=N_NN, n_nnn=N_NNN,
-                                  n_qubits=N_QUBITS, p_layers=P)
+        mix = block_mix_warmstart(src, policy, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P)
         assert mix is not None and mix.size == (N_NN + N_NNN + N_QUBITS) * P
         for layer in range(P):
             s_nn, s_nnn, s_x = _slices(layer)
@@ -1384,9 +1659,9 @@ class TestBlockMixWarmstart:
 
         src = self._sources()  # no "donor"
         policy = {"nn": "calibrated", "nnn": "structural", "x": "donor"}
-        mix = block_mix_warmstart(src, policy, n_nn=N_NN, n_nnn=N_NNN,
-                                  n_qubits=N_QUBITS, p_layers=P,
-                                  default_source="calibrated")
+        mix = block_mix_warmstart(
+            src, policy, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, default_source="calibrated"
+        )
         assert mix is not None
         s_nn, s_nnn, s_x = _slices(0)
         # x block had missing "donor" → falls back to calibrated
@@ -1396,8 +1671,7 @@ class TestBlockMixWarmstart:
         from qmbp_simulation.analysis.warmstart import block_mix_warmstart
 
         bad = {"calibrated": np.zeros(3)}  # wrong length
-        mix = block_mix_warmstart(bad, {"nn": "calibrated"}, n_nn=N_NN, n_nnn=N_NNN,
-                                  n_qubits=N_QUBITS, p_layers=P)
+        mix = block_mix_warmstart(bad, {"nn": "calibrated"}, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P)
         assert mix is None
 
     def test_oracle_identifies_closest_source_per_block(self):
@@ -1411,8 +1685,7 @@ class TestBlockMixWarmstart:
         for layer in range(P):
             a, b, _c = _slices(layer)
             opt[b] = src["structural"][b]
-        rep = block_source_distances(opt, src, n_nn=N_NN, n_nnn=N_NNN,
-                                     n_qubits=N_QUBITS, p_layers=P)
+        rep = block_source_distances(opt, src, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P)
         assert rep["per_block"][(0, "nnn")]["best"] == "structural"
         assert rep["per_block"][(0, "nn")]["best"] == "calibrated"
 
@@ -1420,17 +1693,25 @@ class TestBlockMixWarmstart:
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
 
         # Validated negative result → off by default (fidelity not block-separable).
-        r = best_combined_warmstart(n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS,
-                                    p_layers=P, h=0.3, J=J, J2=J2,
-                                    fid_fn=lambda t: 0.5)
+        r = best_combined_warmstart(
+            n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, h=0.3, J=J, J2=J2, fid_fn=lambda t: 0.5
+        )
         assert not any(x["label"].startswith("block_mix<") for x in r["report"])
 
     def test_block_mix_toggle_on(self):
         from qmbp_simulation.analysis.warmstart import best_combined_warmstart
 
-        r = best_combined_warmstart(n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS,
-                                    p_layers=P, h=0.3, J=J, J2=J2,
-                                    fid_fn=lambda t: 0.5, include_block_mix=True)
+        r = best_combined_warmstart(
+            n_nn=N_NN,
+            n_nnn=N_NNN,
+            n_qubits=N_QUBITS,
+            p_layers=P,
+            h=0.3,
+            J=J,
+            J2=J2,
+            fid_fn=lambda t: 0.5,
+            include_block_mix=True,
+        )
         assert any(x["label"].startswith("block_mix<") for x in r["report"])
 
 
@@ -1471,8 +1752,17 @@ class TestBlockCoordinateDescent:
 
         theta0 = np.zeros(npar)
         out = block_coordinate_descent(
-            theta0, cost, grad, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS,
-            p_layers=P, lbfgsb=exact_lbfgsb, order=("nnn", "nn", "x"), sweeps=1)
+            theta0,
+            cost,
+            grad,
+            n_nn=N_NN,
+            n_nnn=N_NNN,
+            n_qubits=N_QUBITS,
+            p_layers=P,
+            lbfgsb=exact_lbfgsb,
+            order=("nnn", "nn", "x"),
+            sweeps=1,
+        )
         # after one sweep over all three blocks, every coord hit its target
         np.testing.assert_allclose(out, target, atol=1e-9)
 
@@ -1482,7 +1772,7 @@ class TestBlockCoordinateDescent:
         npar = (N_NN + N_NNN + N_QUBITS) * P
 
         def cost(x):
-            return float(np.sum(x ** 2))
+            return float(np.sum(x**2))
 
         def grad(x):
             return 2.0 * np.asarray(x, float)
@@ -1493,8 +1783,8 @@ class TestBlockCoordinateDescent:
         theta0 = np.ones(npar)
         snapshot = theta0.copy()
         _ = block_coordinate_descent(
-            theta0, cost, grad, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS,
-            p_layers=P, lbfgsb=lbfgsb)
+            theta0, cost, grad, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS, p_layers=P, lbfgsb=lbfgsb
+        )
         np.testing.assert_array_equal(theta0, snapshot)  # input untouched
 
     def test_monotone_nonincreasing_cost(self):
@@ -1531,8 +1821,17 @@ class TestBlockCoordinateDescent:
         theta0 = rng.normal(size=npar)
         c0 = cost(theta0)
         out = block_coordinate_descent(
-            theta0, cost, grad, n_nn=N_NN, n_nnn=N_NNN, n_qubits=N_QUBITS,
-            p_layers=P, lbfgsb=lbfgsb, sweeps=2, maxiter_per_block=5)
+            theta0,
+            cost,
+            grad,
+            n_nn=N_NN,
+            n_nnn=N_NNN,
+            n_qubits=N_QUBITS,
+            p_layers=P,
+            lbfgsb=lbfgsb,
+            sweeps=2,
+            maxiter_per_block=5,
+        )
         assert cost(out) <= c0 + 1e-9
 
 
@@ -1594,3 +1893,461 @@ class TestMicroDescentBudgetScaling:
             for h in (0.1, 0.3, 0.5, 0.7, 1.0, 1.3, 1.8, 2.5):
                 b = micro_descent_budget(n, h)
                 assert MICRO_DESCENT_MIN <= b <= MICRO_DESCENT_MAX
+
+
+class TestCascadeEfficiencyImprovements:
+    """M2 (two-pass early-exit), M3 (dedup), M4 (per-degree θ_x fill)."""
+
+    def _descent_stub(self, target):
+        """A fake descent_fn: returns (theta, fidelity) where fidelity is the
+        negative L2 distance to a fixed `target` (closer seed → higher 'fid')."""
+        import numpy as np
+
+        def _fn(theta):
+            th = np.asarray(theta, float)
+            return th, -float(np.linalg.norm(th - target))
+
+        return _fn
+
+    def test_m3_dedup_shares_descent_keeps_report(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        # Two identical extra candidates: BOTH stay in the report (semantics
+        # unchanged), but the duplicate reuses the representative's descent — the
+        # descent_fn is called once for the shared vector, not twice.
+        dup = np.full(9, 0.3)
+        calls = {"n": 0}
+
+        def desc(theta):
+            calls["n"] += 1
+            return np.asarray(theta, float), -float(np.linalg.norm(theta))
+
+        res = best_combined_warmstart(
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=3,
+            p_layers=1,
+            h=0.5,
+            include_calibrated=False,
+            include_structural=False,
+            include_regime=True,
+            extra_candidates=[(dup, "dupA"), (dup, "dupB")],
+            descent_fn=desc,
+            target_len=9,
+        )
+        labels = [r["label"] for r in res["report"]]
+        assert "dupA" in labels and "dupB" in labels  # both kept in report
+        # regime + dupA + dupB = 3 candidates, but dupA==dupB share one descent,
+        # so descent_fn runs at most twice (regime + the shared dup vector).
+        assert calls["n"] <= 2
+
+    def test_m2_two_pass_equals_full_when_topk_covers_all(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        target = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+        desc = self._descent_stub(target)
+        extras = [(np.full(9, v), f"c{v}") for v in (0.1, 0.4, 0.7)]
+        common = dict(
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=3,
+            p_layers=1,
+            h=0.5,
+            include_calibrated=False,
+            include_structural=False,
+            include_regime=True,
+            extra_candidates=extras,
+            descent_fn=desc,
+            target_len=9,
+        )
+        full = best_combined_warmstart(**common)
+        # two-pass with top_k >= n_candidates must pick the SAME winner.
+        tp = best_combined_warmstart(**common, descent_fn_short=desc, two_pass_top_k=10)
+        assert tp["provenance"] == full["provenance"]
+
+    def test_m2_two_pass_off_by_default(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        # Without descent_fn_short the two-pass path is inert (back-compat).
+        target = np.zeros(9)
+        res = best_combined_warmstart(
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=3,
+            p_layers=1,
+            h=0.5,
+            include_calibrated=False,
+            include_structural=False,
+            include_regime=True,
+            extra_candidates=[(np.full(9, 0.2), "a"), (np.full(9, 0.8), "b")],
+            descent_fn=self._descent_stub(target),
+            target_len=9,
+        )
+        assert res["provenance"].endswith("+descent")
+
+    def test_m4_grid_degree_corner_edge_bulk(self):
+        from qmbp_simulation.analysis.warmstart import _grid_degree, lattice_coords
+
+        # 3x3 grid (N=9): center z=4, edges z=3, corners z=2.
+        deg = _grid_degree(lattice_coords("square", 9))
+        counts = sorted(deg.values())
+        assert counts.count(4) == 1  # one bulk (center)
+        assert counts.count(2) == 4  # four corners
+        assert counts.count(3) == 4  # four edges
+
+    def test_m4_grid_degree_none_without_coords(self):
+        from qmbp_simulation.analysis.warmstart import _grid_degree
+
+        assert _grid_degree(None) is None
+
+    def test_prerank_dedups_short_descent(self):
+        # fix 1: the short pre-rank runs ONCE per distinct candidate; duplicates
+        # inherit the representative's score (no redundant short descent).
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        dup = np.full(9, 0.3)
+        short_calls = {"n": 0}
+
+        def short(theta):
+            short_calls["n"] += 1
+            return np.asarray(theta, float), float(np.mean(theta))
+
+        def full(theta):
+            return np.asarray(theta, float), -float(np.linalg.norm(theta))
+
+        best_combined_warmstart(
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=3,
+            p_layers=1,
+            h=0.5,
+            include_calibrated=False,
+            include_structural=False,
+            include_regime=False,
+            extra_candidates=[(dup, "A"), (dup, "B"), (np.full(9, -0.5), "C")],
+            descent_fn=full,
+            descent_fn_short=short,
+            two_pass_top_k=2,
+            target_len=9,
+        )
+        # 3 candidates but A==B share one vector → 2 distinct short descents.
+        assert short_calls["n"] == 2
+
+    def test_warm_restart_full_off_by_default_equals_exhaustive(self):
+        # fix 2 default OFF: two-pass with top_k >= n_candidates picks the SAME
+        # winner as the exhaustive full-descent-from-raw-seed path.
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        def mk(iters, lr=0.3):
+            def fn(theta):
+                x = np.asarray(theta, float).copy()
+                attr = np.sign(x) * 0.8
+                for _ in range(iters):
+                    x = x - lr * 2 * (x - attr)
+                return x, float(1.0 / (1.0 + np.linalg.norm(x - attr)) + 0.01 * np.mean(x))
+
+            return fn
+
+        full, short = mk(400), mk(100)
+        extras = [(np.full(9, v), f"c{v}") for v in (0.1, 0.9, -0.7, 0.5, 0.3)]
+        common = dict(
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=3,
+            p_layers=1,
+            h=0.5,
+            include_calibrated=False,
+            include_structural=False,
+            include_regime=False,
+            extra_candidates=extras,
+            descent_fn=full,
+            target_len=9,
+        )
+        exhaustive = best_combined_warmstart(**common)
+        two_pass = best_combined_warmstart(**common, descent_fn_short=short, two_pass_top_k=5)  # top_k=all
+        assert two_pass["provenance"] == exhaustive["provenance"]
+
+    def test_warm_restart_full_opt_in_reuses_short(self):
+        # fix 2 ON: the full descent starts from the short-refined θ. With a
+        # convergent descent this never lowers the reached fidelity.
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        target = np.linspace(-0.5, 0.9, 9)
+
+        def mk(iters, lr=0.3):
+            def fn(theta):
+                x = np.asarray(theta, float).copy()
+                for _ in range(iters):
+                    x = x - lr * 2 * (x - target)
+                return x, -float(np.linalg.norm(x - target))
+
+            return fn
+
+        full, short = mk(400), mk(100)
+        extras = [(np.full(9, v), f"c{v}") for v in (0.1, 0.5, -0.2)]
+        common = dict(
+            n_nn=2,
+            n_nnn=1,
+            n_qubits=3,
+            p_layers=1,
+            h=0.5,
+            include_calibrated=False,
+            include_structural=False,
+            include_regime=False,
+            extra_candidates=extras,
+            descent_fn=full,
+            descent_fn_short=short,
+            two_pass_top_k=2,
+            target_len=9,
+        )
+        off = best_combined_warmstart(**common)
+        on = best_combined_warmstart(**common, warm_restart_full=True)
+        assert on["init_fidelity"] >= off["init_fidelity"] - 1e-9
+
+
+class TestShortDescentBudget:
+    """short_descent_budget: the two-pass (M1+M2) pre-rank budget."""
+
+    def test_fraction_of_full(self):
+        from qmbp_simulation.analysis.warmstart import short_descent_budget
+
+        # Default 0.25 of a large full budget, well above the floor.
+        assert short_descent_budget(400) == 100
+        assert short_descent_budget(400, frac=0.5) == 200
+
+    def test_floored_at_min(self):
+        from qmbp_simulation.analysis.warmstart import (
+            SHORT_DESCENT_MIN,
+            short_descent_budget,
+        )
+
+        # A small full budget would give frac·full < min; the floor kicks in.
+        assert short_descent_budget(40) == SHORT_DESCENT_MIN
+        assert short_descent_budget(10) == min(10, SHORT_DESCENT_MIN)
+
+    def test_never_exceeds_full(self):
+        from qmbp_simulation.analysis.warmstart import short_descent_budget
+
+        # Even a huge frac is clamped to the full budget (short <= full).
+        for full in (24, 60, 200, 400):
+            assert short_descent_budget(full, frac=5.0) <= full
+
+    def test_cheaper_than_full_at_transition(self):
+        from qmbp_simulation.analysis.warmstart import (
+            micro_descent_budget,
+            short_descent_budget,
+        )
+
+        # At the transition the full budget is large (~400); the short pre-rank
+        # must be strictly cheaper so the two-pass actually saves work.
+        full = micro_descent_budget(18, 0.5)
+        assert short_descent_budget(full) < full
+
+
+class TestAnalyticSeedCache:
+    """M5: cached analytic seeds — same values, no cross-config contamination."""
+
+    @pytest.fixture(autouse=True)
+    def _clean_caches(self):
+        # Module-level caches: start each test from empty for determinism.
+        from qmbp_simulation.analysis.warmstart import clear_analytic_seed_caches
+
+        clear_analytic_seed_caches()
+        yield
+        clear_analytic_seed_caches()
+
+    def _layout(self):
+        return dict(n_nn=7, n_nnn=6, n_qubits=6, p_layers=2)
+
+    def test_cached_matches_pure_calibrated(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            cached_calibrated_warmstart_theta,
+            calibrated_warmstart_theta,
+        )
+
+        lo = self._layout()
+        pure = calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        cached = cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        np.testing.assert_array_equal(pure, cached)
+
+    def test_cached_matches_pure_structural(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            cached_structural_warmstart_theta,
+            structural_warmstart_theta,
+        )
+
+        lo = self._layout()
+        pure = structural_warmstart_theta(**lo, h=0.5, J2=0.5)
+        cached = cached_structural_warmstart_theta(**lo, h=0.5, J2=0.5)
+        np.testing.assert_array_equal(pure, cached)
+
+    def test_cached_matches_pure_regime(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            cached_select_regime_seed,
+            select_regime_seed,
+        )
+
+        lo = self._layout()
+        ps, pn = select_regime_seed(**lo, h=0.5, J2=0.5)
+        cs, cn = cached_select_regime_seed(**lo, h=0.5, J2=0.5)
+        np.testing.assert_array_equal(ps, cs)
+        assert pn == cn
+
+    def test_no_collision_across_h(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import cached_calibrated_warmstart_theta
+
+        lo = self._layout()
+        a = cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        b = cached_calibrated_warmstart_theta(**lo, h=0.7, J2=0.5)
+        assert not np.array_equal(a, b)
+
+    def test_no_collision_across_close_h_exact_bits(self):
+        # float.hex() keying: 0.501 and 0.502 must NOT alias (a :.2f key would).
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import cached_calibrated_warmstart_theta
+
+        lo = self._layout()
+        a = cached_calibrated_warmstart_theta(**lo, h=0.501, J2=0.5)
+        b = cached_calibrated_warmstart_theta(**lo, h=0.502, J2=0.5)
+        assert not np.array_equal(a, b)
+
+    def test_no_collision_across_j2(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import cached_calibrated_warmstart_theta
+
+        lo = self._layout()
+        a = cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        b = cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.0)
+        assert not np.array_equal(a, b)
+
+    def test_no_collision_across_nnn_suppress(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import cached_structural_warmstart_theta
+
+        lo = self._layout()
+        a = cached_structural_warmstart_theta(**lo, h=0.5, J2=0.5, nnn_suppress=0.35)
+        b = cached_structural_warmstart_theta(**lo, h=0.5, J2=0.5, nnn_suppress=0.1)
+        assert not np.array_equal(a, b)
+
+    def test_no_collision_across_use_calibrated(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import cached_select_regime_seed
+
+        lo = self._layout()
+        a, _ = cached_select_regime_seed(**lo, h=0.5, J2=0.5, use_calibrated=False)
+        b, _ = cached_select_regime_seed(**lo, h=0.5, J2=0.5, use_calibrated=True)
+        assert not np.array_equal(a, b)
+
+    def test_returned_array_is_independent_copy(self):
+        # Mutating the returned seed must NOT corrupt the cached entry.
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            cached_calibrated_warmstart_theta,
+            clear_analytic_seed_caches,
+        )
+
+        clear_analytic_seed_caches()
+        lo = self._layout()
+        v1 = cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        reference = v1.copy()
+        v1[:] = 999.0
+        v2 = cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        np.testing.assert_array_equal(v2, reference)
+        assert not np.any(v2 == 999.0)
+
+    def test_hit_does_not_duplicate_entry(self):
+        from qmbp_simulation.analysis.warmstart import (
+            _CALIBRATED_SEED_CACHE,
+            cached_calibrated_warmstart_theta,
+            clear_analytic_seed_caches,
+        )
+
+        clear_analytic_seed_caches()
+        lo = self._layout()
+        cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        cached_calibrated_warmstart_theta(**lo, h=0.5, J2=0.5)
+        assert len(_CALIBRATED_SEED_CACHE) == 1
+
+    def test_fifo_bound_respected(self):
+        from qmbp_simulation.analysis.warmstart import (
+            _ANALYTIC_SEED_CACHE_MAX,
+            _CALIBRATED_SEED_CACHE,
+            cached_calibrated_warmstart_theta,
+            clear_analytic_seed_caches,
+        )
+
+        clear_analytic_seed_caches()
+        lo = self._layout()
+        for i in range(_ANALYTIC_SEED_CACHE_MAX + 10):
+            cached_calibrated_warmstart_theta(**lo, h=0.1 + 0.001 * i, J2=0.5)
+        assert len(_CALIBRATED_SEED_CACHE) == _ANALYTIC_SEED_CACHE_MAX
+
+    def test_cached_matches_pure_variant(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            cached_variant_warmstart_theta,
+            variant_warmstart_theta,
+        )
+
+        blocks = ["nn", "nnn", "x", "nn", "x"]
+        pure = variant_warmstart_theta(blocks, 7, 6, 6, 0.5, J2=0.5, rx_final=True)
+        cached = cached_variant_warmstart_theta(blocks, 7, 6, 6, 0.5, J2=0.5, rx_final=True)
+        np.testing.assert_array_equal(pure, cached)
+
+    def test_variant_no_collision_across_blocks(self):
+        from qmbp_simulation.analysis.warmstart import cached_variant_warmstart_theta
+
+        a = cached_variant_warmstart_theta(["nn", "nnn", "x"], 7, 6, 6, 0.5, J2=0.5)
+        b = cached_variant_warmstart_theta(["nn", "x"], 7, 6, 6, 0.5, J2=0.5)
+        # Different block sequence → different length → never aliased.
+        assert a.size != b.size
+
+    def test_variant_no_collision_across_rx_final(self):
+        from qmbp_simulation.analysis.warmstart import cached_variant_warmstart_theta
+
+        blocks = ["nn", "nnn", "x"]
+        a = cached_variant_warmstart_theta(blocks, 7, 6, 6, 0.5, J2=0.5, rx_final=True)
+        b = cached_variant_warmstart_theta(blocks, 7, 6, 6, 0.5, J2=0.5, rx_final=False)
+        assert a.size != b.size
+
+    def test_variant_returned_is_independent_copy(self):
+        import numpy as np
+
+        from qmbp_simulation.analysis.warmstart import (
+            cached_variant_warmstart_theta,
+            clear_analytic_seed_caches,
+        )
+
+        clear_analytic_seed_caches()
+        blocks = ["nn", "nnn", "x"]
+        v1 = cached_variant_warmstart_theta(blocks, 7, 6, 6, 0.5, J2=0.5)
+        ref = v1.copy()
+        v1[:] = 999.0
+        v2 = cached_variant_warmstart_theta(blocks, 7, 6, 6, 0.5, J2=0.5)
+        np.testing.assert_array_equal(v2, ref)

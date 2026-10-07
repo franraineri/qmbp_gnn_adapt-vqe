@@ -167,6 +167,41 @@ VARIANTS: dict[str, AnsatzVariant] = {
         extends="p3_base",
         extra_blocks=("nn", "x"),
     ),
+    # ── "nn-dominant" family: the distilled design principle ─────────────────
+    # Session finding: across every N=18 winner the invariant is (1) MORE nn
+    # entangling layers than nnn, (2) a trailing free-RX block, (3) x after every
+    # layer — because the frustrated state near h_c lives in the transverse field
+    # and the NN backbone, while the NNN couplings are podable corrections. These
+    # variants encode that principle NATIVELY (nnn only in ONE central layer, nn
+    # in all, + rx_final) instead of adding full nnn and pruning afterwards, to
+    # test whether the minimal fundamental structure reaches high fidelity at a
+    # much lower native 2q cost.
+    "p2_nn_dom_rx": AnsatzVariant(
+        "p2_nn_dom_rx",
+        "nn-dominant: 3 nn layers, nnn in ONE central layer, + trailing RX",
+        blocks=["nn", "x", "nn", "nnn", "x", "nn", "x"],
+        rx_final=True,
+        tags=("nn_dominant", "low_2q"),
+    ),
+    "p3_nn_dom_rx": AnsatzVariant(
+        "p3_nn_dom_rx",
+        "nn-dominant: 4 nn layers, nnn in ONE central layer, + trailing RX",
+        blocks=["nn", "x", "nn", "nnn", "x", "nn", "x", "nn", "x"],
+        rx_final=True,
+        tags=("nn_dominant", "low_2q"),
+    ),
+    # Intermediate point of the "how many nnn layers are the minimum?" sweep:
+    # nnn in TWO central layers (between nn_dom=1 and half_nn_rx=3). The report
+    # finding "NNN is structurally necessary near h_c (nn-only plateaus at 0.73)"
+    # warns ONE nnn layer may be too few; this maps the fidelity-vs-#nnn-layers
+    # curve so we locate the minimal sufficient count, not guess it.
+    "p3_nn_dom2_rx": AnsatzVariant(
+        "p3_nn_dom2_rx",
+        "nn-dominant: 4 nn layers, nnn in TWO central layers, + trailing RX",
+        blocks=["nn", "x", "nn", "nnn", "x", "nn", "nnn", "x", "nn", "x"],
+        rx_final=True,
+        tags=("nn_dominant", "low_2q"),
+    ),
 }
 
 

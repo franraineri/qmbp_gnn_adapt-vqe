@@ -1,8 +1,8 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-10-02 19:18 UTC
-**Elapsed**: 1.1s
-**Models evaluated**: 23
+**Generated**: 2026-10-04 19:05 UTC
+**Elapsed**: 0.4s
+**Models evaluated**: 26
 
 ---
 
@@ -98,6 +98,18 @@
 
 *No evaluation data available.*
 
+## square — `unified_tfim_br_square_multiN_6+8+10+12_p2.pt`
+
+*No evaluation data available.*
+
+## square — `unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt`
+
+*No evaluation data available.*
+
+## square — `unifMPNN__square_p2_film_v1.pt`
+
+*No evaluation data available.*
+
 ---
 
 ## Summary Ranking
@@ -127,12 +139,15 @@
 | square | unified_tfim_br_square_multiN_8_p2.pt | — | — | F (failing) |
 | square | unified_tfim_br_square_multiN_8+10_p2.pt | — | — | F (failing) |
 | square | unified_tfim_br_square_multiN_8+10_p2_v2.pt | — | — | F (failing) |
+| square | unified_tfim_br_square_multiN_6+8+10+12_p2.pt | — | — | F (failing) |
+| square | unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt | — | — | F (failing) |
+| square | unifMPNN__square_p2_film_v1.pt | — | — | F (failing) |
 
 ---
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-10-02 19:18 UTC
+**Generated**: 2026-10-04 19:05 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

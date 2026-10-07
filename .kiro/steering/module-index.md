@@ -48,7 +48,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   cross_n_validator          VAL   C:L1Result,L2Result,L3Result+2 | F:preflight_cross_n,build_l1_from_precomputed,quick_cross_n_report
   data_models                MODEL C:GradientAnalysisResult,ComparisonResult,BaselineMetrics+1
   diagnostics                CORE  C:DiagnosticCollector | F:configure_pipeline_logging
-  dynamics                   SOLVE F:fidelity_from_2q,tnoise_from_2q_curve,gates_to_floor+9
+  dynamics                   SOLVE F:fidelity_from_2q,tnoise_from_2q_curve,gates_to_floor+13
   entanglement               ANAL  C:EntanglementResult,EntanglementAnalyzer
   evaluation_report          ANAL  F:validate_metrics,generate_comparison_table,generate_evaluation_report+2
   extension_analyzer         PIPE  C:RejectionReportGenerator,PrerequisiteChecker,CalibrationComparator+8
@@ -72,14 +72,14 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   theta_patterns             OPT   F:layer_size,decompose_theta,block_statistics+9
   theta_validator            VAL   C:BoundCheckResult,NumericalSanityResult,InterpolationResult+6
   vqe_validator              VAL   C:Severity,ValidationIssue,VQEValidationReport+1
-  warmstart                  CIRC  F:first_order_warmstart_theta,calibrated_zz_coef,calibrated_x_scale+35
+  warmstart                  CIRC  F:first_order_warmstart_theta,calibrated_zz_coef,calibrated_x_scale+43
 
 ### qsim/circuits/ (6)
   ↳ HVACircuitBuilder AQCCircuitCompressor AQCCompressionConfig AQCCompressionResult CompressionValidation AQCCompressionCache
 
   ansatz_spec                IO    C:AnsatzSpec | F:encode_ansatz_spec,decode_ansatz_spec
   aqc_compression            CIRC  C:AQCCompressionConfig,AQCCompressionResult,CompressionValidation+2
-  bond_mask                  CIRC  C:BondSelection | F:full_selection,prune_by_theta,top_k_by_weight+4
+  bond_mask                  CIRC  C:BondSelection | F:full_selection,prune_by_theta,top_k_by_weight+6
   hva                        MODEL C:HVACircuitBuilder | F:do_checks
   hva_variants               CIRC  C:AnsatzVariant | F:build_variant,make_masked_variant
   trotter                    CIRC  F:build_trotter_step,build_trotter_step_from_topology,build_frustrated_trotter_step+1
@@ -111,7 +111,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/framework/ (23)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
-  __main__                   CLI   
+  __main__                   CLI  
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -130,7 +130,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   study_artifacts                  C:StudyArtifactWriter,PathShim | F:build_artifact_name,meta_sidecar_path,git_commit+5
   study_checkpoint                 C:StudyCheckpoint | F:atomic_write_json,read_json,sanitize_theta+2
-  study_core                 CIRC  F:ground_state,make_cost_fid,diagnose_starvation+7
+  study_core                 CIRC  F:ground_state,make_cost_fid,diagnose_starvation+9
   study_index                CIRC  F:extract_coordinates,build_entry,build_index+4
   study_runner               PIPE  C:WarmStartResult,StudyRunner | F:make_adjoint_gradient,strategy_single,strategy_bestof+4
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -138,7 +138,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG   
+  constants                  CFG  
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -174,7 +174,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
   training_intelligence      VAL   C:RetrainTrigger,HRangeValidation,TrainingConfig | F:check_retrain_triggers,validate_h_range_alignment,prepare_training_config+1
   unified_graph              PRED  F:compute_bond_and_site_orbits,build_graph_for_model,build_unified_bond_resolved_graph+3
-  unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+4
+  unified_mpnn               PRED  C:UnifiedMPNN | F:residual_seed_for_graph,predict_residual,train_unified_mpnn+6
 
 ### qsim/solvers/ (2)
   ↳ ClassicalSolver
@@ -213,7 +213,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL   
+  gnn_qem_analyzer           VAL  
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (2)
@@ -314,7 +314,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  _sanity_check_envelope     IO    
+  _sanity_check_envelope     IO  
   analyze_haiqu_hva          CIRC  F:analyze_file,print_report,main
   benchmark_configs          BENCH C:BenchmarkConfig
   rebuild_circuit_input      CIRC  F:fetch_gnn_theta,predict_gnn_theta,hamiltonian_to_json+2
@@ -384,6 +384,9 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   reanalyze_p2_filtered      ANAL  
   results_query              CIRC  C:ResultRecord | F:iter_records,query_results,best_result+5
   run_adapt_bonds            CIRC  F:run,main
+  run_adapt_gate0                  F:run,main
+  run_adapt_gate1                  F:run,main
+  run_adapt_gate2                  F:run,main
   run_ansatz_variants              F:run_saturation,run_variants,main
   run_basin_count            CIRC  F:main
   run_bond_ablation          CIRC  F:run,main
@@ -395,6 +398,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_layer_ablation_direct  TEST  F:main
   run_n18_fair_convergence   ANAL  F:main
   run_n18_second_order       PIPE  F:main
+  run_native_routing_budget        F:run,build_parser
   run_prep_evolution_noise         F:run,build_parser
   run_prune03_dynamics             F:run,build_parser
   run_representability_mps   SOLVE F:dmrg_chi,exact_energy,run+1

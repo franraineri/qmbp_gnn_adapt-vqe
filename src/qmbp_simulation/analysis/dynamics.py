@@ -339,6 +339,90 @@ def resolve_fake_backend(name: str):
     return None
 
 
+# Native 2q basis of Nighthawk r2 (square lattice): CZ. Used for routing counts
+# that isolate the mapping cost from the fake-backend noise model.
+NIGHTHAWK_BASIS_GATES = ("rz", "sx", "x", "cz")
+
+
+def nighthawk_coupling_map():
+    """The real square-lattice coupling map of Nighthawk (via FakeNighthawk).
+
+    FakeNighthawk ships the actual 120-qubit square coupling map (218 coupler
+    pairs); only its *noise model* is unreliable, not its connectivity. Returns a
+    ``CouplingMap`` or ``None`` if the fake provider is unavailable.
+    """
+    try:
+        from qiskit.transpiler import CouplingMap
+
+        nh = resolve_fake_backend("nighthawk")
+        if nh is None:
+            return None
+        return CouplingMap(list(nh.coupling_map))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def square_grid_coupling_map(n_qubits: int):
+    """A clean square grid ``CouplingMap`` sized to hold ``n_qubits`` (fallback)."""
+    import math
+
+    from qiskit.transpiler import CouplingMap
+
+    rows = int(round(math.sqrt(n_qubits)))
+    cols = int(math.ceil(n_qubits / max(rows, 1)))
+    return CouplingMap.from_grid(rows, cols)
+
+
+def transpiled_2q_count(circuit, coupling_map, *, basis_gates=NIGHTHAWK_BASIS_GATES) -> int:
+    """2q-gate count after transpiling to ``coupling_map`` + native basis.
+
+    Isolates the routing/decomposition cost (no noise model). ``coupling_map``
+    None → all-to-all (lower bound: decomposition only, no routing).
+    """
+    from qiskit import transpile
+
+    tqc = transpile(
+        circuit, coupling_map=coupling_map, basis_gates=list(basis_gates), optimization_level=3, seed_transpiler=42
+    )
+    return sum(1 for inst in tqc.data if inst.operation.num_qubits == 2)
+
+
+def routing_overhead_breakdown(
+    nn_layer,
+    full_layer,
+    coupling_map,
+    *,
+    basis_gates=NIGHTHAWK_BASIS_GATES,
+) -> dict:
+    """Decompose the square-lattice routing overhead into nn-native vs nnn-routed.
+
+    ``nn_layer`` is a circuit with only the nearest-neighbour RZZ layer (native
+    edges on a square lattice → no SWAP, so its overhead is pure RZZ→2·CZ
+    decomposition ≈ 2.0×). ``full_layer`` adds the diagonal nnn RZZ (not native →
+    SWAP routing). Returns logical/transpiled 2q counts and the overhead ratios,
+    so the nnn-routing cost is ``full_overhead − 2.0`` (the part a native-nnn or
+    nnn-free model would avoid). Pure measurement; no noise model.
+    """
+
+    def _log(qc):
+        return sum(1 for inst in qc.data if inst.operation.num_qubits == 2)
+
+    log_nn, log_full = _log(nn_layer), _log(full_layer)
+    t_nn = transpiled_2q_count(nn_layer, coupling_map, basis_gates=basis_gates)
+    t_full = transpiled_2q_count(full_layer, coupling_map, basis_gates=basis_gates)
+    aa_full = transpiled_2q_count(full_layer, None, basis_gates=basis_gates)
+    return {
+        "logical_nn": log_nn,
+        "logical_full": log_full,
+        "transpiled_nn": t_nn,
+        "transpiled_full": t_full,
+        "transpiled_all_to_all": aa_full,
+        "overhead_nn": t_nn / log_nn if log_nn else None,
+        "overhead_full": t_full / log_full if log_full else None,
+        "routing_excess": (t_full / log_full - t_nn / log_nn) if (log_full and log_nn) else None,
+    }
+
+
 def tnoise_on_backend(
     prep_circuit: QuantumCircuit,
     trotter_step: QuantumCircuit,
@@ -357,8 +441,7 @@ def tnoise_on_backend(
     backend = resolve_fake_backend(backend_name)
     if backend is None:
         return None
-    curve = tnoise_curve(prep_circuit, trotter_step, n_steps, backend,
-                         floor=floor, eps_2q=eps_2q)
+    curve = tnoise_curve(prep_circuit, trotter_step, n_steps, backend, floor=floor, eps_2q=eps_2q)
     return {
         "backend": backend_name,
         "noise_model": "analytic" if eps_2q is not None else "fake_calibration",

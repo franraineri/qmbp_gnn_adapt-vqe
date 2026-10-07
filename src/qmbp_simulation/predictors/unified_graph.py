@@ -280,6 +280,11 @@ def build_unified_bond_resolved_graph(
     else:
         param_edges = nn_edges
     n_edges = len(param_edges)
+    # NN / NNN split (needed by the residual analytic seed, which builds the
+    # per-block [nn, nnn, x] seed and must know how many of the parametrized
+    # edges are nearest- vs next-nearest-neighbour). n_edges_unique = n_nn+n_nnn.
+    n_nn_edges = len(nn_edges)
+    n_nnn_edges = n_edges - n_nn_edges
     edges_unique = np.array(param_edges)
 
     # ── Compute bipartite coloring (once, reused for all node types) ──
@@ -347,6 +352,8 @@ def build_unified_bond_resolved_graph(
         data.n_qubit_nodes = N
         data.n_nodes = N
         data.n_edges_unique = n_edges
+        data.n_nn_edges = n_nn_edges
+        data.n_nnn_edges = n_nnn_edges
 
         if theta_opt is not None:
             data.y = torch.tensor(theta_opt, dtype=torch.float32)
@@ -591,6 +598,8 @@ def build_unified_bond_resolved_graph(
     data.n_qubit_nodes = N
     data.n_nodes = total_nodes
     data.n_edges_unique = n_edges
+    data.n_nn_edges = n_nn_edges
+    data.n_nnn_edges = n_nnn_edges
     data.has_global_node = virtual_global_node
     data.node_feature_dim = int(x.shape[1])
     data.has_rz_nodes = bool(include_rz_nodes)

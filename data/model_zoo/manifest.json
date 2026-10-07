@@ -79,7 +79,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023957.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-10-02T19:17:41.651336+00:00"
+        "updated": "2026-10-04T23:58:45.701467+00:00"
       }
     },
     "abs_error_by_n": {
@@ -432,7 +432,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023121.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-10-02T19:17:41.429596+00:00"
+        "updated": "2026-10-04T23:58:45.665983+00:00"
       }
     },
     "abs_error_by_n": {
@@ -553,7 +553,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_MT_20260829_024911.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-10-02T19:17:41.705587+00:00"
+        "updated": "2026-10-04T23:58:45.713406+00:00"
       }
     },
     "abs_error_by_n": {
@@ -862,7 +862,7 @@
         "grade": "F",
         "source_report": "evaluation_chain_1d_p1_20260909_050743.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-10-02T19:17:41.375496+00:00"
+        "updated": "2026-10-04T23:58:45.657165+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1045,7 +1045,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023859.md",
         "seen_in_raw_runs": true,
-        "updated": "2026-10-02T19:17:41.574607+00:00"
+        "updated": "2026-10-04T23:58:45.688416+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1199,7 +1199,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023808.md",
         "seen_in_raw_runs": true,
-        "updated": "2026-10-02T19:17:41.522128+00:00"
+        "updated": "2026-10-04T23:58:45.679300+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1335,7 +1335,7 @@
         "grade": "F",
         "source_report": "eval_heavy_hex_20260831_150926.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-10-02T19:17:41.828774+00:00"
+        "updated": "2026-10-04T23:58:45.731600+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1443,7 +1443,7 @@
         "grade": "F",
         "source_report": "eval_heavy_hex_20260831_151041.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-10-02T19:17:41.771673+00:00"
+        "updated": "2026-10-04T23:58:45.722450+00:00"
       }
     },
     "abs_error_by_n": {
@@ -1786,6 +1786,96 @@
     "sha256": "f7db7f84b30211d2880b0ddf4429c2a94d3538e43348d87022c34e3299d2ac47",
     "runner_tag": "XX",
     "date_tag": "021026",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_square_multiN_6+8+10+12_p2.pt",
+    "h_range": [
+      0.3,
+      1.8
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 184,
+    "seeds": [
+      42
+    ],
+    "created": "2026-10-03T02:48:55.942053+00:00",
+    "notes": "Multi-N training: N=[6, 8, 10, 12], 184 points",
+    "sha256": "ce96198284df6858554750dc347d1669a26f5ba82500c80b1e73fdf04cfe6ae1",
+    "runner_tag": "AC",
+    "date_tag": "031026",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt",
+    "h_range": [
+      0.3,
+      1.8
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 204,
+    "seeds": [
+      42
+    ],
+    "created": "2026-10-04T15:31:43.414483+00:00",
+    "notes": "Multi-N training: N=[6, 8, 10, 12, 14], 204 points",
+    "sha256": "f57a124795b5f4fffbcd80868a40237d56c6b2817559c1aa9d11776d21934a51",
+    "runner_tag": "AC",
+    "date_tag": "041026",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {},
+    "abs_error_by_n": {},
+    "fidelity_by_n": {},
+    "de_gap_by_n": {},
+    "warmstart_by_n": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unifMPNN__square_p2_film_v1.pt",
+    "h_range": [
+      0.3,
+      1.8
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 204,
+    "seeds": [
+      42
+    ],
+    "created": "2026-10-04T17:16:05.568255+00:00",
+    "notes": "Multi-N training: N=[6, 8, 10, 12, 14], 204 points",
+    "sha256": "5645037c53103dad4d46632bb95673adb7383f705da373a83f7bd1ce566f3573",
+    "runner_tag": "AC",
+    "date_tag": "041026",
     "training_quality_score": 0.0,
     "pass_rate_by_n": {},
     "run_json": "",

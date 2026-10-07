@@ -98,6 +98,71 @@ Findings on reducing 2q with the in-repo tooling (no external optimizers):
    on equal footing (`seed_kind` recorded per row). The full reference seeds
    every masked transfer, so a well-converged full matters.
 
+## Scaling to N = 18, h = 0.5 — the nnn-layer curve and the Pareto frontier
+
+At N = 18 (the extrapolation regime, gap ≈ 0.006) the picture holds but sharpens.
+Two questions were settled here: (a) how many nnn layers a p3 ansatz actually
+needs, and (b) whether encoding fewer nnn *natively* (an "nn-dominant" structure)
+beats the full `half_nn_rx` + top-k prune recipe.
+
+### The nnn-layer curve (p3, nn backbone fixed at 4 layers)
+
+Holding the nn backbone at 4 layers and varying only the number of nnn layers
+maps the marginal value of nnn directly:
+
+| Variant        | nnn layers | 2q (CX) | Fidelity | Δfid vs prev |
+|----------------|:----------:|:-------:|:--------:|:------------:|
+| p3_nn_dom_rx   |     1      |   294   |  0.8385  |      —       |
+| p3_nn_dom2_rx  |     2      |   372   |  0.9252  |   **+0.087** |
+| p3_half_nn_rx  |     3      |   450   |  0.9516  |    +0.026    |
+
+The return on nnn layers is sharply decreasing, with a **critical 1 → 2 jump**:
+
+- **1 nnn layer is a structural ceiling** at 0.84 (both restarts identical — not
+  an optimizer artefact). The p2 analogue `p2_nn_dom_rx` (nnn = 1 at p2) tops out
+  even lower at 0.7785, consistent with the "nn-only plateau 0.73–0.77" seen at
+  small N.
+- **2 nnn layers capture 97%** of the full-ansatz fidelity (0.9252 vs 0.9516)
+  with 78 fewer gates.
+- A 3rd nnn layer adds only +0.026 for +78 gates.
+
+**nnn is structurally necessary near h_c**, and the minimum useful count is ~2
+layers — "one nnn layer suffices" is refuted.
+
+### The nn-dominant design is Pareto-dominated
+
+The nn-dominant variants were built to encode *fewer* nnn natively. They lose to
+simply pruning the full `half_nn_rx`: `p3_nn_dom2_rx` (0.9252 @ 372) is beaten by
+`p3_half_nn_rx_topk20` (0.9359 @ 336) — **higher fidelity AND fewer gates**.
+Reducing nnn in the ansatz design is strictly worse than keeping the full nn +
+nnn structure and letting top-k drop the low-`|θ|` nnn bonds. This is the same
+"full nn + prune nnn > structurally reduce" pattern as at N = 10.
+
+### Consolidated Pareto frontier (N = 18, h = 0.5)
+
+Every point is the best fidelity of its variant; a point is on the frontier when
+no other point has both ≥ fidelity and ≤ 2q. **All frontier points are
+`half_nn_rx`** — no `nn_dom` or `base` variant survives.
+
+| 2q (CX) | Fidelity | Variant                   | note                     |
+|:-------:|:--------:|---------------------------|--------------------------|
+|   128   |  0.8202  | p2_half_nn_rx_topk8       | cheap, low-fidelity      |
+|   148   |  0.8483  | p2_half_nn_rx_topk13      |                          |
+|   276   |  0.8903  | p3_half_nn_rx_topk10      |                          |
+|   318   |  0.9084  | p2_half_nn_rx_full        | **cheapest ≥ 0.90**      |
+|   336   |  0.9359  | p3_half_nn_rx_topk20      | **best efficiency** (−25% vs full) |
+|   390   |  0.9515  | p3_half_nn_rx_topk29      | near-full at −60 2q      |
+|   450   |  0.9516  | p3_half_nn_rx_full        | fidelity ceiling         |
+
+Cheapest point above 0.90 is `p2_half_nn_rx_full` at **318 2q**; below that the
+0.90 line is not crossed. The best high-fidelity efficiency is
+`p3_half_nn_rx_topk20` at **336 2q → 0.9359** (114 fewer gates than the full for
+−0.016 fidelity).
+
+Source artifacts: `results/hva_vl_study/bond_ablation/variant_topk_*_N18_h0.50.json`.
+Variants in `src/qmbp_simulation/circuits/hva_variants.py`
+(`p3_nn_dom_rx`, `p3_nn_dom2_rx`, `p2_nn_dom_rx`).
+
 ## Bond importance is collective, not transferable
 
 A natural idea for scaling the selection is to *predict* which bonds matter at
@@ -147,6 +212,16 @@ depth / cross-N persistence).
     --n 10 --h 0.5 --variant p1_half_nn_rx \
     --prune-tols 0.1 0.15 0.3 --restarts 3 --maxiter 1000 --micro-descent 60
 
+# N=18 nnn-layer curve (p3 nn-dominant 1 vs 2 nnn layers vs full half_nn):
+.venv/bin/python scripts/analysis/vl_vs_hva/run_variant_topk.py \
+    --n 18 --h 0.5 --variant p3_nn_dom2_rx \
+    --keep-fracs 0.5 --restarts 2 --maxiter 800 --micro-descent 60 --no-sync
+
+# N=18 top-k frontier (the Pareto-winning recipe):
+.venv/bin/python scripts/analysis/vl_vs_hva/run_variant_topk.py \
+    --n 18 --h 0.5 --variant p3_half_nn_rx \
+    --keep-fracs 0.75 0.5 --restarts 2 --maxiter 800 --micro-descent 60 --no-sync
+
 # Bond-importance study (pure analysis — reads converged AnsatzSpecs):
 .venv/bin/python scripts/analysis/vl_vs_hva/analyze_bond_importance_deep.py \
     --topology square --h 0.5
@@ -159,10 +234,25 @@ depth / cross-N persistence).
 
 ## Recommendations
 
+**N = 10 (small):**
+
 - **Max fidelity, minimal loss:** `p1_half_nn_rx` full — 0.9892 @ 82 2q.
 - **Sweet spot (general):** T1 prune tol 0.1 — **0.9843 @ 48 2q** (−57% vs p2_base).
 - **Aggressive floor:** T1 prune tol 0.15 — 0.9792 @ 40 2q (last point ≥ 0.98).
+
+**N = 18 (scaling regime):**
+
+- **Max fidelity:** `p3_half_nn_rx` full — 0.9516 @ 450 2q.
+- **Best efficiency:** `p3_half_nn_rx_topk20` — **0.9359 @ 336 2q** (−25% vs full).
+- **Cheapest ≥ 0.90:** `p2_half_nn_rx_full` — 0.9084 @ 318 2q.
+- **nnn layers:** 2 is the structural minimum near h_c (97% of full fidelity);
+  1 collapses to ~0.84.
+
+**General:**
+
 - **Do not** use transpile opt-levels or AQC to chase fewer 2q here; direct T1
   pruning is strictly better.
 - **Do not** try to pick bonds from geometry or a small-N importance map — bond
   importance is collective and does not transfer; select from a converged θ.
+- **Do not** encode fewer nnn natively (nn-dominant designs); keep the full
+  `half_nn_rx` structure and prune nnn by top-k — it is Pareto-superior.

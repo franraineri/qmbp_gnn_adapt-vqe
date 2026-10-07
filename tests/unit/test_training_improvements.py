@@ -103,9 +103,7 @@ class TestDataAugmentation:
         from qmbp_simulation.utils.helpers import augment_theta_symmetries
 
         theta = np.array([1.5, -1.5, 0.0, 1.0])  # Near boundaries
-        variants = augment_theta_symmetries(
-            theta, include_z2=False, noise_std=0.1, n_noise_variants=5, seed=42
-        )
+        variants = augment_theta_symmetries(theta, include_z2=False, noise_std=0.1, n_noise_variants=5, seed=42)
 
         for v in variants:
             assert np.all(v >= -np.pi / 2 - 1e-10), f"Below lower bound: {v}"
@@ -118,15 +116,11 @@ class TestDataAugmentation:
         theta = np.array([0.3, -0.1, 0.5])
 
         # Z₂ + 2 noisy per base (original + Z₂) = 1 + 4 = 5
-        variants = augment_theta_symmetries(
-            theta, include_z2=True, noise_std=0.02, n_noise_variants=2, seed=42
-        )
+        variants = augment_theta_symmetries(theta, include_z2=True, noise_std=0.02, n_noise_variants=2, seed=42)
         assert len(variants) == 5  # 1 Z₂ + 2 noisy(original) + 2 noisy(Z₂)
 
         # No Z₂ + 3 noisy of original = 3
-        variants = augment_theta_symmetries(
-            theta, include_z2=False, noise_std=0.02, n_noise_variants=3, seed=42
-        )
+        variants = augment_theta_symmetries(theta, include_z2=False, noise_std=0.02, n_noise_variants=3, seed=42)
         assert len(variants) == 3
 
     def test_empty_theta_returns_empty(self):
@@ -184,8 +178,7 @@ class TestDataAugmentation:
         n_augmented = sum(
             1
             for g in dataset
-            if hasattr(g, "sample_weight")
-            and abs(float(g.sample_weight[0]) - QUALITY_TIER_WEIGHT_AUGMENTED) < 1e-5
+            if hasattr(g, "sample_weight") and abs(float(g.sample_weight[0]) - QUALITY_TIER_WEIGHT_AUGMENTED) < 1e-5
         )
         assert n_augmented >= 1
 
@@ -289,3 +282,96 @@ class TestAdaptiveVQEConfig:
         assert cfg["tier"] == "aggressive"
         assert cfg["maxiter"] == 500
         assert cfg["n_restarts"] == 3
+
+
+class TestResidualSeed:
+    """Tests for the residual-over-analytic-seed training/inference path."""
+
+    def _frustrated_graph(self, N=8, p=2, h=1.2, with_theta=True, with_phys=True):
+        import numpy as _np
+
+        from qmbp_simulation.analysis.warmstart import select_regime_seed
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder, make_lattice
+        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+
+        lat = make_lattice("square", N, J=1.0, h=h)
+        n_nn = len(lat.edges)
+        n_nnn = len(HamiltonianBuilder._generate_nnn_edges(lat))
+        seed_true, _ = select_regime_seed(n_nn, n_nnn, N, p, h, J2=0.5)
+        theta = None
+        if with_theta:
+            rng = _np.random.default_rng(0)
+            theta = seed_true + rng.normal(0, 0.1, size=seed_true.shape)
+        g = build_unified_bond_resolved_graph(lat, h_value=h, p_layers=p, theta_opt=theta, include_nnn=True)
+        if with_phys:
+            g.phys_n_qubits = N
+            g.phys_h = h
+            g.phys_p_layers = p
+        return g, n_nn, n_nnn
+
+    def test_graph_carries_nn_nnn_split(self):
+        """build_unified_bond_resolved_graph should expose n_nn_edges / n_nnn_edges."""
+        g, n_nn, n_nnn = self._frustrated_graph()
+        assert int(g.n_nn_edges) == n_nn
+        assert int(g.n_nnn_edges) == n_nnn
+        assert int(g.n_edges_unique) == n_nn + n_nnn
+
+    def test_seed_is_small_residual_and_roundtrips(self):
+        """Δ = canon(θ) − seed is small, and seed + Δ recovers canon(θ) exactly."""
+        from qmbp_simulation.analysis.warmstart import _canonicalize_z2_flat
+        from qmbp_simulation.predictors.unified_mpnn import residual_seed_for_graph
+
+        g, n_nn, n_nnn = self._frustrated_graph()
+        seed = residual_seed_for_graph(g, j2=0.5)
+        assert seed is not None
+        N = int(g.n_qubit_nodes)
+        p = int(g.phys_p_layers)
+        y_gauge = _canonicalize_z2_flat(g.y.numpy().astype(np.float64), n_nn, n_nnn, N, p)
+        delta = y_gauge - seed
+        # Δ is a small correction, not ≈2×seed (the sign-gauge bug it guards against)
+        assert np.linalg.norm(delta) < np.linalg.norm(seed)
+        # exact round-trip
+        np.testing.assert_allclose(seed + delta, y_gauge, atol=1e-9)
+
+    def test_h_and_p_override_matches_metadata(self):
+        """Prediction graphs lack phys_* — overrides must reproduce the same seed."""
+        from qmbp_simulation.predictors.unified_mpnn import residual_seed_for_graph
+
+        g_meta, _, _ = self._frustrated_graph(with_theta=False, with_phys=True)
+        seed_meta = residual_seed_for_graph(g_meta, j2=0.5)
+        g_bare, _, _ = self._frustrated_graph(with_theta=False, with_phys=False)
+        seed_override = residual_seed_for_graph(g_bare, j2=0.5, h_override=1.2, p_override=2)
+        assert seed_meta is not None and seed_override is not None
+        np.testing.assert_allclose(seed_meta, seed_override, atol=1e-12)
+
+    def test_missing_metadata_falls_back_to_none(self):
+        """No phys_h and no override → seed cannot be built → None (safe fallback)."""
+        from qmbp_simulation.predictors.unified_mpnn import residual_seed_for_graph
+
+        g_bare, _, _ = self._frustrated_graph(with_theta=False, with_phys=False)
+        assert residual_seed_for_graph(g_bare, j2=0.5) is None
+
+    def test_predict_residual_adds_seed_back(self):
+        """predict_residual(θ) = seed + model(Δ); grouped layout, finite."""
+        import torch
+
+        from qmbp_simulation.predictors.unified_mpnn import (
+            UnifiedMPNN,
+            predict_residual,
+            residual_seed_for_graph,
+        )
+
+        g, _, _ = self._frustrated_graph(with_theta=False, with_phys=True)
+        n_feat = g.x.shape[1]
+        model = UnifiedMPNN(node_features=n_feat, hidden_dim=32, n_layers=2, norm_type="none")
+        model.eval()
+        theta = predict_residual(model, g, model_name="tfim_frustrated", j2=0.5)
+        assert theta.shape[0] == int(g.n_edges_unique) * 2 + int(g.n_qubit_nodes) * 2  # (n_e + N) * p
+        assert np.all(np.isfinite(theta))
+        # θ must differ from the raw Δ by exactly the regrouped seed
+        with torch.no_grad():
+            delta = model(g).squeeze(0).numpy()
+        seed = residual_seed_for_graph(g, j2=0.5)
+        assert seed is not None
+        # θ - delta should have the same norm as the seed (regrouped, same entries)
+        np.testing.assert_allclose(np.sort(np.abs(theta - delta)), np.sort(np.abs(seed)), atol=1e-5)

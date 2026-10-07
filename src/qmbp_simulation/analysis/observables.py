@@ -149,6 +149,50 @@ def order_parameter_x(psi: np.ndarray, n_qubits: int) -> float:
     return magnetization_x(psi, n_qubits)
 
 
+def bipartition_entropy(psi: np.ndarray, n_qubits: int, qubits_a: list[int]) -> float:
+    """Von Neumann entropy (nats) of an ARBITRARY bipartition A | rest.
+
+    Unlike :func:`half_chain_entropy` (which cuts the index at N//2, i.e. a 1D
+    serpentine cut over a 2D grid), this takes an explicit set ``qubits_a`` so a
+    genuine 2D cut (e.g. the left columns of a square lattice) can be measured.
+    A 2D vertical cut has boundary area ∝ rows, exposing the 2D area law that the
+    1D half-chain cut hides.
+
+    Computed by permuting the A qubits to the front, reshaping to (2^|A|, 2^|B|),
+    and taking the Schmidt (SVD) spectrum. O(2^N) memory — exact-statevector only.
+    """
+    qubits_a = sorted(set(int(q) for q in qubits_a))
+    n_a = len(qubits_a)
+    if n_a == 0 or n_a == n_qubits:
+        return 0.0
+    qubits_b = [q for q in range(n_qubits) if q not in qubits_a]
+    # Qiskit little-endian: qubit q is axis (n_qubits-1-q) in the (2,)*N tensor.
+    tensor = np.asarray(psi).reshape([2] * n_qubits)
+    axes_a = [n_qubits - 1 - q for q in qubits_a]
+    axes_b = [n_qubits - 1 - q for q in qubits_b]
+    permuted = np.transpose(tensor, axes_a + axes_b).reshape(2**n_a, 2 ** (n_qubits - n_a))
+    sv = np.linalg.svd(permuted, compute_uv=False)
+    probs = sv**2
+    probs = probs[probs > 1e-15]
+    return float(-np.sum(probs * np.log(probs)))
+
+
+def square_vertical_cut_qubits(n_qubits: int) -> list[int]:
+    """Qubit indices of the LEFT half-columns of the square-lattice grid.
+
+    Mirrors ``generate_square`` layout: qubit s = r·cols + c, cols = ceil(√N).
+    Returns the qubits with column < cols//2 — a vertical cut whose boundary
+    (area) scales with the number of rows, i.e. the 2D area-law cut. Pair with
+    :func:`bipartition_entropy` to measure the 2D entanglement a 1D half-chain
+    cut underestimates.
+    """
+    import math
+
+    cols = int(math.ceil(math.sqrt(n_qubits)))
+    c_split = cols // 2
+    return [q for q in range(n_qubits) if (q % cols) < c_split]
+
+
 def staggered_magnetization_z(psi: np.ndarray, n_qubits: int) -> float:
     """Neel order parameter: (1/N) sum_i (-1)^i <Z_i>.
 

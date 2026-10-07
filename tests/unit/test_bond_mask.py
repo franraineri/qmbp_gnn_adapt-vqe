@@ -50,8 +50,7 @@ class TestPruneByTheta:
     def test_keeps_above_tolerance(self):
         nn = [(0, 1), (1, 2), (2, 3)]
         nnn = [(0, 2), (1, 3)]
-        sel = prune_by_theta(nn, nnn, np.array([0.5, 0.01, 0.3]),
-                             np.array([0.2, 0.001]), tol=0.05)
+        sel = prune_by_theta(nn, nnn, np.array([0.5, 0.01, 0.3]), np.array([0.2, 0.001]), tol=0.05)
         assert sel.nn_edges == [(0, 1), (2, 3)]
         assert sel.nnn_edges == [(0, 2)]
         assert "prune_by_theta" in sel.provenance
@@ -141,10 +140,8 @@ class TestMaskedBuilderEquivalence:
         lat, nn, nnn = lattice_and_edges
         b = HVACircuitBuilder()
         sel = full_selection(nn, nnn)
-        qc_masked, _ = b.create_bond_resolved_masked(
-            10, lat, blocks=["nn", "nnn", "x"], bond_selection=sel)
-        qc_conf, _ = b.create_bond_resolved_frustrated_configurable(
-            10, lat, blocks=["nn", "nnn", "x"])
+        qc_masked, _ = b.create_bond_resolved_masked(10, lat, blocks=["nn", "nnn", "x"], bond_selection=sel)
+        qc_conf, _ = b.create_bond_resolved_frustrated_configurable(10, lat, blocks=["nn", "nnn", "x"])
         assert qc_masked.num_parameters == qc_conf.num_parameters
         assert self._n2q(qc_masked) == self._n2q(qc_conf)
 
@@ -155,10 +152,8 @@ class TestMaskedBuilderEquivalence:
         b = HVACircuitBuilder()
         full = full_selection(nn, nnn)
         half = BondSelection(nn_edges=nn, nnn_edges=nnn[: len(nnn) // 2])
-        qc_full, _ = b.create_bond_resolved_masked(
-            10, lat, blocks=["nn", "nnn", "x"], bond_selection=full)
-        qc_half, _ = b.create_bond_resolved_masked(
-            10, lat, blocks=["nn", "nnn", "x"], bond_selection=half)
+        qc_full, _ = b.create_bond_resolved_masked(10, lat, blocks=["nn", "nnn", "x"], bond_selection=full)
+        qc_half, _ = b.create_bond_resolved_masked(10, lat, blocks=["nn", "nnn", "x"], bond_selection=half)
         assert self._n2q(qc_half) < self._n2q(qc_full)
 
     def test_invalid_edge_raises(self, lattice_and_edges):
@@ -168,8 +163,7 @@ class TestMaskedBuilderEquivalence:
         b = HVACircuitBuilder()
         bad = BondSelection(nn_edges=[(0, 99)], nnn_edges=[])  # 99 >= N=10
         with pytest.raises(ValueError):
-            b.create_bond_resolved_masked(
-                10, lat, blocks=["nn", "x"], bond_selection=bad)
+            b.create_bond_resolved_masked(10, lat, blocks=["nn", "x"], bond_selection=bad)
 
 
 class TestVariantRouting:
@@ -194,8 +188,7 @@ class TestVariantRouting:
 
         lat = make_lattice("square", 10, J=1.0, h=0.5)
         nnn = HamiltonianBuilder._generate_nnn_edges(lat)
-        sel = BondSelection(nn_edges=lat.edges, nnn_edges=nnn[: len(nnn) // 2],
-                            provenance="half_nnn")
+        sel = BondSelection(nn_edges=lat.edges, nnn_edges=nnn[: len(nnn) // 2], provenance="half_nnn")
         v = make_masked_variant("p1_half_nnn_topk", "half nnn", ["nn", "nnn", "x"], sel)
         qc, _ = build_variant(HVACircuitBuilder(), 10, lat, v)
         assert v.bond_selection is not None
@@ -229,8 +222,7 @@ class TestAdaptGrowthLogic:
             remaining = [e for e in nnn_all if e not in set(sel.nnn_edges)]
             if not remaining:
                 break
-            ranked = rank_by_gradient([], remaining, np.array([]),
-                                      np.abs(np.arange(len(remaining), dtype=float) + 1))
+            ranked = rank_by_gradient([], remaining, np.array([]), np.abs(np.arange(len(remaining), dtype=float) + 1))
             top = [edge for _k, edge, s in ranked if s > 1e-6][:2]
             sel = BondSelection(nn_edges=sel.nn_edges, nnn_edges=sel.nnn_edges + top)
             sizes.append(sel.n_bonds)
@@ -330,8 +322,7 @@ class TestRegressionBondTopkRegimePipeline:
         sel = BondSelection(nn_edges=nn, nnn_edges=nnn[:k])
         v = make_masked_variant("tk", "", ["nn", "nnn", "x"] * 2, sel)
         qc, _ = build_variant(HVACircuitBuilder(), 10, lat, v)
-        seed, _ = select_regime_seed(len(sel.nn_edges), len(sel.nnn_edges), 10, 2,
-                                     0.5, J=1.0, J2=0.5)
+        seed, _ = select_regime_seed(len(sel.nn_edges), len(sel.nnn_edges), 10, 2, 0.5, J=1.0, J2=0.5)
         assert len(seed) == qc.num_parameters
         # and it must be SHORTER than the full-lattice seed (fewer nnn bonds)
         full_seed, _ = select_regime_seed(len(nn), len(nnn), 10, 2, 0.5, J2=0.5)
@@ -341,10 +332,9 @@ class TestRegressionBondTopkRegimePipeline:
         """(d) The h thresholds select the exact documented seed per phase."""
         from qmbp_simulation.analysis.warmstart import select_regime_seed
 
-        names = {h: select_regime_seed(13, 15, 10, 2, h, J2=0.5)[1]
-                 for h in (0.30, 0.45, 0.50, 1.00, 1.20, 1.50)}
+        names = {h: select_regime_seed(13, 15, 10, 2, h, J2=0.5)[1] for h in (0.30, 0.45, 0.50, 1.00, 1.20, 1.50)}
         assert "flat_renorm" in names[0.30]
-        assert "flat_renorm" in names[0.45]   # inclusive ordered upper edge
+        assert "flat_renorm" in names[0.45]  # inclusive ordered upper edge
         assert names[0.50] == "second_order"
         assert names[1.00] == "second_order"
         assert "so_nn_shrink" in names[1.20]  # inclusive paramagnet lower edge
@@ -358,13 +348,23 @@ class TestBondWeightsFromTheta:
         from qmbp_simulation.circuits.bond_mask import bond_weights_from_theta
 
         # p=2, n_nn=2, n_nnn=1, n_qubits=2 → per layer = 5, total 10.
-        theta = np.array([
-            0.1, -0.9, 0.3, 7.0, 8.0,     # layer 0: nn=[0.1,-0.9] nnn=[0.3] x=..
-            -0.4, 0.2, -0.8, 9.0, 9.0,    # layer 1: nn=[-0.4,0.2] nnn=[-0.8] x=..
-        ])
+        theta = np.array(
+            [
+                0.1,
+                -0.9,
+                0.3,
+                7.0,
+                8.0,  # layer 0: nn=[0.1,-0.9] nnn=[0.3] x=..
+                -0.4,
+                0.2,
+                -0.8,
+                9.0,
+                9.0,  # layer 1: nn=[-0.4,0.2] nnn=[-0.8] x=..
+            ]
+        )
         w_nn, w_nnn = bond_weights_from_theta(theta, 2, 1, 2, 2)
-        np.testing.assert_allclose(w_nn, [0.4, 0.9])   # max|.| per nn bond
-        np.testing.assert_allclose(w_nnn, [0.8])       # max|.| per nnn bond
+        np.testing.assert_allclose(w_nn, [0.4, 0.9])  # max|.| per nn bond
+        np.testing.assert_allclose(w_nnn, [0.8])  # max|.| per nnn bond
 
     def test_ignores_x_block(self):
         from qmbp_simulation.circuits.bond_mask import bond_weights_from_theta
@@ -387,20 +387,19 @@ class TestBondWeightsForBlocks:
         # Build θ with a known maximum per bond placed in a specific block.
         parts = [
             [0.1, 0.2],  # nn block 1
-            [0.3],       # nnn block 1
+            [0.3],  # nnn block 1
             [0.0, 0.0],  # x
             [0.1, 0.9],  # nn block 2 → bond1 max here
-            [0.7],       # nnn block 2 → max here
+            [0.7],  # nnn block 2 → max here
             [0.0, 0.0],  # x
             [0.8, 0.1],  # nn block 3 → bond0 max here
             [0.0, 0.0],  # x
             [0.0, 0.0],  # rx_final
         ]
         theta = np.concatenate([np.array(p) for p in parts])
-        w_nn, w_nnn = bond_weights_for_blocks(
-            theta, blocks, n_nn, n_nnn, nq, rx_final=True)
+        w_nn, w_nnn = bond_weights_for_blocks(theta, blocks, n_nn, n_nnn, nq, rx_final=True)
         np.testing.assert_allclose(w_nn, [0.8, 0.9])  # per-bond max across 3 nn blocks
-        np.testing.assert_allclose(w_nnn, [0.7])      # per-bond max across 2 nnn blocks
+        np.testing.assert_allclose(w_nnn, [0.7])  # per-bond max across 2 nnn blocks
 
     def test_length_mismatch_raises(self):
         from qmbp_simulation.circuits.bond_mask import bond_weights_for_blocks
@@ -437,14 +436,14 @@ class TestSelectionFromVariantTheta:
         blocks = ["nn", "nnn", "x", "nn", "nnn", "x", "nn", "x"]
         parts = [
             [0.9, 0.1, 0.1],  # nn1
-            [0.8, 0.05],      # nnn1 → bond0 strong
-            [0.0] * nq,       # x
+            [0.8, 0.05],  # nnn1 → bond0 strong
+            [0.0] * nq,  # x
             [0.1, 0.9, 0.1],  # nn2
-            [0.02, 0.7],      # nnn2 → bond1 strong
-            [0.0] * nq,       # x
+            [0.02, 0.7],  # nnn2 → bond1 strong
+            [0.0] * nq,  # x
             [0.1, 0.1, 0.9],  # nn3
-            [0.0] * nq,       # x
-            [0.0] * nq,       # rx_final
+            [0.0] * nq,  # x
+            [0.0] * nq,  # rx_final
         ]
         theta = np.concatenate([np.array(p) for p in parts])
         return theta, blocks, nn, nnn, nq
@@ -453,18 +452,16 @@ class TestSelectionFromVariantTheta:
         from qmbp_simulation.circuits.bond_mask import selection_from_variant_theta
 
         theta, blocks, nn, nnn, nq = self._setup()
-        sel = selection_from_variant_theta(
-            theta, blocks, nn, nnn, nq, rx_final=True, method="top_k", keep_frac=0.5)
-        assert sel.nn_edges == nn            # all nn kept
-        assert len(sel.nnn_edges) == 1       # round(0.5*2)=1 strongest nnn
+        sel = selection_from_variant_theta(theta, blocks, nn, nnn, nq, rx_final=True, method="top_k", keep_frac=0.5)
+        assert sel.nn_edges == nn  # all nn kept
+        assert len(sel.nnn_edges) == 1  # round(0.5*2)=1 strongest nnn
         assert "top_k_by_weight" in sel.provenance
 
     def test_prune_drops_below_tol(self):
         from qmbp_simulation.circuits.bond_mask import selection_from_variant_theta
 
         theta, blocks, nn, nnn, nq = self._setup()
-        sel = selection_from_variant_theta(
-            theta, blocks, nn, nnn, nq, rx_final=True, method="prune", tol=0.5)
+        sel = selection_from_variant_theta(theta, blocks, nn, nnn, nq, rx_final=True, method="prune", tol=0.5)
         # per-bond max|θ|: nn all reach 0.9 (kept); nnn = [0.8, 0.7] both > 0.5 (kept)
         assert len(sel.nn_edges) == 3
         assert len(sel.nnn_edges) == 2
@@ -475,8 +472,7 @@ class TestSelectionFromVariantTheta:
 
         theta, blocks, nn, nnn, nq = self._setup()
         with pytest.raises(ValueError):
-            selection_from_variant_theta(theta, blocks, nn, nnn, nq, rx_final=True,
-                                         method="bogus")
+            selection_from_variant_theta(theta, blocks, nn, nnn, nq, rx_final=True, method="bogus")
 
 
 class TestHalfNnRxFamily:
@@ -486,8 +482,7 @@ class TestHalfNnRxFamily:
     def test_family_follows_the_recipe(self):
         from qmbp_simulation.circuits.hva_variants import VARIANTS
 
-        for p, name in [(1, "p1_half_nn_rx"), (2, "p2_half_nn_rx"),
-                        (3, "p3_half_nn_rx")]:
+        for p, name in [(1, "p1_half_nn_rx"), (2, "p2_half_nn_rx"), (3, "p3_half_nn_rx")]:
             v = VARIANTS[name]
             # p full [nn,nnn,x] layers + a half [nn,x] layer, with free RX.
             assert v.blocks == ["nn", "nnn", "x"] * p + ["nn", "x"]
@@ -510,9 +505,82 @@ class TestHalfNnRxFamily:
         qc_full, _ = build_variant(HVACircuitBuilder(), 10, lat, base)
         # a prune selection yields a strictly smaller circuit
         theta = np.full(qc_full.num_parameters, 0.4)
-        sel = selection_from_variant_theta(theta, list(base.blocks), nn, nnn, 10,
-                                           rx_final=True, method="prune", tol=0.2)
-        v = make_masked_variant("p3_prune", "x", list(base.blocks), sel,
-                                rx_final=True)
+        sel = selection_from_variant_theta(
+            theta, list(base.blocks), nn, nnn, 10, rx_final=True, method="prune", tol=0.2
+        )
+        v = make_masked_variant("p3_prune", "x", list(base.blocks), sel, rx_final=True)
         qc_m, _ = build_variant(HVACircuitBuilder(), 10, lat, v)
         assert qc_m.num_parameters <= qc_full.num_parameters
+
+
+class TestRankCorrelation:
+    """rank_correlation — Spearman ρ between two per-bond importance signals."""
+
+    def test_perfect_positive(self):
+        from qmbp_simulation.circuits.bond_mask import rank_correlation
+
+        assert rank_correlation([1, 2, 3, 4, 5], [10, 20, 30, 40, 50]) == pytest.approx(1.0)
+
+    def test_perfect_negative(self):
+        from qmbp_simulation.circuits.bond_mask import rank_correlation
+
+        assert rank_correlation([1, 2, 3, 4, 5], [50, 40, 30, 20, 10]) == pytest.approx(-1.0)
+
+    def test_degenerate_returns_none(self):
+        from qmbp_simulation.circuits.bond_mask import rank_correlation
+
+        assert rank_correlation([1, 1, 1, 1], [1, 2, 3, 4]) is None  # constant input
+        assert rank_correlation([1, 2], [2, 1]) is None  # < 3 points
+
+    def test_handles_ties_via_average_rank(self):
+        from qmbp_simulation.circuits.bond_mask import rank_correlation
+
+        # Monotone with a tie block → still a valid, finite ρ in [-1, 1].
+        rho = rank_correlation([1, 2, 2, 3, 4], [10, 20, 20, 30, 40])
+        assert rho is not None and 0.9 < rho <= 1.0
+
+    def test_shape_mismatch_raises(self):
+        from qmbp_simulation.circuits.bond_mask import rank_correlation
+
+        with pytest.raises(ValueError):
+            rank_correlation([1, 2, 3], [1, 2])
+
+
+class TestRankAgreementTopK:
+    """rank_agreement_topk — overlap fraction of the top-k bonds of two signals."""
+
+    def test_identical_signals_full_overlap(self):
+        from qmbp_simulation.circuits.bond_mask import rank_agreement_topk
+
+        w = np.array([0.9, 0.1, 0.8, 0.2, 0.7])
+        assert rank_agreement_topk(w, w, 3) == 1.0
+
+    def test_partial_overlap(self):
+        from qmbp_simulation.circuits.bond_mask import rank_agreement_topk
+
+        wa = np.array([0.9, 0.1, 0.8, 0.2, 0.7])  # top3 = {0, 2, 4}
+        wb = np.array([0.85, 0.15, 0.05, 0.25, 0.95])  # top3 = {4, 0, 3}
+        assert rank_agreement_topk(wa, wb, 3) == pytest.approx(2 / 3)
+
+    def test_k_clamped_to_n(self):
+        from qmbp_simulation.circuits.bond_mask import rank_agreement_topk
+
+        wa = np.array([0.9, 0.1, 0.8])
+        wb = np.array([0.1, 0.9, 0.8])
+        assert rank_agreement_topk(wa, wb, 99) == 1.0  # k clamped to all bonds
+
+    def test_empty_returns_none(self):
+        from qmbp_simulation.circuits.bond_mask import rank_agreement_topk
+
+        assert rank_agreement_topk([], [], 3) is None
+
+    def test_consistent_with_top_k_by_weight(self):
+        """The overlap uses the same descending-|weight| selection as T2."""
+        from qmbp_simulation.circuits.bond_mask import rank_agreement_topk, top_k_by_weight
+
+        edges = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]
+        wa = np.array([0.9, 0.1, 0.8, 0.2, 0.7])
+        # top-2 by weight_a should be edges {0, 2}; agreement with itself at k=2 is 1.
+        sel = top_k_by_weight(edges, [], wa, np.array([]), k_nn=2, k_nnn=None)
+        assert len(sel.nn_edges) == 2
+        assert rank_agreement_topk(wa, wa, 2) == 1.0

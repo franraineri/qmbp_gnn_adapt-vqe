@@ -834,8 +834,7 @@ class HVACircuitBuilder:
 
         nn_edges = list(bond_selection.nn_edges)
         nnn_edges = list(bond_selection.nnn_edges)
-        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges),
-                       "x": n_qubits, "z": n_qubits}
+        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges), "x": n_qubits, "z": n_qubits}
         for b in blocks:
             if b not in block_sizes:
                 raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
@@ -843,9 +842,7 @@ class HVACircuitBuilder:
         # Edge bounds: a hand-built selection could name an out-of-range qubit.
         for i, j in nn_edges + nnn_edges:
             if not (0 <= i < n_qubits and 0 <= j < n_qubits) or i == j:
-                raise ValueError(
-                    f"bond_selection edge ({i}, {j}) invalid for N={n_qubits}"
-                )
+                raise ValueError(f"bond_selection edge ({i}, {j}) invalid for N={n_qubits}")
 
         n_params = sum(block_sizes[b] for b in blocks)
         n_params += n_qubits if rx_final else 0
@@ -875,4 +872,56 @@ class HVACircuitBuilder:
             for i in range(n_qubits):
                 qc.rz(2 * theta[off + i], i)
             off += n_qubits
+        return qc, theta
+
+    def create_operator_list_circuit(self, n_qubits, operators, *, initial_state="plus"):
+        """Build a circuit from an ORDERED list of individual operators (ADAPT-B).
+
+        The canonical ADAPT ansatz: no fixed layers, no block grammar — just the
+        sequence of operators the growth loop has appended so far. Each operator
+        is a ``(kind, target)`` tuple carrying ONE variational parameter, applied
+        in list order from the initial state, using the SAME gate convention as
+        every other builder here (angle ``2*θ`` so an RZZ/rotation matches the
+        bond-resolved circuits exactly, keeping fidelities comparable):
+
+        - ``("rzz", (i, j))`` — a two-qubit RZZ on an edge (2 CX, 1 param).
+        - ``("rx", q)`` / ``("ry", q)`` / ``("rz", q)`` — a single-qubit rotation
+          on qubit ``q`` (0 CX, 1 param).
+
+        ``operators`` is the list of such tuples. Returns ``(qc, theta)`` with one
+        ParameterVector entry per operator, in list order — so a θ vector lines up
+        positionally with ``operators`` (operator k ↔ θ[k]). An empty list yields
+        the bare initial state (0 params).
+
+        This is the Option-B engine: the growth loop appends the highest-gradient
+        operator each step and rebuilds via this method, exactly as the masked
+        builder serves the layer/bond pool — a strict generalization (a list that
+        happens to spell out full nn/nnn/x blocks reproduces one HVA layer).
+        """
+        n_params = len(operators)
+        qc, theta = _init_circuit(n_qubits, max(n_params, 1), initial_state=initial_state)
+        if n_params == 0:
+            # _init_circuit always makes >=1 param; drop it for a parameterless state.
+            qc2 = QuantumCircuit(n_qubits)
+            if initial_state == "plus":
+                qc2.h(range(n_qubits))
+            elif initial_state == "neel":
+                for i in range(1, n_qubits, 2):
+                    qc2.x(i)
+            return qc2, ParameterVector("θ", 0)
+
+        for k, (kind, target) in enumerate(operators):
+            if kind == "rzz":
+                i, j = int(target[0]), int(target[1])
+                if not (0 <= i < n_qubits and 0 <= j < n_qubits) or i == j:
+                    raise ValueError(f"rzz target ({i},{j}) invalid for N={n_qubits}")
+                qc.rzz(2 * theta[k], i, j)
+            elif kind == "rx":
+                qc.rx(2 * theta[k], int(target))
+            elif kind == "ry":
+                qc.ry(2 * theta[k], int(target))
+            elif kind == "rz":
+                qc.rz(2 * theta[k], int(target))
+            else:
+                raise ValueError(f"unknown operator kind {kind!r}; expected rzz|rx|ry|rz")
         return qc, theta

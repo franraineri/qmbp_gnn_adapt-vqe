@@ -2,10 +2,13 @@
 
 Best run per configuration `(method, N, h, variant, loader)`. Auto-generated — do not edit by hand. Entries update only when a new run's fidelity improves on the stored one.
 
-- Schema: `state_prep_scoreboard_v1` — 122 entries.
+- Schema: `state_prep_scoreboard_v1` — 156 entries.
 
 | N | h | method | variant | loader/χ | F | \|ΔE\| | 2q | total | depth | converged | updated |
 |---|------|--------|---------|----------|------:|-------:|---:|------:|------:|-----------|---------|
+| 6 | 0.50 | HVA | p2_half_nn_rx_topk3of6 (nnn=3) | — | 0.9995 | 0.0021 | 54 | — | — | masked | 2026-10-06 |
+| 6 | 0.50 | HVA | p2_half_nn_rx_full | — | 0.9993 | 0.0032 | 66 | — | — | masked | 2026-10-06 |
+| 6 | 0.50 | HVA | p2_half_nn_rx_topk2of6 (nnn=2) | — | 0.9992 | 0.0035 | 50 | — | — | masked | 2026-10-06 |
 | 6 | 0.50 | HVA | p2_base | — | 0.9957 | 0.0140 | 52 | — | — | 1/2 | 2026-09-29 |
 | 6 | 0.50 | HVA | nnn p=1 (fair-conv best) | — | 0.9088 | 0.1998 | 26 | 87 | 29 | 6/6 seeds | 2026-09-29 |
 | 6 | 0.50 | HVA | p1_base | — | 0.6967 | 0.3047 | 26 | — | — | 2/2 | 2026-09-29 |
@@ -110,22 +113,52 @@ Best run per configuration `(method, N, h, variant, loader)`. Auto-generated —
 | 12 | 0.50 | HVA | p2_topk_regime (nnn=11) | — | 0.9756 | 0.0409 | 112 | — | — | second_order+descent | 2026-10-01 |
 | 12 | 1.30 | HVA | p2_full_ref (nnn=22) | — | 0.9758 | 0.1185 | 156 | — | — | so_nn_shrink(0.4)+descent | 2026-10-01 |
 | 12 | 1.30 | HVA | p2_topk_regime (nnn=11) | — | 0.9654 | 0.1517 | 112 | — | — | so_nn_shrink(0.4)+descent | 2026-10-01 |
+| 14 | 0.30 | HVA | ? (nnn=23) | — | 0.1824 | 1.2981 | 86 | — | — | masked | 2026-10-06 |
+| 14 | 0.30 | HVA | ? (nnn=24) | — | 0.1824 | 1.2981 | 88 | — | — | masked | 2026-10-06 |
+| 14 | 0.30 | HVA | ? (nnn=22) | — | 0.0816 | 1.3921 | 84 | — | — | masked | 2026-10-06 |
+| 14 | 0.30 | HVA | ? (nnn=21) | — | 0.0768 | 1.6395 | 82 | — | — | masked | 2026-10-06 |
+| 14 | 0.30 | HVA | ? (nnn=20) | — | 0.0748 | 1.6422 | 80 | — | — | masked | 2026-10-06 |
 | 14 | 0.50 | HVA | p2_half_nn_rx_full | — | 0.9501 | — | 228 | — | — | masked | 2026-10-02 |
 | 14 | 0.50 | HVA | p2_half_nn_rx_topk20of27 (nnn=20) | — | 0.9491 | 0.0666 | 200 | — | — | masked | 2026-10-02 |
 | 14 | 0.50 | HVA | p2_half_nn_rx_topk14of27 (nnn=14) | — | 0.9482 | 0.0696 | 176 | — | — | masked | 2026-10-02 |
 | 14 | 0.50 | HVA | p2_full_ref (nnn=27) | — | 0.9333 | 0.0859 | 188 | — | — | transfer<crossN12@0.981>+descent | 2026-10-01 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_prune0.15_nn11_nnn8 | — | 0.9043 | — | — | — | — | masked | 2026-10-06 |
 | 14 | 0.50 | HVA | p2_half_nn_rx_prune0.15_nn11_nnn8 (nnn=8) | — | 0.8968 | 0.1333 | 98 | — | — | masked | 2026-10-02 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_prune0.2_nn9_nnn7 (nnn=7) | — | 0.7511 | 0.2335 | 82 | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_prune0.2_nn9_nnn7 | — | 0.7202 | — | — | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_prune0.3_nn8_nnn6 | — | 0.7080 | — | — | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_prune0.3_nn8_nnn6 (nnn=6) | — | 0.7079 | 0.2872 | 72 | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_topk4of27_nn12of20 | — | 0.6158 | — | — | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | p2_half_nn_rx_topk5of27_nn12of20 | — | 0.6138 | — | — | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | prune0.3 | — | 0.5103 | — | — | — | — | masked | 2026-10-06 |
 | 14 | 0.50 | HVA | p2_topk_regime (nnn=14) | — | 0.4022 | 0.3239 | 136 | — | — | second_order+descent | 2026-10-01 |
+| 14 | 0.50 | HVA | ? (nnn=22) | — | 0.2767 | 1.6624 | 84 | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | ? (nnn=21) | — | 0.2743 | 1.6650 | 82 | — | — | masked | 2026-10-06 |
+| 14 | 0.50 | HVA | ? (nnn=20) | — | 0.2714 | 1.6680 | 80 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p3_half_nn_rx_full | — | 0.9516 | 0.0590 | 450 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p3_half_nn_rx_topk29of39 (nnn=29) | — | 0.9515 | 0.0630 | 390 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p3_half_nn_rx_topk20of39 (nnn=20) | — | 0.9359 | 0.0850 | 336 | — | — | masked | 2026-10-06 |
 | 18 | 0.50 | HVA | p2_half_nn_rx | — | 0.9268 | 0.0846 | 318 | — | — | 0/1 | 2026-09-30 |
+| 18 | 0.50 | HVA | p3_nn_dom2_rx_full | — | 0.9252 | 0.0833 | 372 | — | — | masked | 2026-10-06 |
 | 18 | 0.50 | HVA | nnn p=3 (fair-conv best) | — | 0.9241 | 0.0819 | 396 | 918 | 147 | 2/6 seeds | 2026-09-29 |
 | 18 | 0.50 | HVA | p3_base | — | 0.9132 | 0.0937 | 396 | — | — | 0/1 | 2026-10-01 |
 | 18 | 0.50 | HVA | p2_half_nn | — | 0.9124 | 0.0919 | 318 | — | — | 0/1 | 2026-09-30 |
 | 18 | 0.50 | HVA | p2_half_nn_rx_full | — | 0.9102 | 0.1056 | 318 | — | — | masked | 2026-10-01 |
+| 18 | 0.50 | HVA | p3_half_nn_rx_topk10of39 (nnn=10) | — | 0.8903 | 0.1444 | 276 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p3_nn_dom2_rx_topk20of39 (nnn=20) | — | 0.8717 | 0.1133 | 296 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p2_half_nn_rx_topk13of39_nn16of27 (nnn=13) | — | 0.8483 | 0.1917 | 148 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p3_nn_dom_rx_topk20of39 (nnn=20) | — | 0.8387 | 0.1250 | 256 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p3_nn_dom_rx_full | — | 0.8385 | 0.1238 | 294 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p2_half_nn_rx_topk8of39_nn16of27 (nnn=8) | — | 0.8202 | 0.2193 | 128 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p2_nn_dom_rx_full | — | 0.7785 | 0.1630 | 240 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p2_nn_dom_rx_topk20of39 (nnn=20) | — | 0.7773 | 0.1628 | 202 | — | — | masked | 2026-10-06 |
 | 18 | 0.50 | HVA | p2_topk_regime (nnn=20) | — | 0.6703 | 0.2543 | 188 | — | — | second_order | 2026-10-01 |
 | 18 | 0.50 | HVA | p2_full_ref (nnn=39) | — | 0.6648 | 0.2658 | 264 | — | — | transfer<p3_base@0.913>+descent | 2026-10-01 |
 | 18 | 0.50 | HVA | p2_base | — | 0.6552 | 0.3403 | 264 | — | — | 4/4 | 2026-09-29 |
+| 18 | 0.50 | HVA | p2_base_full | — | 0.6389 | 0.3676 | 264 | — | — | masked | 2026-10-06 |
+| 18 | 0.50 | HVA | p2_base_prune0.05_nn18_nnn15 (nnn=15) | — | 0.5435 | 0.3857 | 132 | — | — | masked | 2026-10-06 |
 | 18 | 0.50 | HVA | p1_half_nn | — | 0.2851 | 0.9491 | 186 | — | — | 4/4 | 2026-09-29 |
+| 18 | 0.50 | HVA | p2_base_prune0.1_nn14_nnn10 (nnn=10) | — | 0.1258 | 0.6087 | 96 | — | — | masked | 2026-10-06 |
 | 18 | 0.50 | VL | L8/F50 | mps χ=64 | 0.8625 | 0.5382 | 264 | 1768 | 181 | n/a (fixed circuit) | 2026-09-29 |
 | 18 | 1.00 | HVA | nnn p=2 (fair-conv best) | — | 0.9314 | 0.2608 | 264 | 630 | 106 | 6/6 seeds | 2026-09-29 |
 | 18 | 1.00 | VL | L8/F50 | mps χ=64 | 0.7924 | 1.3939 | 264 | 1767 | 181 | n/a (fixed circuit) | 2026-09-29 |
-

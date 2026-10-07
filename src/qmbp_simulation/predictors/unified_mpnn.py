@@ -678,6 +678,121 @@ def _regroup_target(data: Data, target: torch.Tensor) -> tuple[torch.Tensor, int
     return target_grouped, p_inferred, n_zz_total
 
 
+# ── Residual-over-analytic-seed support ──────────────────────────────────────
+# The MPNN alone predicts raw θ and lands init-fidelity ≈ 0 at held-out N (wrong
+# Z₂ branch / wrong basin — see the warm-start A/B studies). The residual mode
+# makes the network predict a CORRECTION Δ over the analytic regime seed, which
+# already pins the right basin (init-fid ≈ 0.90 by construction). The network
+# then only has to learn the small per-bond shape the uniform seed misses — a
+# much easier, transferable target. Target becomes θ_canon − seed (both in the
+# SAME nn-based Z₂ gauge so Δ is small), trained with plain MSE.
+
+_RESIDUAL_SEED_CACHE: dict[tuple, np.ndarray] = {}
+
+
+def residual_seed_for_graph(
+    data: Data,
+    *,
+    model: str = "tfim_frustrated",
+    j2: float = 0.5,
+    h_override: float | None = None,
+    p_override: int | None = None,
+) -> np.ndarray | None:
+    """Analytic regime seed for a graph, in the SAME interleaved layout as ``g.y``.
+
+    Reads the physics metadata the aggregator attaches (``phys_n_qubits``,
+    ``phys_h``, ``phys_p_layers``) plus the NN/NNN bond split
+    (``n_nn_edges``/``n_nnn_edges``) and returns
+    :func:`select_regime_seed`'s θ, Z₂-canonicalized in the nn-based gauge (so a
+    later ``θ_canon − seed`` is a small residual, not ≈2×seed). The seed's
+    per-layer ``[nn, nnn, x]`` layout is exactly ``g.y``'s interleaved layout, so
+    the caller can subtract/add directly without regrouping.
+
+    ``h_override`` / ``p_override`` let the INFERENCE path supply h and p
+    directly: prediction graphs (built by the runner's ``_build_graph``) do not
+    carry the ``phys_*`` metadata the training aggregator attaches, so the caller
+    passes them explicitly. Training graphs carry ``phys_*`` and need no override.
+
+    Pure + cached by (n_nn, n_nnn, N, p, h, J2). Returns ``None`` when metadata is
+    missing or the seed cannot be built (non-grid topology, longitudinal ansatz,
+    etc.) → caller falls back to raw-θ (safe degradation).
+    """
+    from qmbp_simulation.analysis.warmstart import _canonicalize_z2_flat, select_regime_seed
+
+    # Longitudinal (θ_z block) is out of scope for the analytic regime seed.
+    if bool(getattr(data, "has_rz_nodes", False)):
+        return None
+    n_nn = getattr(data, "n_nn_edges", None)
+    n_nnn = getattr(data, "n_nnn_edges", None)
+    N = getattr(data, "phys_n_qubits", None) or getattr(data, "n_qubit_nodes", None)
+    h = h_override if h_override is not None else getattr(data, "phys_h", None)
+    p = p_override if p_override is not None else getattr(data, "phys_p_layers", None)
+    if p is None:
+        n_e = getattr(data, "n_edges_unique", None)
+        _y = getattr(data, "y", None)
+        if n_e and N and _y is not None and len(_y) > 0:
+            per = int(n_e) + int(N)
+            p = max(1, len(_y) // per) if per > 0 else 1
+    if n_nn is None or n_nnn is None or N is None or h is None or p is None:
+        return None
+    n_nn, n_nnn, N, p = int(n_nn), int(n_nnn), int(N), int(p)
+    key = (n_nn, n_nnn, N, p, round(float(h), 4), round(float(j2), 4))
+    cached = _RESIDUAL_SEED_CACHE.get(key)
+    if cached is not None:
+        return cached
+    try:
+        seed, _name = select_regime_seed(n_nn, n_nnn, N, p, float(h), J=1.0, J2=float(j2))
+        seed = _canonicalize_z2_flat(np.asarray(seed, dtype=np.float64), n_nn, n_nnn, N, p)
+    except (ValueError, ZeroDivisionError) as exc:
+        logger.debug("residual_seed_for_graph: seed build failed (%s) — falling back to raw θ", exc)
+        return None
+    _RESIDUAL_SEED_CACHE[key] = seed
+    return seed
+
+
+def predict_residual(
+    model: UnifiedMPNN,
+    data: Data,
+    *,
+    model_name: str = "tfim_frustrated",
+    j2: float = 0.5,
+    h_override: float | None = None,
+    p_override: int | None = None,
+) -> np.ndarray:
+    """Inference for a residual-trained model: ``θ = seed + model(Δ)``.
+
+    The ONLY correct inference path for a checkpoint trained with
+    ``residual_seed_fn`` set — the network outputs the correction Δ (grouped
+    layout), so the analytic seed (regrouped to match) must be added back to
+    recover the physical θ. If the seed cannot be built for this graph, returns
+    the raw model output (same as a non-residual model) so a mis-tagged call
+    degrades to the plain prediction instead of returning a bad shifted θ.
+
+    ``h_override`` / ``p_override`` are forwarded to :func:`residual_seed_for_graph`
+    for prediction graphs that lack the ``phys_*`` training metadata.
+
+    Returns the θ vector in the model's GROUPED output layout
+    ``[θ_zz_all, θ_x_all]`` (same as ``model.forward``), as a numpy array.
+    """
+    with torch.no_grad():
+        delta = model(data).squeeze(0).detach().cpu().numpy().astype(np.float64)
+    seed = residual_seed_for_graph(data, model=model_name, j2=j2, h_override=h_override, p_override=p_override)
+    if seed is None:
+        return delta
+    # seed is interleaved [nn,nnn,x]×p; regroup to [zz_all, x_all] to match delta.
+    seed_t = torch.tensor(seed, dtype=torch.float64)
+    seed_grouped, _p, _nzz = _regroup_target(data, seed_t)
+    seed_grouped = seed_grouped.detach().cpu().numpy().astype(np.float64)
+    if seed_grouped.shape != delta.shape:
+        logger.warning(
+            "predict_residual: seed shape %s != model output %s — returning raw output.",
+            seed_grouped.shape,
+            delta.shape,
+        )
+        return delta
+    return seed_grouped + delta
+
+
 def train_unified_mpnn(
     model: UnifiedMPNN,
     dataset: list[Data],
@@ -695,6 +810,8 @@ def train_unified_mpnn(
     fidelity_loss_weight: float = 0.1,
     loss_type: str = "sign_invariant",
     canonicalize_targets: bool = True,
+    residual_seed_fn=None,
+    residual_j2: float = 0.5,
 ) -> dict:
     """Train the UnifiedMPNN with per-edge/per-node MSE loss.
 
@@ -867,6 +984,73 @@ def train_unified_mpnn(
                 n_flipped,
                 len(dataset),
             )
+
+    # ── Residual-over-seed target transform (opt-in) ─────────────────────────
+    # When a seed-fn is supplied, replace each target θ with the residual
+    # Δ = canon_nn(θ) − seed, where BOTH θ and the seed are in the nn-based Z₂
+    # gauge (so Δ is a small correction, not ≈2×seed). The network then learns
+    # Δ; inference adds the seed back via predict_residual. Plain MSE is forced
+    # (loss_type="theta_mse"): the seed already fixes the sign, so the
+    # sign-invariant min(±) — which erases the convention the model must learn —
+    # is exactly what we want to avoid here. Graphs whose seed can't be built
+    # keep their raw θ target (safe fallback → those points train as before).
+    if residual_seed_fn is not None:
+        from qmbp_simulation.analysis.warmstart import _canonicalize_z2_flat
+
+        if loss_type != "theta_mse":
+            logger.info(
+                "  Residual mode: forcing loss_type='theta_mse' (was '%s') — the seed "
+                "fixes the Z₂ sign, so plain MSE on Δ is correct.",
+                loss_type,
+            )
+            loss_type = "theta_mse"
+        # The physics/fidelity loss rebuilds |ψ(data.y)⟩ treating y as θ; in
+        # residual mode y is Δ (not θ), so those terms would evaluate the wrong
+        # state. Disable them here (the analytic seed already supplies the
+        # init-fidelity the fidelity term was meant to protect).
+        if fidelity_loss_weight > 0 or physics_loss_weight > 0:
+            logger.info(
+                "  Residual mode: disabling physics/fidelity loss (λ_F=%.2f, λ_E=%.2f → 0) — "
+                "data.y is Δ, not θ, so state-based terms would be misapplied.",
+                fidelity_loss_weight,
+                physics_loss_weight,
+            )
+            fidelity_loss_weight = 0.0
+            physics_loss_weight = 0.0
+        n_residual = 0
+        n_seed_fallback = 0
+        for data in dataset:
+            if not hasattr(data, "y") or data.y is None or len(data.y) == 0:
+                continue
+            # NOTE: use a distinct name (seed_vec), NOT `seed` — `seed` is the
+            # int RNG seed parameter used later by torch.manual_seed(seed).
+            seed_vec = residual_seed_fn(data)
+            if seed_vec is None:
+                n_seed_fallback += 1
+                continue
+            y_np = data.y.detach().cpu().numpy().astype(np.float64)
+            n_nn = int(getattr(data, "n_nn_edges", 0))
+            n_nnn = int(getattr(data, "n_nnn_edges", 0))
+            N = int(getattr(data, "n_qubit_nodes", 0))
+            per = n_nn + n_nnn + N
+            p = len(y_np) // per if per > 0 else 1
+            # Put θ in the SAME nn-based gauge as the seed before subtracting.
+            y_gauge = _canonicalize_z2_flat(y_np, n_nn, n_nnn, N, p)
+            seed_vec = np.asarray(seed_vec, dtype=np.float64)
+            if seed_vec.shape != y_gauge.shape:
+                n_seed_fallback += 1
+                continue
+            data.y = torch.tensor(y_gauge - seed_vec, dtype=torch.float32)
+            # Stash the seed on the graph so the physics/fidelity-loss path can
+            # reconstruct θ = seed + Δ when it rebuilds the state (otherwise it
+            # would evaluate the residual Δ as if it were θ).
+            data._residual_seed = torch.tensor(seed_vec, dtype=torch.float32)
+            n_residual += 1
+        logger.info(
+            "  Residual mode: Δ = θ − analytic_seed on %d targets (%d fell back to raw θ: seed unavailable)",
+            n_residual,
+            n_seed_fallback,
+        )
 
     torch.manual_seed(seed)
 

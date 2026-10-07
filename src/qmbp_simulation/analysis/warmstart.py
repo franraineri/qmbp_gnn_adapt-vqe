@@ -99,10 +99,10 @@ def first_order_warmstart_theta(
 # N=10 p=2. The default seed (zz=0.25, x_scale=1) has near-zero init-fid in the
 # ordered/transition region; these calibrated coefficients lift it by up to ~20×
 # (e.g. h=0.5: 0.009 → 0.19 raw). Calibrated on N=10, validated cross-N.
-_CAL_ZZ_A: float = 0.103   # tanh baseline
-_CAL_ZZ_B: float = 0.036   # tanh amplitude
-_CAL_ZZ_HC: float = 1.17   # tanh center (zz rises toward the paramagnet)
-_CAL_ZZ_W: float = 0.24    # tanh width
+_CAL_ZZ_A: float = 0.103  # tanh baseline
+_CAL_ZZ_B: float = 0.036  # tanh amplitude
+_CAL_ZZ_HC: float = 1.17  # tanh center (zz rises toward the paramagnet)
+_CAL_ZZ_W: float = 0.24  # tanh width
 _CAL_XS_BREAK: float = 1.0  # x_scale regime break (ordered/transition vs paramagnet)
 
 
@@ -128,15 +128,21 @@ def calibrated_x_scale(h: float, *, h_break: float = _CAL_XS_BREAK) -> float:
     """
     h = float(h)
     if h <= h_break:
-        xs = 1.0 + 0.70 * (h - 0.3)       # ~1.0 at h=0.3 → ~1.5 at h=1.0
+        xs = 1.0 + 0.70 * (h - 0.3)  # ~1.0 at h=0.3 → ~1.5 at h=1.0
     else:
         xs = 0.85 + 0.37 * (h - h_break)  # ~0.85 at h=1.0 → rises slowly
     return float(np.clip(xs, 0.7, 1.6))
 
 
 def calibrated_warmstart_theta(
-    n_nn: int, n_nnn: int, n_qubits: int, p_layers: int, h: float, *,
-    J: float = 1.0, J2: float = 0.0,
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
 ) -> np.ndarray:
     """Analytic warm-start with CALIBRATED zz_coef(h) and x_scale(h).
 
@@ -150,12 +156,11 @@ def calibrated_warmstart_theta(
     """
     zz = calibrated_zz_coef(h)
     xs = calibrated_x_scale(h)
-    theta = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h,
-                                        J=J, J2=J2, zz_coef=zz)
+    theta = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, zz_coef=zz)
     per = n_nn + n_nnn + n_qubits
     for layer in range(p_layers):
         o = layer * per + n_nn + n_nnn
-        theta[o:o + n_qubits] *= xs
+        theta[o : o + n_qubits] *= xs
     return np.clip(theta, -np.pi, np.pi)
 
 
@@ -167,8 +172,15 @@ STRUCTURAL_NNN_SUPPRESS: float = 0.35
 
 
 def structural_warmstart_theta(
-    n_nn: int, n_nnn: int, n_qubits: int, p_layers: int, h: float, *,
-    J: float = 1.0, J2: float = 0.0, nnn_suppress: float = STRUCTURAL_NNN_SUPPRESS,
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    nnn_suppress: float = STRUCTURAL_NNN_SUPPRESS,
 ) -> np.ndarray:
     """Analytic seed built from the measured ANGLE STRUCTURE (no donor needed).
 
@@ -188,15 +200,14 @@ def structural_warmstart_theta(
     """
     zz = calibrated_zz_coef(h)
     xs = calibrated_x_scale(h)
-    theta = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h,
-                                        J=J, J2=J2, zz_coef=zz)
+    theta = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, zz_coef=zz)
     per = n_nn + n_nnn + n_qubits
     for layer in range(p_layers):
         o = layer * per
         # suppress nnn toward 0 (sparsity: most nnn are inactive)
-        theta[o + n_nn:o + n_nn + n_nnn] *= nnn_suppress
+        theta[o + n_nn : o + n_nn + n_nnn] *= nnn_suppress
         # θ_x constant, calibrated
-        theta[o + n_nn + n_nnn:o + per] *= xs
+        theta[o + n_nn + n_nnn : o + per] *= xs
     return np.clip(theta, -np.pi, np.pi)
 
 
@@ -516,20 +527,14 @@ def select_regime_seed(
     Pure; returns the seed vector (standard layout) and its name for provenance.
     """
     if use_calibrated:
-        return (calibrated_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h,
-                                           J=J, J2=J2),
-                "calibrated")
+        return (calibrated_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2), "calibrated")
     if h <= ORDERED_H_MAX:
-        seed = first_order_warmstart_theta(
-            n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2,
-            zz_coef=FLAT_RENORM_ZZ_COEF)
+        seed = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, zz_coef=FLAT_RENORM_ZZ_COEF)
         return seed, "flat_renorm(zz_coef=0.11)"
     if h < PARAMAGNETIC_H_MIN:
-        seed = second_order_warmstart_theta(
-            n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
+        seed = second_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
         return seed, "second_order"
-    seed = second_order_nn_shrink_theta(
-        n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, nn_extra_shrink=0.4)
+    seed = second_order_nn_shrink_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, nn_extra_shrink=0.4)
     return seed, "so_nn_shrink(0.4)"
 
 
@@ -549,8 +554,7 @@ H_CRITICAL: float = 0.5
 TRANSITION_HALF_WIDTH: float = 0.35
 
 
-def phase_proximity(h: float, *, h_c: float = H_CRITICAL,
-                    half_width: float = TRANSITION_HALF_WIDTH) -> float:
+def phase_proximity(h: float, *, h_c: float = H_CRITICAL, half_width: float = TRANSITION_HALF_WIDTH) -> float:
     """Weight in [0, 1] for how close ``h`` is to the frustrated transition h_c.
 
     The difficulty study found the hard regime is concentrated AROUND h_c≈0.5
@@ -573,8 +577,7 @@ def _phase_of(h: float) -> int:
     return 2
 
 
-def _npz_donor_candidates(topology, n_qubits, h, p_layers, *, model, frustrated,
-                          same_phase, max_de_gap, root):
+def _npz_donor_candidates(topology, n_qubits, h, p_layers, *, model, frustrated, same_phase, max_de_gap, root):
     """(|ΔN|, |Δh|, donor) candidates from the NPZ training corpus.
 
     Reads ``data/multi_n_training/<model>/[frustrated/]{topology}_N*_p{p}.npz``
@@ -609,11 +612,7 @@ def _npz_donor_candidates(topology, n_qubits, h, p_layers, *, model, frustrated,
             th = data.get("theta_opt")
             if hs.size == 0 or th is None or len(th) == 0:
                 continue
-            de = (
-                np.asarray(data["de_gaps"], dtype=np.float64)
-                if "de_gaps" in data
-                else np.full(hs.shape, np.inf)
-            )
+            de = np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else np.full(hs.shape, np.inf)
             best_idx, best_key = None, None
             for i in range(len(hs)):
                 if same_phase and _phase_of(float(hs[i])) != tgt_phase:
@@ -634,16 +633,20 @@ def _npz_donor_candidates(topology, n_qubits, h, p_layers, *, model, frustrated,
             per = len(theta_i) // max(p_layers, 1)
             n_nnn_d = max(0, per - n_nn_d - dn)
             donor = {
-                "theta": theta_i, "n_nn": n_nn_d, "n_nnn": n_nnn_d, "p": p_layers,
-                "n_qubits": dn, "nnn_edges": nnn_edges, "h": float(hs[best_idx]),
+                "theta": theta_i,
+                "n_nn": n_nn_d,
+                "n_nnn": n_nnn_d,
+                "p": p_layers,
+                "n_qubits": dn,
+                "nnn_edges": nnn_edges,
+                "h": float(hs[best_idx]),
                 "label": f"npz<N{dn}h{hs[best_idx]:.2f}>",
             }
             out.append((abs(dn - n_qubits), abs(float(hs[best_idx]) - h), donor))
     return out
 
 
-def _bond_ablation_donor_candidates(topology, n_qubits, h, p_layers, *, same_phase,
-                                    min_fid, variant, root):
+def _bond_ablation_donor_candidates(topology, n_qubits, h, p_layers, *, same_phase, min_fid, variant, root):
     """(|ΔN|, |Δh|, donor) candidates from the bond-ablation study JSON corpus.
 
     Reads ``results/hva_vl_study/bond_ablation/bond_topk_regime_{topo}_N*_p{p}_h*.json``
@@ -699,7 +702,10 @@ def _bond_ablation_donor_candidates(topology, n_qubits, h, p_layers, *, same_pha
             "theta": theta_i,
             "n_nn": int(row.get("n_nn_bonds", len(lat.edges))),
             "n_nnn": int(row.get("n_nnn_bonds", len(nnn_edges))),
-            "p": p_layers, "n_qubits": dn, "nnn_edges": nnn_edges, "h": dh,
+            "p": p_layers,
+            "n_qubits": dn,
+            "nnn_edges": nnn_edges,
+            "h": dh,
             "label": f"ablation<N{dn}h{dh:.2f}>@{fid:.3f}",
         }
         out.append((abs(dn - n_qubits), abs(dh - h), donor))
@@ -748,13 +754,32 @@ def discover_donors(
     """
     cands: list[tuple[int, float, dict]] = []
     if "npz" in sources:
-        cands.extend(_npz_donor_candidates(
-            topology, n_qubits, h, p_layers, model=model, frustrated=frustrated,
-            same_phase=same_phase, max_de_gap=max_de_gap, root=npz_root))
+        cands.extend(
+            _npz_donor_candidates(
+                topology,
+                n_qubits,
+                h,
+                p_layers,
+                model=model,
+                frustrated=frustrated,
+                same_phase=same_phase,
+                max_de_gap=max_de_gap,
+                root=npz_root,
+            )
+        )
     if "bond_ablation" in sources:
-        cands.extend(_bond_ablation_donor_candidates(
-            topology, n_qubits, h, p_layers, same_phase=same_phase,
-            min_fid=ablation_min_fid, variant=ablation_variant, root=ablation_root))
+        cands.extend(
+            _bond_ablation_donor_candidates(
+                topology,
+                n_qubits,
+                h,
+                p_layers,
+                same_phase=same_phase,
+                min_fid=ablation_min_fid,
+                variant=ablation_variant,
+                root=ablation_root,
+            )
+        )
 
     # Closest-first, with NPZ winning (N, h) ties (sort is stable and NPZ
     # candidates were appended first).
@@ -792,15 +817,29 @@ def discover_npz_donors(
     :func:`discover_donors` with ``sources=("npz", "bond_ablation")``.
     """
     return discover_donors(
-        topology, n_qubits, h, p_layers, model=model, frustrated=frustrated,
-        max_donors=max_donors, same_phase=same_phase, max_de_gap=max_de_gap,
-        sources=("npz",), npz_root=root,
+        topology,
+        n_qubits,
+        h,
+        p_layers,
+        model=model,
+        frustrated=frustrated,
+        max_donors=max_donors,
+        same_phase=same_phase,
+        max_de_gap=max_de_gap,
+        sources=("npz",),
+        npz_root=root,
     )
 
 
-def difficulty_index(n_qubits: int, h: float, gap: float | None = None, *,
-                     J2: float = 0.0, h_c: float = H_CRITICAL,
-                     half_width: float = TRANSITION_HALF_WIDTH) -> float:
+def difficulty_index(
+    n_qubits: int,
+    h: float,
+    gap: float | None = None,
+    *,
+    J2: float = 0.0,
+    h_c: float = H_CRITICAL,
+    half_width: float = TRANSITION_HALF_WIDTH,
+) -> float:
     """Scalar difficulty D = N · phase_proximity(h) — the warm-start hardness.
 
     From the scaling study: fidelity falls with N ONLY near the transition
@@ -817,9 +856,16 @@ def difficulty_index(n_qubits: int, h: float, gap: float | None = None, *,
     return float(n_qubits) * phase_proximity(h, h_c=h_c, half_width=half_width)
 
 
-def budget_for_difficulty(n_qubits: int, h: float, gap: float | None = None, *,
-                          base_restarts: int = 1, base_frac: float = 0.5,
-                          J2: float = 0.0, max_restarts: int = 4) -> tuple[int, float, float]:
+def budget_for_difficulty(
+    n_qubits: int,
+    h: float,
+    gap: float | None = None,
+    *,
+    base_restarts: int = 1,
+    base_frac: float = 0.5,
+    J2: float = 0.0,
+    max_restarts: int = 4,
+) -> tuple[int, float, float]:
     """Map (N, h) difficulty → (restarts, keep_frac, difficulty_index).
 
     Unifies the gap-adaptive knobs under the calibrated difficulty model:
@@ -880,14 +926,19 @@ MICRO_DESCENT_FLOOR_COEF: float = 12.0
 MICRO_DESCENT_FLOOR_MAX: int = 120
 
 
-def micro_descent_budget(n_qubits: int, h: float, gap: float | None = None, *,
-                         J2: float = 0.0,
-                         min_iters: int = MICRO_DESCENT_MIN,
-                         max_iters: int = MICRO_DESCENT_MAX,
-                         n0: int = MICRO_DESCENT_N0,
-                         coef: float = MICRO_DESCENT_COEF,
-                         floor_coef: float = MICRO_DESCENT_FLOOR_COEF,
-                         floor_max: int = MICRO_DESCENT_FLOOR_MAX) -> int:
+def micro_descent_budget(
+    n_qubits: int,
+    h: float,
+    gap: float | None = None,
+    *,
+    J2: float = 0.0,
+    min_iters: int = MICRO_DESCENT_MIN,
+    max_iters: int = MICRO_DESCENT_MAX,
+    n0: int = MICRO_DESCENT_N0,
+    coef: float = MICRO_DESCENT_COEF,
+    floor_coef: float = MICRO_DESCENT_FLOOR_COEF,
+    floor_max: int = MICRO_DESCENT_FLOOR_MAX,
+) -> int:
     """Difficulty-adaptive micro-descent budget that SCALES WITH N (ad-hoc N, h).
 
     Two additive N-scaling terms, calibrated to the measured fidelity-vs-budget
@@ -912,12 +963,218 @@ def micro_descent_budget(n_qubits: int, h: float, gap: float | None = None, *,
     n_excess = max(0, int(n_qubits) - int(n0))
     floor_n = min(float(floor_max), min_iters + floor_coef * n_excess)
     prox = phase_proximity(h)  # 0 away from h_c, 1 at the transition
-    budget = floor_n + prox * coef * (n_excess ** 2)
+    budget = floor_n + prox * coef * (n_excess**2)
     return int(round(max(min_iters, min(max_iters, budget))))
 
 
-def restarts_for_gap(gap: float, base_restarts: int = 1, *, small_gap: float = SMALL_GAP,
-                     max_restarts: int = 4) -> int:
+# Two-pass selector (M2) pre-rank budget. The selector_budget diagnostic
+# (p2_half_nn_rx N18 h0.5) showed the micro-descent ranking only becomes
+# TRUSTWORTHY once the budget is long enough: at K=100 it picked the wrong donor
+# (donor_N8 0.848) because the true winner (donor_N10) starts slow (0.653) but
+# lands in the best basin, revealed only at K>=400 (0.924). So a cheap short pass
+# cannot DECIDE, but it can PRE-RANK to drop the obvious losers before the full
+# (K>=400) pass settles the winner on the survivors. This fraction of the full
+# budget is the short-pass length; the floor keeps it meaningful at small N.
+SHORT_DESCENT_FRAC: float = 0.25
+SHORT_DESCENT_MIN: int = 24
+
+
+def short_descent_budget(
+    full_iters: int, *, frac: float = SHORT_DESCENT_FRAC, min_iters: int = SHORT_DESCENT_MIN
+) -> int:
+    """Pre-rank budget for the two-pass selector — a fraction of the full budget.
+
+    The two-pass early-exit (M2) runs this SHORT descent on every candidate to
+    pre-rank them, then the full :func:`micro_descent_budget` descent only on the
+    top-k survivors. The short pass is deliberately cheap (``frac`` of the full,
+    floored at ``min_iters``) — the selector_budget study showed it must not be
+    trusted to DECIDE the winner (a slow-starting donor with the best basin loses
+    a 100-iter race), only to prune candidates that are clearly off the basin.
+    Pure; returns an int in ``[min_iters, full_iters]``.
+    """
+    full = int(full_iters)
+    # frac of the full budget, floored at min_iters, then never above the full
+    # budget (a short pass can't be longer than the full one).
+    short = int(round(min(full, max(min_iters, frac * full))))
+    return short
+
+
+# ── Analytic-seed cache (M5) ─────────────────────────────────────────────────
+# The analytic seeds (calibrated / structural / regime) are PURE functions of
+# (n_nn, n_nnn, n_qubits, p_layers, h, J, J2) [+ a couple of per-seed knobs].
+# best_combined_warmstart rebuilds all of them on EVERY call — and the two-pass
+# selector / multi-restart loops call it repeatedly for the SAME config, so the
+# identical analytic vectors are recomputed many times. These bounded caches
+# memoize them. The whole point is a speed-up that NEVER changes a value, so two
+# rules are enforced without exception:
+#
+#   1. The key encodes EVERY argument that affects the output (no "data in the
+#      wrong place"): the full layout, h/J/J2 by their EXACT float bits
+#      (``float.hex()`` — never a rounded h, which would alias two distinct
+#      fields onto one entry), and each seed's extra knob (nnn_suppress /
+#      use_calibrated / zz_coef). A different model/topology changes n_nn/n_nnn,
+#      so it is already captured by the layout part of the key.
+#   2. Entries are stored and returned as COPIES. The underlying builders mutate
+#      their array in place (``theta[x] *= xs``); handing back the cached object
+#      would let a caller corrupt every future hit. ``.copy()` on store AND on
+#      read keeps the cache immutable and callers independent.
+_ANALYTIC_SEED_CACHE_MAX: int = 256
+_CALIBRATED_SEED_CACHE: dict[tuple, np.ndarray] = {}
+_STRUCTURAL_SEED_CACHE: dict[tuple, np.ndarray] = {}
+_REGIME_SEED_CACHE: dict[tuple, tuple[np.ndarray, str]] = {}
+_VARIANT_SEED_CACHE: dict[tuple, np.ndarray] = {}
+
+
+def _seed_cache_put(cache: dict, key, value) -> None:
+    """FIFO-bounded insert (mirrors unified_mpnn._cache_put_bounded)."""
+    if key not in cache and len(cache) >= _ANALYTIC_SEED_CACHE_MAX:
+        cache.pop(next(iter(cache)), None)  # evict oldest (insertion order)
+    cache[key] = value
+
+
+def _hx(x: float) -> str:
+    """Exact, collision-free float key component (full precision, no rounding)."""
+    return float(x).hex()
+
+
+def clear_analytic_seed_caches() -> None:
+    """Empty all analytic-seed caches (test isolation / long-running processes)."""
+    _CALIBRATED_SEED_CACHE.clear()
+    _STRUCTURAL_SEED_CACHE.clear()
+    _REGIME_SEED_CACHE.clear()
+    _VARIANT_SEED_CACHE.clear()
+
+
+def cached_calibrated_warmstart_theta(
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+) -> np.ndarray:
+    """Memoized :func:`calibrated_warmstart_theta` (returns a fresh copy).
+
+    Same value as the pure builder, byte-for-byte; only recomputation is saved.
+    The key is the full layout plus exact-bit (h, J, J2), so no two distinct
+    configurations ever share an entry. The returned array is always a copy, so
+    the caller may mutate it freely without touching the cache.
+    """
+    key = (int(n_nn), int(n_nnn), int(n_qubits), int(p_layers), _hx(h), _hx(J), _hx(J2))
+    hit = _CALIBRATED_SEED_CACHE.get(key)
+    if hit is None:
+        hit = calibrated_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
+        _seed_cache_put(_CALIBRATED_SEED_CACHE, key, hit.copy())
+    return hit.copy()
+
+
+def cached_structural_warmstart_theta(
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    nnn_suppress: float = STRUCTURAL_NNN_SUPPRESS,
+) -> np.ndarray:
+    """Memoized :func:`structural_warmstart_theta` (returns a fresh copy).
+
+    ``nnn_suppress`` is part of the key — a different suppression gives a
+    different seed and must not reuse another's entry.
+    """
+    key = (int(n_nn), int(n_nnn), int(n_qubits), int(p_layers), _hx(h), _hx(J), _hx(J2), _hx(nnn_suppress))
+    hit = _STRUCTURAL_SEED_CACHE.get(key)
+    if hit is None:
+        hit = structural_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, nnn_suppress=nnn_suppress)
+        _seed_cache_put(_STRUCTURAL_SEED_CACHE, key, hit.copy())
+    return hit.copy()
+
+
+def cached_select_regime_seed(
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    use_calibrated: bool = False,
+) -> tuple[np.ndarray, str]:
+    """Memoized :func:`select_regime_seed` (returns a fresh copy + its name).
+
+    ``use_calibrated`` is in the key: it switches the whole seed family, so the
+    two branches must never share an entry.
+    """
+    key = (int(n_nn), int(n_nnn), int(n_qubits), int(p_layers), _hx(h), _hx(J), _hx(J2), bool(use_calibrated))
+    hit = _REGIME_SEED_CACHE.get(key)
+    if hit is None:
+        seed, name = select_regime_seed(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2, use_calibrated=use_calibrated)
+        _seed_cache_put(_REGIME_SEED_CACHE, key, (seed.copy(), name))
+        return seed.copy(), name
+    seed, name = hit
+    return seed.copy(), name
+
+
+def cached_variant_warmstart_theta(
+    blocks: list[str],
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    rx_final: bool = False,
+    rz_final: bool = False,
+    shrink_coef: float = DEFAULT_SHRINK_COEF,
+    curv_coef: float = DEFAULT_CURV_COEF,
+) -> np.ndarray:
+    """Memoized :func:`variant_warmstart_theta` (returns a fresh copy).
+
+    The structure-variant analytic seed is pure in (block sequence, layout, h, J,
+    J2, rx/rz flags, shrink/curv). The runners build it once per masked variant of
+    the SAME (N, h) config, so memoizing it skips the redundant rebuild. ``blocks``
+    enters the key as a tuple (a different sequence is a different seed); every
+    knob is keyed so no two variants collide. Returned array is always a copy.
+    """
+    key = (
+        tuple(blocks),
+        int(n_nn),
+        int(n_nnn),
+        int(n_qubits),
+        _hx(h),
+        _hx(J),
+        _hx(J2),
+        bool(rx_final),
+        bool(rz_final),
+        _hx(shrink_coef),
+        _hx(curv_coef),
+    )
+    hit = _VARIANT_SEED_CACHE.get(key)
+    if hit is None:
+        hit = variant_warmstart_theta(
+            blocks,
+            n_nn,
+            n_nnn,
+            n_qubits,
+            h,
+            J=J,
+            J2=J2,
+            rx_final=rx_final,
+            rz_final=rz_final,
+            shrink_coef=shrink_coef,
+            curv_coef=curv_coef,
+        )
+        _seed_cache_put(_VARIANT_SEED_CACHE, key, hit.copy())
+    return hit.copy()
+
+
+def restarts_for_gap(gap: float, base_restarts: int = 1, *, small_gap: float = SMALL_GAP, max_restarts: int = 4) -> int:
     """Scale restarts up as the spectral gap shrinks (gap-proportional budget).
 
     The θ-scaling study showed ``d(θ_opt, regime_seed)`` grows with N in the
@@ -943,8 +1200,9 @@ def restarts_for_gap(gap: float, base_restarts: int = 1, *, small_gap: float = S
     return min(out, max_restarts)
 
 
-def topk_frac_for_gap(gap: float, base_frac: float, *, small_gap: float = SMALL_GAP,
-                      aggressive_frac: float = 0.33) -> float:
+def topk_frac_for_gap(
+    gap: float, base_frac: float, *, small_gap: float = SMALL_GAP, aggressive_frac: float = 0.33
+) -> float:
     """Shrink the nnn keep-fraction in the near-degenerate (small-gap) regime.
 
     The θ-scaling study found that at very small gap (ordered-deep, e.g. N=12
@@ -960,8 +1218,9 @@ def topk_frac_for_gap(gap: float, base_frac: float, *, small_gap: float = SMALL_
     return base_frac
 
 
-def crosses_transition(h_from: float, h_to: float, *, h_lo: float = ORDERED_H_MAX,
-                       h_hi: float = PARAMAGNETIC_H_MIN) -> bool:
+def crosses_transition(
+    h_from: float, h_to: float, *, h_lo: float = ORDERED_H_MAX, h_hi: float = PARAMAGNETIC_H_MIN
+) -> bool:
     """True if moving from ``h_from`` to ``h_to`` crosses a phase boundary.
 
     The cross-h study showed θ transfers well *within* a phase but poorly across
@@ -970,20 +1229,31 @@ def crosses_transition(h_from: float, h_to: float, *, h_lo: float = ORDERED_H_MA
     seed when it steps across ``h_lo`` (ordered↔near-h_c) or ``h_hi``
     (near-h_c↔paramagnet). Pure boundary check.
     """
+
     def regime(h: float) -> int:
         if h <= h_lo:
             return 0  # ordered
         if h < h_hi:
             return 1  # near h_c
-        return 2      # paramagnet
+        return 2  # paramagnet
+
     return regime(h_from) != regime(h_to)
 
 
 def bond_resolved_regime_seed(
-    n_nn: int, n_nnn: int, n_qubits: int, p_layers: int, h: float, *,
-    J: float = 1.0, J2: float = 0.0, donor_theta: np.ndarray | None = None,
-    donor_n_nn: int | None = None, donor_n_nnn: int | None = None,
-    donor_p: int | None = None, strength: float = 1.0,
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    donor_theta: np.ndarray | None = None,
+    donor_n_nn: int | None = None,
+    donor_n_nnn: int | None = None,
+    donor_p: int | None = None,
+    strength: float = 1.0,
 ) -> tuple[np.ndarray, str]:
     """Regime seed whose uniform ZZ blocks are modulated per-bond by a donor.
 
@@ -1026,8 +1296,8 @@ def bond_resolved_regime_seed(
             d_mean = float(np.mean(d_blk))
             if abs(d_mean) < 1e-9:
                 continue  # donor block ~0 carries no shape
-            shape = d_blk / d_mean           # relative per-bond pattern (mean 1)
-            modulated = seed[sl] * shape     # keep regime magnitude, donor shape
+            shape = d_blk / d_mean  # relative per-bond pattern (mean 1)
+            modulated = seed[sl] * shape  # keep regime magnitude, donor shape
             out[sl] = (1.0 - s) * seed[sl] + s * modulated
     out = np.clip(out, -np.pi, np.pi)
     return out, f"{name}+bondshape"
@@ -1055,11 +1325,13 @@ def _split_layers(theta: np.ndarray, n_nn: int, n_nnn: int, n_qubits: int, p: in
     layers = []
     for layer in range(p):
         o = layer * per
-        layers.append({
-            "nn": theta[o:o + n_nn],
-            "nnn": theta[o + n_nn:o + n_nn + n_nnn],
-            "x": theta[o + n_nn + n_nnn:o + per],
-        })
+        layers.append(
+            {
+                "nn": theta[o : o + n_nn],
+                "nnn": theta[o + n_nn : o + n_nn + n_nnn],
+                "x": theta[o + n_nn + n_nnn : o + per],
+            }
+        )
     return layers
 
 
@@ -1080,7 +1352,7 @@ def _canonicalize_z2_flat(theta: np.ndarray, n_nn: int, n_nnn: int, n_qubits: in
     if float(np.sum(theta[:n_nn])) > 0:
         for layer in range(p):
             o = layer * per
-            theta[o:o + n_nn + n_nnn] *= -1.0
+            theta[o : o + n_nn + n_nnn] *= -1.0
     return theta
 
 
@@ -1088,6 +1360,78 @@ def _wrap_pi(theta: np.ndarray) -> np.ndarray:
     """Wrap angle(s) into ``(-π/2, π/2]`` — the π-periodic branch of rx/rzz(2θ)."""
     arr = np.asarray(theta, float)
     return (arr + np.pi / 2.0) % np.pi - np.pi / 2.0
+
+
+def lattice_coords(topology: str, n_qubits: int) -> dict[int, tuple[int, int]] | None:
+    """Qubit index → (row, col) for regular-grid topologies, else ``None``.
+
+    Cross-N donor transfer matches bonds by qubit index, but on a grid the index
+    numbering shifts with N (e.g. square ``cols = ceil(sqrt(N))`` changes 4→5
+    between N14 and N18), so the SAME physical bond gets different indices at
+    different N — collapsing cross-N overlap to ~15%. These coordinates let the
+    transfer align bonds by PHYSICAL POSITION instead, which measured ~74%
+    coverage N14→N18 and converged a p2_half_nn_rx N18 to 0.92 vs 0.79 (and ~30×
+    faster) with the raw-index match.
+
+    Returns ``None`` for topologies without a trivial grid embedding
+    (triangular/kagome/heavy_hex) — callers then fall back to index matching
+    (full back-compat). Mirrors the index→cell mapping of the generators in
+    :mod:`qmbp_simulation.models.hamiltonian`.
+    """
+    import math
+
+    if topology == "square":
+        cols = math.ceil(math.sqrt(n_qubits))
+        return {s: (s // cols, s % cols) for s in range(n_qubits)}
+    if topology == "chain_1d":
+        return {s: (0, s) for s in range(n_qubits)}
+    if topology == "ladder":
+        # generate_ladder numbers the two legs; cell = (leg, rung).
+        cols = n_qubits // 2
+        return {s: (s // cols, s % cols) for s in range(n_qubits)}
+    return None
+
+
+def remap_edges_by_coords(edges, donor_coords, target_coords):
+    """Translate donor edges to target-index edges sharing the same grid cells.
+
+    Returns a list the SAME length/order as ``edges`` (to stay aligned with the
+    donor θ). An edge maps to the target edge at the same two (row,col) cells;
+    cells absent in the target become the sentinel ``(-1, -1)`` — a valid
+    int-tuple that never equals a real target edge, so the per-bond match simply
+    misses and that θ slot is regime-filled. Returns ``edges`` unchanged when
+    either coord map is ``None`` (non-grid topology → index matching).
+    """
+    if donor_coords is None or target_coords is None:
+        return edges
+    rc2idx = {rc: s for s, rc in target_coords.items()}
+    out = []
+    for a, b in edges:
+        rc_a = donor_coords.get(int(a))
+        rc_b = donor_coords.get(int(b))
+        if rc_a in rc2idx and rc_b in rc2idx:
+            out.append((rc2idx[rc_a], rc2idx[rc_b]))
+        else:
+            out.append((-1, -1))
+    return out
+
+
+def _grid_degree(coords):
+    """Orthogonal nn-degree per qubit from grid coords (corner=2/edge=3/bulk=4).
+
+    A square-grid site's nn-degree is the number of its 4 orthogonal neighbours
+    that exist in the lattice. Used by the cross-N θ_x fill (M4): θ_x depends on
+    the local coordination (bulk qubits carry a larger transverse angle than edge
+    ones), so broadcasting the donor's θ_x MEAN PER DEGREE is sharper than a
+    single global mean. Returns ``{idx: degree}`` or ``None`` if coords is None.
+    """
+    if coords is None:
+        return None
+    cells = set(coords.values())
+    deg = {}
+    for idx, (r, c) in coords.items():
+        deg[idx] = sum(((r + dr, c + dc) in cells) for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+    return deg
 
 
 def transfer_theta(
@@ -1107,6 +1451,8 @@ def transfer_theta(
     canonicalize: bool = False,
     donor_n_qubits: int | None = None,
     donor_blocks: tuple[str, ...] = ("nn", "nnn", "x"),
+    donor_coords=None,
+    target_coords=None,
 ) -> np.ndarray | None:
     """Transfer a converged bond-resolved θ onto a (possibly masked/different-p)
     target layout, aligning angles by physical role and bond identity.
@@ -1144,8 +1490,7 @@ def transfer_theta(
     if donor_theta.size != donor_per * donor_p:
         return None
     if canonicalize:
-        donor_theta = _wrap_pi(_canonicalize_z2_flat(
-            donor_theta, donor_n_nn, donor_n_nnn, d_nq, donor_p))
+        donor_theta = _wrap_pi(_canonicalize_z2_flat(donor_theta, donor_n_nn, donor_n_nnn, d_nq, donor_p))
     donor_layers = _split_layers(donor_theta, donor_n_nn, donor_n_nnn, d_nq, donor_p)
 
     # Per-bond regime fill (improvement c): missing nn/nnn bonds take the
@@ -1155,6 +1500,20 @@ def transfer_theta(
         ft = np.asarray(fill_theta, float)
         if ft.size == (target_n_nn + target_n_nnn + n_qubits) * target_p:
             fill_layers = _split_layers(ft, target_n_nn, target_n_nnn, n_qubits, target_p)
+
+    # Geometric alignment (cross-N): remap donor nnn edges to target indices by
+    # grid cell so the per-bond match aligns physically, not by raw index. No-op
+    # without coords (non-grid topology / same-N transfer) — full back-compat.
+    if donor_coords is not None and target_coords is not None and donor_nnn_edges is not None:
+        donor_nnn_edges = remap_edges_by_coords(donor_nnn_edges, donor_coords, target_coords)
+
+    # M4: per-degree θ_x fill for cross-N. Precompute donor θ_x mean grouped by
+    # qubit degree, and the target qubit degrees, so a cross-N x-block is filled
+    # per degree (bulk vs edge) instead of one global mean. Only when coords +
+    # degrees are available and the N actually differs.
+    cross_n_x = donor_coords is not None and target_coords is not None and d_nq != n_qubits
+    donor_deg = _grid_degree(donor_coords) if cross_n_x else None
+    target_deg = _grid_degree(target_coords) if cross_n_x else None
 
     # Per-bond nnn map donor→angle, keyed by sorted edge tuple.
     nnn_angle = {}
@@ -1185,13 +1544,15 @@ def transfer_theta(
             nnn_block = nnn_fill
         elif target_nnn_edges is not None and nnn_angle:
             d_layer = min(layer, donor_p - 1)
-            nnn_block = np.array([
-                nnn_angle.get(
-                    (d_layer, tuple(sorted((int(e[0]), int(e[1]))))),
-                    float(nnn_fill[j]) if j < nnn_fill.size else fill_value,
-                )
-                for j, e in enumerate(target_nnn_edges)
-            ])
+            nnn_block = np.array(
+                [
+                    nnn_angle.get(
+                        (d_layer, tuple(sorted((int(e[0]), int(e[1]))))),
+                        float(nnn_fill[j]) if j < nnn_fill.size else fill_value,
+                    )
+                    for j, e in enumerate(target_nnn_edges)
+                ]
+            )
         elif donor_n_nnn == target_n_nnn:
             nnn_block = src["nnn"]
         else:
@@ -1200,10 +1561,18 @@ def transfer_theta(
         # use the donor's θ_x MEAN (N-invariant) broadcast to the target width,
         # falling back to the regime x fill, then the scalar fill_value.
         if "x" not in donor_blocks:
-            x_block = fl["x"] if (fl is not None and fl["x"].size == n_qubits) \
-                else np.full(n_qubits, fill_value)
+            x_block = fl["x"] if (fl is not None and fl["x"].size == n_qubits) else np.full(n_qubits, fill_value)
         elif len(src["x"]) == n_qubits:
             x_block = src["x"]
+        elif src["x"].size and donor_deg is not None and target_deg is not None and len(src["x"]) == len(donor_deg):
+            # M4: donor θ_x mean PER DEGREE, broadcast to target qubits by their
+            # degree; degrees absent in the donor fall back to the global mean.
+            glob = float(np.mean(src["x"]))
+            by_deg: dict[int, list] = {}
+            for q, xv in enumerate(src["x"]):
+                by_deg.setdefault(donor_deg[q], []).append(float(xv))
+            deg_mean = {d: float(np.mean(v)) for d, v in by_deg.items()}
+            x_block = np.array([deg_mean.get(target_deg[q], glob) for q in range(n_qubits)], dtype=float)
         elif src["x"].size:
             x_block = np.full(n_qubits, float(np.mean(src["x"])))
         elif fl is not None and fl["x"].size == n_qubits:
@@ -1257,16 +1626,23 @@ def best_warm_start_seed(
     Any runner can call this with its circuit's ``fid_fn``/``descent_fn`` to get
     a precise, history-aware seed without re-implementing transfer/cascade logic.
     """
-    regime_seed, regime_name = select_regime_seed(
-        n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
+    regime_seed, regime_name = select_regime_seed(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
 
     candidates: list[tuple[np.ndarray, str]] = []
     for d in donors or []:
         seed = transfer_theta(
-            d["theta"], donor_n_nn=d["n_nn"], donor_n_nnn=d["n_nnn"], donor_p=d["p"],
-            target_n_nn=n_nn, target_n_nnn=n_nnn, target_p=p_layers, n_qubits=n_qubits,
-            donor_nnn_edges=d.get("nnn_edges"), target_nnn_edges=target_nnn_edges,
-            fill_theta=regime_seed, canonicalize=True,
+            d["theta"],
+            donor_n_nn=d["n_nn"],
+            donor_n_nnn=d["n_nnn"],
+            donor_p=d["p"],
+            target_n_nn=n_nn,
+            target_n_nnn=n_nnn,
+            target_p=p_layers,
+            n_qubits=n_qubits,
+            donor_nnn_edges=d.get("nnn_edges"),
+            target_nnn_edges=target_nnn_edges,
+            fill_theta=regime_seed,
+            canonicalize=True,
             donor_n_qubits=d.get("n_qubits"),
         )
         if seed is not None and seed.size == (n_nn + n_nnn + n_qubits) * p_layers:
@@ -1338,10 +1714,20 @@ def aggregate_seed_stats(fid_first: list[float] | np.ndarray, fid_second: list[f
 
 
 def warmstart_init_fidelity(
-    donor_theta: np.ndarray, *, donor_n_nn: int, donor_n_nnn: int, donor_p: int,
-    target_n_nn: int, target_n_nnn: int, target_p: int, n_qubits: int,
-    fid_fn, donor_nnn_edges=None, target_nnn_edges=None,
-    fill_theta: np.ndarray | None = None, donor_n_qubits: int | None = None,
+    donor_theta: np.ndarray,
+    *,
+    donor_n_nn: int,
+    donor_n_nnn: int,
+    donor_p: int,
+    target_n_nn: int,
+    target_n_nnn: int,
+    target_p: int,
+    n_qubits: int,
+    fid_fn,
+    donor_nnn_edges=None,
+    target_nnn_edges=None,
+    fill_theta: np.ndarray | None = None,
+    donor_n_qubits: int | None = None,
 ) -> tuple[float | None, np.ndarray | None]:
     """Init-fidelity of a donor θ transferred onto a target layout — NO reoptimize.
 
@@ -1358,10 +1744,18 @@ def warmstart_init_fidelity(
     with a stub.
     """
     seed = transfer_theta(
-        donor_theta, donor_n_nn=donor_n_nn, donor_n_nnn=donor_n_nnn, donor_p=donor_p,
-        target_n_nn=target_n_nn, target_n_nnn=target_n_nnn, target_p=target_p,
-        n_qubits=n_qubits, donor_nnn_edges=donor_nnn_edges,
-        target_nnn_edges=target_nnn_edges, fill_theta=fill_theta, canonicalize=True,
+        donor_theta,
+        donor_n_nn=donor_n_nn,
+        donor_n_nnn=donor_n_nnn,
+        donor_p=donor_p,
+        target_n_nn=target_n_nn,
+        target_n_nnn=target_n_nnn,
+        target_p=target_p,
+        n_qubits=n_qubits,
+        donor_nnn_edges=donor_nnn_edges,
+        target_nnn_edges=target_nnn_edges,
+        fill_theta=fill_theta,
+        canonicalize=True,
         donor_n_qubits=donor_n_qubits,
     )
     if seed is None or seed.size != (target_n_nn + target_n_nnn + n_qubits) * target_p:
@@ -1373,8 +1767,14 @@ def warmstart_init_fidelity(
 
 
 def theta_x_arctan_deviation(
-    theta: np.ndarray, n_nn: int, n_nnn: int, n_qubits: int, p_layers: int, h: float,
-    *, J: float = 1.0,
+    theta: np.ndarray,
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
 ) -> dict:
     """Compare the measured θ_x block mean to the analytic ``arctan(J/h)``.
 
@@ -1393,19 +1793,21 @@ def theta_x_arctan_deviation(
     layer_means = []
     for layer in range(p_layers):
         o = layer * per + n_nn + n_nnn
-        xb = th[o:o + n_qubits]
+        xb = th[o : o + n_qubits]
         layer_means.append(float(xb.mean()) if xb.size else 0.0)
     overall = float(np.mean(layer_means)) if layer_means else 0.0
     rel_dev = abs(overall - pred) / (abs(pred) + 1e-12)
     return {
-        "h": float(h), "arctan_pred": pred, "theta_x_mean": overall,
-        "theta_x_mean_per_layer": layer_means, "rel_deviation": float(rel_dev),
+        "h": float(h),
+        "arctan_pred": pred,
+        "theta_x_mean": overall,
+        "theta_x_mean_per_layer": layer_means,
+        "rel_deviation": float(rel_dev),
         "tracks_arctan": bool(rel_dev < 0.15),
     }
 
 
-def _regime_of(h: float, *, h_lo: float = ORDERED_H_MAX,
-               h_hi: float = PARAMAGNETIC_H_MIN) -> int:
+def _regime_of(h: float, *, h_lo: float = ORDERED_H_MAX, h_hi: float = PARAMAGNETIC_H_MIN) -> int:
     """Phase bucket for ``h``: 0 ordered, 1 near-h_c, 2 paramagnet.
 
     Same boundaries as :func:`crosses_transition`; factored out so the ensemble
@@ -1468,8 +1870,7 @@ def ensemble_donor_seed(
     std_len = (n_nn + n_nnn + n_qubits) * p_layers
     target_len = std_len if target_len is None else int(target_len)
     if fill_theta is None:
-        fill_theta, _ = select_regime_seed(
-            n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
+        fill_theta, _ = select_regime_seed(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
     target_phase = _regime_of(h)
 
     transferred: list[np.ndarray] = []
@@ -1486,11 +1887,21 @@ def ensemble_donor_seed(
         else:
             blocks = ("nn", "x")  # cross layout → only reliable blocks
         seed = transfer_theta(
-            d["theta"], donor_n_nn=d["n_nn"], donor_n_nnn=d_nnn, donor_p=d["p"],
-            target_n_nn=n_nn, target_n_nnn=n_nnn, target_p=p_layers, n_qubits=n_qubits,
-            donor_nnn_edges=d.get("nnn_edges"), target_nnn_edges=target_nnn_edges,
-            fill_theta=fill_theta, canonicalize=True, donor_n_qubits=d.get("n_qubits"),
-            donor_blocks=blocks)
+            d["theta"],
+            donor_n_nn=d["n_nn"],
+            donor_n_nnn=d_nnn,
+            donor_p=d["p"],
+            target_n_nn=n_nn,
+            target_n_nnn=n_nnn,
+            target_p=p_layers,
+            n_qubits=n_qubits,
+            donor_nnn_edges=d.get("nnn_edges"),
+            target_nnn_edges=target_nnn_edges,
+            fill_theta=fill_theta,
+            canonicalize=True,
+            donor_n_qubits=d.get("n_qubits"),
+            donor_blocks=blocks,
+        )
         if seed is not None and seed.size == target_len:
             transferred.append(seed)
 
@@ -1516,10 +1927,9 @@ BLOCK_MIX_POLICY: dict[str, dict[str, str]] = {
 }
 
 
-def block_mix_policy_for(h: float, *, h_lo: float = ORDERED_H_MAX,
-                         h_hi: float = PARAMAGNETIC_H_MIN) -> dict[str, str]:
+def block_mix_policy_for(h: float, *, h_lo: float = ORDERED_H_MAX, h_hi: float = PARAMAGNETIC_H_MIN) -> dict[str, str]:
     """Per-block source policy for ``h`` (phase-gated). See :data:`BLOCK_MIX_POLICY`."""
-    phase = ("ordered" if h < h_lo else ("near_hc" if h < h_hi else "paramag"))
+    phase = "ordered" if h < h_lo else ("near_hc" if h < h_hi else "paramag")
     return dict(BLOCK_MIX_POLICY[phase])
 
 
@@ -1529,10 +1939,15 @@ def block_mix_policy_for(h: float, *, h_lo: float = ORDERED_H_MAX,
 # Kitaev) have a different param-per-layer structure, so those Ising-calibrated
 # analytic seeds do not transfer; only the general regime seed + data-driven
 # donors are trustworthy there.
-_TFIM_FAMILY: frozenset[str] = frozenset({
-    "tfim", "tfim_frustrated", "tfim_bond_resolved",
-    "tfim_longitudinal", "tfim_bond_resolved_longitudinal",
-})
+_TFIM_FAMILY: frozenset[str] = frozenset(
+    {
+        "tfim",
+        "tfim_frustrated",
+        "tfim_bond_resolved",
+        "tfim_longitudinal",
+        "tfim_bond_resolved_longitudinal",
+    }
+)
 
 
 def warmstart_profile(
@@ -1565,16 +1980,17 @@ def warmstart_profile(
     """
     is_ising = model is None or str(model).lower() in _TFIM_FAMILY
     if is_ising:
-        notes = (f"ising-family model={model or 'tfim_frustrated(default)'} "
-                 f"topology={topology or 'any'} J2={J2}: full analytic stack")
+        notes = (
+            f"ising-family model={model or 'tfim_frustrated(default)'} "
+            f"topology={topology or 'any'} J2={J2}: full analytic stack"
+        )
     else:
-        notes = (f"non-ising model={model}: calibrated/structural OFF "
-                 f"(Ising-only calibration); regime+donors ON")
+        notes = f"non-ising model={model}: calibrated/structural OFF (Ising-only calibration); regime+donors ON"
     return {
         "include_calibrated": is_ising,
         "include_structural": is_ising,
         "include_regime": True,
-        "include_ensemble": False,   # validated negative
+        "include_ensemble": False,  # validated negative
         "include_block_mix": False,  # validated negative
         "calibrated_family": is_ising,
         "notes": notes,
@@ -1626,24 +2042,20 @@ def block_source_distances(
     """
     theta_opt = np.asarray(theta_opt, float)
     tgt_len = (n_nn + n_nnn + n_qubits) * p_layers
-    usable = {lbl: np.asarray(th, float) for lbl, th in sources.items()
-              if np.asarray(th, float).size == tgt_len}
+    usable = {lbl: np.asarray(th, float) for lbl, th in sources.items() if np.asarray(th, float).size == tgt_len}
     per_block: dict = {}
     winners: dict = {b: {} for b in _BLOCK_NAMES}
     for layer in range(p_layers):
-        sl = dict(zip(_BLOCK_NAMES, _block_slices(n_nn, n_nnn, n_qubits, layer),
-                      strict=True))
+        sl = dict(zip(_BLOCK_NAMES, _block_slices(n_nn, n_nnn, n_qubits, layer), strict=True))
         for b in _BLOCK_NAMES:
             opt_blk = theta_opt[sl[b]]
-            dists = {lbl: _block_sign_distance(th[sl[b]], opt_blk)
-                     for lbl, th in usable.items()}
+            dists = {lbl: _block_sign_distance(th[sl[b]], opt_blk) for lbl, th in usable.items()}
             if not dists:
                 continue
             best = min(dists, key=dists.get)
             per_block[(layer, b)] = {"best": best, "dist": dists}
             winners[b][best] = winners[b].get(best, 0) + 1
-    return {"per_block": per_block, "winners": winners,
-            "sources": list(usable.keys())}
+    return {"per_block": per_block, "winners": winners, "sources": list(usable.keys())}
 
 
 def block_mix_warmstart(
@@ -1669,15 +2081,13 @@ def block_mix_warmstart(
     missing or has the wrong length.
     """
     tgt_len = (n_nn + n_nnn + n_qubits) * p_layers
-    usable = {lbl: np.asarray(th, float) for lbl, th in sources.items()
-              if np.asarray(th, float).size == tgt_len}
+    usable = {lbl: np.asarray(th, float) for lbl, th in sources.items() if np.asarray(th, float).size == tgt_len}
     if not usable:
         return None
     fallback = default_source if default_source in usable else next(iter(usable))
     out = np.array(usable[fallback], float, copy=True)
     for layer in range(p_layers):
-        sl = dict(zip(_BLOCK_NAMES, _block_slices(n_nn, n_nnn, n_qubits, layer),
-                      strict=True))
+        sl = dict(zip(_BLOCK_NAMES, _block_slices(n_nn, n_nnn, n_qubits, layer), strict=True))
         for b in _BLOCK_NAMES:
             src = policy.get(b, fallback)
             if src in usable:
@@ -1695,8 +2105,7 @@ def block_indices(n_nn: int, n_nnn: int, n_qubits: int, p_layers: int) -> dict[s
     """
     idx: dict[str, list[int]] = {b: [] for b in _BLOCK_NAMES}
     for layer in range(p_layers):
-        sl = dict(zip(_BLOCK_NAMES, _block_slices(n_nn, n_nnn, n_qubits, layer),
-                      strict=True))
+        sl = dict(zip(_BLOCK_NAMES, _block_slices(n_nn, n_nnn, n_qubits, layer), strict=True))
         for b in _BLOCK_NAMES:
             idx[b].extend(range(sl[b].start, sl[b].stop))
     return {b: np.asarray(v, dtype=int) for b, v in idx.items()}
@@ -1763,8 +2172,7 @@ def block_coordinate_descent(
                 return g[_idx]
 
             x0 = theta[active]
-            xr, _e, _nit = lbfgsb(_sub_cost, x0, maxiter=maxiter_per_block,
-                                  grad=_sub_grad)
+            xr, _e, _nit = lbfgsb(_sub_cost, x0, maxiter=maxiter_per_block, grad=_sub_grad)
             theta[active] = np.asarray(xr, float)
     return theta
 
@@ -1789,6 +2197,10 @@ def best_combined_warmstart(
     include_ensemble: bool = False,
     include_block_mix: bool = False,
     target_len: int | None = None,
+    topology: str | None = None,
+    descent_fn_short=None,
+    two_pass_top_k: int = 2,
+    warm_restart_full: bool = False,
 ) -> dict:
     """The one-call combined warm-start cascade — the best seed we can give.
 
@@ -1826,6 +2238,15 @@ def best_combined_warmstart(
       Left off; the helpers are kept for analysis and a possible future *coupled*
       hybrid.
     - ``donors``: list of dicts ``{theta, n_nn, n_nnn, p, label, nnn_edges?, n_qubits?}``.
+    - ``descent_fn_short`` / ``two_pass_top_k``: the two-pass pre-rank (M2). The
+      short descent runs ONCE per distinct candidate (duplicates inherit the
+      score), a pure dedup that never changes the ranking.
+    - ``warm_restart_full`` (OFF by default): continue each survivor's FULL descent
+      from its short-refined θ instead of the raw seed, reusing the pre-rank work.
+      This is NOT neutral — on a multi-basin landscape a different start can
+      converge to a different basin and change the winner — so it is opt-in and
+      must be A/B-validated per regime. The default (raw-seed start) reproduces
+      the exhaustive behaviour exactly.
 
     Scalability: no state is built here — ``fid_fn`` / ``descent_fn`` are injected
     (the caller owns the backend), so this stays O(#candidates) evaluations and
@@ -1851,19 +2272,21 @@ def best_combined_warmstart(
     # (calibrated/regime) are harmlessly skipped.
     std_len = (n_nn + n_nnn + n_qubits) * p_layers
     target_len = std_len if target_len is None else int(target_len)
-    regime_seed, regime_name = select_regime_seed(
-        n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
+    # Cached analytic seeds (M5): same values, recomputation skipped. Each cached
+    # wrapper returns a fresh copy, so the in-place mutation below (and in the
+    # callers) stays isolated from the cache.
+    regime_seed, regime_name = cached_select_regime_seed(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
 
     # ── 1-3) assemble candidates (label, theta) ──────────────────────────────
     candidates: list[tuple[str, np.ndarray]] = []
     if include_calibrated:
-        candidates.append((
-            "calibrated",
-            calibrated_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)))
+        candidates.append(
+            ("calibrated", cached_calibrated_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2))
+        )
     if include_structural:
-        candidates.append((
-            "structural",
-            structural_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)))
+        candidates.append(
+            ("structural", cached_structural_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2))
+        )
     if include_regime:
         candidates.append((regime_name, regime_seed))
     for d in donors or []:
@@ -1876,23 +2299,42 @@ def best_combined_warmstart(
         #  - a cross-N or cross-nnn donor ALSO (or only) contributes "nn","x":
         #    its second-neighbor block does not transfer cleanly (bond geometry
         #    shifts with N near h_c), so nnn is left at the regime value.
-        if "blocks" in d:                       # explicit caller override wins
+        if "blocks" in d:  # explicit caller override wins
             block_sets = [tuple(d["blocks"])]
         elif d_nq == n_qubits and d_nnn == n_nnn:
-            block_sets = [("nn", "nnn", "x")]   # same layout → full is safe
+            block_sets = [("nn", "nnn", "x")]  # same layout → full is safe
         else:
             block_sets = [("nn", "nnn", "x"), ("nn", "x")]  # cross: try both
+        # Cross-N geometric alignment: when the donor comes from a different N on
+        # a grid topology, map its edges by physical cell so the per-bond match
+        # aligns (raw indices shift with the grid width). No-op for same-N or
+        # non-grid topologies (coords None → index match, back-compat).
+        d_coords = t_coords = None
+        if topology is not None and d_nq != n_qubits:
+            d_coords = lattice_coords(topology, d_nq)
+            t_coords = lattice_coords(topology, n_qubits)
         for blocks in block_sets:
             seed = transfer_theta(
-                d["theta"], donor_n_nn=d["n_nn"], donor_n_nnn=d_nnn, donor_p=d["p"],
-                target_n_nn=n_nn, target_n_nnn=n_nnn, target_p=p_layers, n_qubits=n_qubits,
-                donor_nnn_edges=d.get("nnn_edges"), target_nnn_edges=target_nnn_edges,
-                fill_theta=regime_seed, canonicalize=True, donor_n_qubits=d.get("n_qubits"),
-                donor_blocks=blocks)
+                d["theta"],
+                donor_n_nn=d["n_nn"],
+                donor_n_nnn=d_nnn,
+                donor_p=d["p"],
+                target_n_nn=n_nn,
+                target_n_nnn=n_nnn,
+                target_p=p_layers,
+                n_qubits=n_qubits,
+                donor_nnn_edges=d.get("nnn_edges"),
+                target_nnn_edges=target_nnn_edges,
+                fill_theta=regime_seed,
+                canonicalize=True,
+                donor_n_qubits=d.get("n_qubits"),
+                donor_blocks=blocks,
+                donor_coords=d_coords,
+                target_coords=t_coords,
+            )
             if seed is not None and seed.size == target_len:
                 suffix = "" if blocks == ("nn", "nnn", "x") else "|nn+x"
-                candidates.append(
-                    (f"transfer<{d.get('label', 'donor')}>{suffix}", seed))
+                candidates.append((f"transfer<{d.get('label', 'donor')}>{suffix}", seed))
     # Ensemble candidate: circular mean of same-phase donors (opt-in). Low risk —
     # it competes as one extra candidate and is simply absent when <2 same-phase
     # donors transfer. Empirically it did NOT beat the best single donor in any
@@ -1901,14 +2343,22 @@ def best_combined_warmstart(
     # an audited negative result the caller can re-check at new layouts.
     if include_ensemble:
         ens = ensemble_donor_seed(
-            donors, n_nn=n_nn, n_nnn=n_nnn, n_qubits=n_qubits, p_layers=p_layers,
-            h=h, J=J, J2=J2, target_nnn_edges=target_nnn_edges,
-            fill_theta=regime_seed, target_len=target_len)
+            donors,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=n_qubits,
+            p_layers=p_layers,
+            h=h,
+            J=J,
+            J2=J2,
+            target_nnn_edges=target_nnn_edges,
+            fill_theta=regime_seed,
+            target_len=target_len,
+        )
         if ens is not None:
             ens_seed, n_pooled = ens
             if ens_seed.size == target_len:
-                candidates.append((f"ensemble<phase{_regime_of(h)},k={n_pooled}>",
-                                   ens_seed))
+                candidates.append((f"ensemble<phase{_regime_of(h)},k={n_pooled}>", ens_seed))
 
     # Hybrid "best-of-each-tool" candidate (opt-in, OFF by default). Takes each
     # block from the source the per-block oracle found closest to θ_opt for this
@@ -1929,18 +2379,16 @@ def best_combined_warmstart(
             elif lbl.startswith("transfer<") and "donor" not in src_pool:
                 src_pool["donor"] = th
         policy = block_mix_policy_for(h)
-        default_src = "calibrated" if "calibrated" in src_pool else (
-            "regime" if "regime" in src_pool else None)
+        default_src = "calibrated" if "calibrated" in src_pool else ("regime" if "regime" in src_pool else None)
         mix = block_mix_warmstart(
-            src_pool, policy, n_nn=n_nn, n_nnn=n_nnn, n_qubits=n_qubits,
-            p_layers=p_layers, default_source=default_src)
+            src_pool, policy, n_nn=n_nn, n_nnn=n_nnn, n_qubits=n_qubits, p_layers=p_layers, default_source=default_src
+        )
         if mix is not None and mix.size == target_len:
-            used = {b: (policy[b] if policy[b] in src_pool else default_src)
-                    for b in _BLOCK_NAMES}
+            used = {b: (policy[b] if policy[b] in src_pool else default_src) for b in _BLOCK_NAMES}
             tag = "+".join(f"{b}:{used[b]}" for b in _BLOCK_NAMES)
             candidates.append((f"block_mix<{tag}>", mix))
 
-    for theta, label in (extra_candidates or []):
+    for theta, label in extra_candidates or []:
         theta = np.asarray(theta, float)
         if theta.size == target_len:
             candidates.append((str(label), theta))
@@ -1948,24 +2396,88 @@ def best_combined_warmstart(
     if not candidates:  # degenerate guard — regime seed is always valid
         candidates.append((regime_name, regime_seed))
 
+    # ── 3.5) dedup map for the micro-descent (M3) ────────────────────────────
+    # Several analytic seeds coincide at some h (structural ≈ second_order), and a
+    # donor's two block-sets can collapse to the same vector. The micro-descent is
+    # the expensive step, so we evaluate each DISTINCT vector once and let its
+    # duplicates inherit the result. ALL candidates stay in the report / selection
+    # (semantics unchanged) — ``_rep_of[i]`` points to the representative index
+    # whose descent result candidate ``i`` reuses. Pure speed, no decision change.
+    _rep_of = list(range(len(candidates)))
+    if len(candidates) > 1:
+        kept: list[tuple[int, np.ndarray]] = []
+        for i, (_lbl, th) in enumerate(candidates):
+            tw = _wrap_pi(np.asarray(th, float))
+            dup_of = next(
+                (
+                    j
+                    for j, kv in kept
+                    if kv.size == tw.size and min(float(np.linalg.norm(tw - kv)), float(np.linalg.norm(tw + kv))) < 1e-9
+                ),
+                None,
+            )
+            if dup_of is None:
+                kept.append((i, tw))
+            else:
+                _rep_of[i] = dup_of
+
     # ── 4) selection ─────────────────────────────────────────────────────────
-    report = [{"label": lbl, "raw_fid": None, "descent_fid": None, "selected": False}
-              for lbl, _ in candidates]
+    report = [{"label": lbl, "raw_fid": None, "descent_fid": None, "selected": False} for lbl, _ in candidates]
 
     def _finish(idx, seed, prov, init_fid):
         if 0 <= idx < len(report):
             report[idx]["selected"] = True
-        return {"seed": np.asarray(seed, float), "provenance": prov,
-                "init_fidelity": init_fid, "report": report}
+        return {"seed": np.asarray(seed, float), "provenance": prov, "init_fidelity": init_fid, "report": report}
 
     if descent_fn is not None:
+        # M2 two-pass early-exit (opt-in): a SHORT descent on every candidate
+        # pre-ranks them, then only the top-k get the FULL descent. Saves the
+        # expensive full micro-descent on obviously-losing candidates at large N
+        # (budget 400 × 5 candidates → 400 × 2). Off by default (descent_fn_short
+        # is None) so the exhaustive behaviour and its results are unchanged.
+        full_idxs = list(range(len(candidates)))
+        # Short-pass refined θ per REPRESENTATIVE. The pre-rank runs the short
+        # descent ONCE per distinct vector (duplicates inherit the score via
+        # _rep_of) — this is fix 1, a pure dedup that saves redundant short passes
+        # and never changes the ranking (identical vectors score identically).
+        _short_refined: dict = {}  # rep index → short-refined θ (for warm_restart_full)
+        if descent_fn_short is not None and len(candidates) > two_pass_top_k:
+            pre_by_rep: dict = {}  # rep index → short fid
+            for i in range(len(candidates)):
+                rep = _rep_of[i]
+                if rep not in pre_by_rep:
+                    try:
+                        r_ref, f = descent_fn_short(candidates[rep][1])
+                        pre_by_rep[rep] = float(f)
+                        _short_refined[rep] = np.asarray(r_ref, float)
+                    except Exception:
+                        pre_by_rep[rep] = -1.0
+            pre = [(pre_by_rep.get(_rep_of[i], -1.0), i) for i in range(len(candidates))]
+            pre.sort(reverse=True)
+            full_idxs = [i for _f, i in pre[:two_pass_top_k]]
+
         best = (-1.0, None, None, -1)
-        for i, (lbl, th) in enumerate(candidates):
-            try:
-                refined, f = descent_fn(th)
-                f = float(f)
-            except Exception:
-                continue
+        _descent_cache: dict = {}  # rep index → (refined, fid)
+        for i in full_idxs:
+            lbl, th = candidates[i]
+            rep = _rep_of[i]
+            if rep in _descent_cache:  # M3: reuse the representative's descent
+                refined, f = _descent_cache[rep]
+            else:
+                try:
+                    # fix 2 (OPT-IN, warm_restart_full): continue the full descent
+                    # from the short-refined θ instead of the raw seed, so the
+                    # pre-rank work is reused. NOT neutral in general — on a
+                    # multi-basin landscape a different start point can converge to
+                    # a different basin, so this CAN change which candidate wins.
+                    # Off by default: the default full descent starts from the raw
+                    # seed, exactly reproducing the validated exhaustive behaviour.
+                    start = _short_refined.get(rep, candidates[rep][1]) if warm_restart_full else candidates[rep][1]
+                    refined, f = descent_fn(start)
+                    f = float(f)
+                except Exception:
+                    continue
+                _descent_cache[rep] = (refined, f)
             report[i]["descent_fid"] = f
             if f > best[0]:
                 best = (f, np.asarray(refined, float), f"{lbl}+descent", i)
@@ -2006,6 +2518,8 @@ def transfer_theta_for_blocks(
     donor_n_qubits: int | None = None,
     donor_nn_edges=None,
     target_nn_edges=None,
+    donor_coords=None,
+    target_coords=None,
 ) -> np.ndarray | None:
     """Transfer a converged structure-variant θ onto a same-structure target θ.
 
@@ -2022,14 +2536,28 @@ def transfer_theta_for_blocks(
       is broadcast from the donor's N-invariant MEAN (the θ-symmetry finding).
       This lets an N=10 converged full seed an N=14/N=18 full in its good basin.
 
+    ``donor_coords`` / ``target_coords`` (idx→(row,col), from
+    :func:`lattice_coords`) enable GEOMETRIC cross-N matching: the donor nn/nnn
+    edges are remapped to target indices sharing the same grid cell BEFORE the
+    per-bond match, so bonds align by physical position rather than raw index.
+    This is the N14→N18 fix (coverage 17%→74%, converged fidelity 0.79→0.92).
+    When omitted (or a non-grid topology → ``None``), the raw-index match is used
+    (full back-compat).
+
     Edges not present in the donor get ``fill_value``. Returns the target-length θ,
     or ``None`` if the donor length doesn't match its declared structure.
     """
     donor = np.asarray(donor_theta, float)
     d_nn = donor_n_nn if donor_n_nn is not None else n_nn
     d_nq = donor_n_qubits if donor_n_qubits is not None else n_qubits
-    donor_size = {"nn": d_nn, "nnn": len(list(donor_nnn_edges)),
-                  "x": d_nq, "z": d_nq}
+    # Geometric alignment: remap donor edges to target indices by grid cell so
+    # the per-bond match below (keyed by sorted tuple) aligns physically. No-op
+    # when coords are absent (non-grid topology or same-N verbatim transfer).
+    if donor_coords is not None and target_coords is not None:
+        donor_nnn_edges = remap_edges_by_coords(donor_nnn_edges, donor_coords, target_coords)
+        if donor_nn_edges is not None:
+            donor_nn_edges = remap_edges_by_coords(donor_nn_edges, donor_coords, target_coords)
+    donor_size = {"nn": d_nn, "nnn": len(list(donor_nnn_edges)), "x": d_nq, "z": d_nq}
     expected = sum(donor_size[b] for b in blocks)
     expected += d_nq if rx_final else 0
     expected += d_nq if rz_final else 0
@@ -2055,41 +2583,38 @@ def transfer_theta_for_blocks(
     out_parts: list[np.ndarray] = []
     off = 0
     for b in blocks:
-        d_blk = donor[off:off + donor_size[b]]
+        d_blk = donor[off : off + donor_size[b]]
         if b == "nnn":
-            out_parts.append(np.array([
-                d_blk[nnn_idx[e]] if e in nnn_idx else fill_value
-                for e in target_nnn], dtype=float))
+            out_parts.append(
+                np.array([d_blk[nnn_idx[e]] if e in nnn_idx else fill_value for e in target_nnn], dtype=float)
+            )
         elif b == "nn":
             if nn_idx is not None:  # cross-N per-bond nn match
-                out_parts.append(np.array([
-                    d_blk[nn_idx[e]] if e in nn_idx else fill_value
-                    for e in tgt_nn], dtype=float))
-            elif d_nn == n_nn:       # same backbone → verbatim
+                out_parts.append(
+                    np.array([d_blk[nn_idx[e]] if e in nn_idx else fill_value for e in tgt_nn], dtype=float)
+                )
+            elif d_nn == n_nn:  # same backbone → verbatim
                 out_parts.append(np.asarray(d_blk, float))
-            else:                    # counts differ, no edge map → regime fill
+            else:  # counts differ, no edge map → regime fill
                 out_parts.append(np.full(n_nn, fill_value))
         else:  # x / z single-qubit blocks
             if d_nq == n_qubits:
                 out_parts.append(np.asarray(d_blk, float))
-            else:                    # cross-N: broadcast donor mean (N-invariant)
+            else:  # cross-N: broadcast donor mean (N-invariant)
                 x_mean = float(np.mean(d_blk)) if d_blk.size else fill_value
                 out_parts.append(np.full(n_qubits, x_mean))
         off += donor_size[b]
     for trailing in (rx_final, rz_final):
         if trailing:
-            tail = donor[off:off + d_nq]
+            tail = donor[off : off + d_nq]
             if d_nq == n_qubits:
                 out_parts.append(np.asarray(tail, float))
             else:
-                out_parts.append(np.full(n_qubits,
-                                         float(np.mean(tail)) if tail.size else fill_value))
+                out_parts.append(np.full(n_qubits, float(np.mean(tail)) if tail.size else fill_value))
             off += d_nq
     out = np.concatenate(out_parts) if out_parts else np.zeros(0)
     size_tgt = {"nn": n_nn, "nnn": len(target_nnn), "x": n_qubits, "z": n_qubits}
-    expected_tgt = (sum(size_tgt[b] for b in blocks)
-                    + (n_qubits if rx_final else 0)
-                    + (n_qubits if rz_final else 0))
+    expected_tgt = sum(size_tgt[b] for b in blocks) + (n_qubits if rx_final else 0) + (n_qubits if rz_final else 0)
     if out.size != expected_tgt:
         return None
     return np.clip(out, -np.pi, np.pi)

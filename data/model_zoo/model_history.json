@@ -39233,5 +39233,249 @@
     "details": {
       "tag": "experimental"
     }
+  },
+  {
+    "timestamp": "2026-10-03T02:48:55.980344+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_square_multiN_8_p2.pt",
+    "topology": "square",
+    "details": {
+      "new_model_id": "unified_tfim_br_square_multiN_6+8+10+12_p2.pt",
+      "old_pass_rate": 0.5,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 24,
+      "new_n_training_points": 184
+    }
+  },
+  {
+    "timestamp": "2026-10-03T02:48:56.063937+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_square_multiN_6+8+10+12_p2.pt",
+    "topology": "square",
+    "details": {
+      "training_points": 184,
+      "n_values": [
+        6,
+        8,
+        10,
+        12
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-10-03T02:48:56.156786+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_6+8+10+12_p2.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 184,
+      "new_training_points": 184,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-10-03T02:48:56.267639+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_6+8+10+12_p2.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 184,
+      "new_training_points": 184,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-10-04T15:31:43.442381+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_square_multiN_8_p2.pt",
+    "topology": "square",
+    "details": {
+      "new_model_id": "unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt",
+      "old_pass_rate": 0.5,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 24,
+      "new_n_training_points": 204
+    }
+  },
+  {
+    "timestamp": "2026-10-04T15:31:43.515289+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt",
+    "topology": "square",
+    "details": {
+      "training_points": 204,
+      "n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-10-04T15:31:43.583899+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 204,
+      "new_training_points": 204,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-10-04T15:31:43.672065+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_6+8+10+12+14_p2.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 204,
+      "new_training_points": 204,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-10-04T17:16:05.602234+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_square_multiN_8_p2.pt",
+    "topology": "square",
+    "details": {
+      "new_model_id": "unifMPNN__square_p2_film_v1.pt",
+      "old_pass_rate": 0.5,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 24,
+      "new_n_training_points": 204
+    }
+  },
+  {
+    "timestamp": "2026-10-04T17:16:05.683045+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__square_p2_film_v1.pt",
+    "topology": "square",
+    "details": {
+      "training_points": 204,
+      "n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-10-04T17:16:05.762783+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__square_p2_film_v1.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 204,
+      "new_training_points": 204,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-10-04T17:16:05.851363+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__square_p2_film_v1.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 204,
+      "new_training_points": 204,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
   }
 ]

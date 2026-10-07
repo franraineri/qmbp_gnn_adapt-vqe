@@ -27,6 +27,7 @@ Usage
     .venv/bin/python scripts/analysis/vl_vs_hva/analyze_bond_importance.py \
         --topology square --h 0.5
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,7 +43,12 @@ if str(_HERE) not in sys.path:
 from hva_vl_study_common import STUDY_ROOT  # noqa: E402
 
 from qmbp_simulation.circuits.ansatz_spec import AnsatzSpec  # noqa: E402
-from qmbp_simulation.circuits.bond_mask import bond_weights_for_blocks  # noqa: E402
+from qmbp_simulation.circuits.bond_mask import (  # noqa: E402
+    bond_weights_for_blocks,
+)
+from qmbp_simulation.circuits.bond_mask import (
+    rank_correlation as _spearman,
+)
 from qmbp_simulation.models import make_lattice  # noqa: E402
 from qmbp_simulation.models.hamiltonian import HamiltonianBuilder  # noqa: E402
 
@@ -67,31 +73,6 @@ def _degree_feature(edge, adj):
     """Baseline: summed nn-degree of the bond's endpoints."""
     i, j = int(edge[0]), int(edge[1])
     return len(adj[i]) + len(adj[j])
-
-
-def _spearman(x, y):
-    """Spearman rank correlation (no scipy): Pearson on ranks. None if degenerate."""
-    x = np.asarray(x, float)
-    y = np.asarray(y, float)
-    if x.size < 3 or np.allclose(x, x[0]) or np.allclose(y, y[0]):
-        return None
-
-    def _rank(a):
-        order = np.argsort(a, kind="mergesort")
-        ranks = np.empty_like(order, dtype=float)
-        ranks[order] = np.arange(len(a), dtype=float)
-        # average ranks for ties
-        _, inv, counts = np.unique(a, return_inverse=True, return_counts=True)
-        csum = np.cumsum(counts)
-        start = csum - counts
-        avg = (start + csum - 1) / 2.0
-        return avg[inv]
-
-    rx, ry = _rank(x), _rank(y)
-    rx -= rx.mean()
-    ry -= ry.mean()
-    denom = np.sqrt((rx**2).sum() * (ry**2).sum())
-    return float((rx * ry).sum() / denom) if denom > 0 else None
 
 
 def _load_full_specs(topology, h):
@@ -119,8 +100,7 @@ def analyze(topology, h):
         return 1
 
     print(f"=== Bond-importance vs geometry ({topology}, h={h}) ===")
-    print(f"{len(specs)} full specs: "
-          + ", ".join(f"{s.base_variant or s.variant}@N{s.n_qubits}" for s in specs))
+    print(f"{len(specs)} full specs: " + ", ".join(f"{s.base_variant or s.variant}@N{s.n_qubits}" for s in specs))
 
     # Per-N geometric features (shared across variants of the same N).
     per_n_feat = {}
@@ -132,7 +112,9 @@ def analyze(topology, h):
         nnn_edges = HamiltonianBuilder._generate_nnn_edges(lat)
         adj = _nn_adjacency(nn_edges, s.n_qubits)
         per_n_feat[s.n_qubits] = {
-            "nn_edges": nn_edges, "nnn_edges": nnn_edges, "adj": adj,
+            "nn_edges": nn_edges,
+            "nnn_edges": nnn_edges,
+            "adj": adj,
             "tri_nnn": [_triangle_feature(e, adj) for e in nnn_edges],
             "tri_nn": [_triangle_feature(e, adj) for e in nn_edges],
             "deg_nnn": [_degree_feature(e, adj) for e in nnn_edges],
@@ -144,25 +126,33 @@ def analyze(topology, h):
     for s in specs:
         fe = per_n_feat[s.n_qubits]
         w_nn, w_nnn = bond_weights_for_blocks(
-            np.asarray(s.theta, float), list(s.blocks), len(fe["nn_edges"]),
-            len(fe["nnn_edges"]), s.n_qubits,
-            rx_final=s.rx_final, rz_final=s.rz_final)
+            np.asarray(s.theta, float),
+            list(s.blocks),
+            len(fe["nn_edges"]),
+            len(fe["nnn_edges"]),
+            s.n_qubits,
+            rx_final=s.rx_final,
+            rz_final=s.rz_final,
+        )
         tri_c = _spearman(fe["tri_nnn"], w_nnn)
         deg_c = _spearman(fe["deg_nnn"], w_nnn)
         tag = f"{s.base_variant or s.variant}@N{s.n_qubits}"
         tri_s = f"{tri_c:+.3f}" if tri_c is not None else "  n/a"
         deg_s = f"{deg_c:+.3f}" if deg_c is not None else "  n/a"
         print(f"{tag:28s} {'nnn':4s} {tri_s:>9} {deg_s:>8}")
-        rows.append({"variant": tag, "N": s.n_qubits, "type": "nnn",
-                     "spearman_triangle": tri_c, "spearman_degree": deg_c})
+        rows.append(
+            {"variant": tag, "N": s.n_qubits, "type": "nnn", "spearman_triangle": tri_c, "spearman_degree": deg_c}
+        )
 
     # Aggregate: mean |corr| across specs (triangle vs degree) for nnn.
     tri_vals = [r["spearman_triangle"] for r in rows if r["spearman_triangle"] is not None]
     deg_vals = [r["spearman_degree"] for r in rows if r["spearman_degree"] is not None]
     if tri_vals:
-        print(f"\nmean Spearman nnn — triangle: {np.mean(tri_vals):+.3f} "
-              f"(|{np.mean(np.abs(tri_vals)):.3f}|)   "
-              f"degree: {np.mean(deg_vals):+.3f} (|{np.mean(np.abs(deg_vals)):.3f}|)")
+        print(
+            f"\nmean Spearman nnn — triangle: {np.mean(tri_vals):+.3f} "
+            f"(|{np.mean(np.abs(tri_vals)):.3f}|)   "
+            f"degree: {np.mean(deg_vals):+.3f} (|{np.mean(np.abs(deg_vals)):.3f}|)"
+        )
 
     # Cross-N transfer: do high-feature nnn bonds at small N predict the
     # high-|θ| nnn bonds at larger N, by their triangle-count role?

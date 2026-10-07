@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-10-02 16:17
+**Last updated**: 2026-10-04 20:58
 **Total runs**: 527 | Pass: 151 | Fail: 376 | Rate: 29%
 **Total compute**: 347.8 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -66,6 +66,9 @@ System sizes each topology was jointly trained on (source: zoo multi-N checkpoin
 | square | 2 | unified_tfim_br_square_multiN_8_p2.pt | baseline | 50% | — | — | — |
 | square | 2 | unified_tfim_br_square_multiN_8+10_... | baseline | 0% | — | — | — |
 | square | 2 | unified_tfim_br_square_multiN_8+10_... | baseline | 33% | — | — | — |
+| square | 2 | unified_tfim_br_square_multiN_6+8+1... | baseline | 0% | — | — | — |
+| square | 2 | unified_tfim_br_square_multiN_6+8+1... | baseline | 0% | — | — | — |
+| square | 2 | unifMPNN__square_p2_film_v1.pt | film | 0% | — | — | — |
 | triangular | 1 | unified_tfim_br_triangular_multiN_3... | baseline | 25% | N=3-16 | N6=50% | N4=33% |
 | **multi_topo** | unifMPNN__MT_p1_res_film_base.pt | residual+film | 38% | — | — | — |
 
