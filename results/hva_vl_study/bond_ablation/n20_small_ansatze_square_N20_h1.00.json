@@ -1,0 +1,119 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/n20_small_ansatze_square_N20_h1.00.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_n20_small_ansatze.py",
+  "generated_utc": "2026-10-10T18:34:41.165634+00:00",
+  "params": {
+    "experiment": "n20_small_ansatze",
+    "N": 20,
+    "h": 1.0
+  },
+  "description": "N=20 small-ansatz fidelity/2q sweep (viable subset at dim 2^20)",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 20,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": 1.0
+  },
+  "completed": 4,
+  "rows": [
+    {
+      "label": "nn1",
+      "h": 1.0,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "x"
+      ],
+      "e0": -25.919353707796553,
+      "gap": 0.22726155181876706,
+      "e_best": -24.534685615574286,
+      "abs_error": 1.3846680922222667,
+      "de_gap": 6.092839202851566,
+      "best_fidelity": 0.5307809165689692,
+      "n_2q_transpiled": 62,
+      "n_params": 51,
+      "fidelity_per_cx": 0.008560982525305955,
+      "seed_kind": "calibrated+descent",
+      "seconds": 1.3
+    },
+    {
+      "label": "nn2",
+      "h": 1.0,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -25.919353707796553,
+      "gap": 0.22726155181876706,
+      "e_best": -24.83511674872225,
+      "abs_error": 1.0842369590743033,
+      "de_gap": 4.7708772134889905,
+      "best_fidelity": 0.5999253929700398,
+      "n_2q_transpiled": 124,
+      "n_params": 102,
+      "fidelity_per_cx": 0.004838108007822901,
+      "seed_kind": "second_order",
+      "seconds": 80375.9
+    },
+    {
+      "label": "nnn1",
+      "h": 1.0,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "e0": -25.919353707796553,
+      "gap": 0.22726155181876706,
+      "e_best": -24.8052979640115,
+      "abs_error": 1.1140557437850518,
+      "de_gap": 4.902086318030035,
+      "best_fidelity": 0.6154776872523832,
+      "n_2q_transpiled": 154,
+      "n_params": 97,
+      "fidelity_per_cx": 0.003996608358781709,
+      "seed_kind": "second_order+descent",
+      "seconds": 8.9
+    },
+    {
+      "label": "nnn1_half",
+      "h": 1.0,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -25.919353707796553,
+      "gap": 0.22726155181876706,
+      "e_best": -25.14821218605068,
+      "abs_error": 0.7711415217458715,
+      "de_gap": 3.3931895455894323,
+      "best_fidelity": 0.7137221934595435,
+      "n_2q_transpiled": 216,
+      "n_params": 148,
+      "fidelity_per_cx": 0.003304269414164553,
+      "seed_kind": "second_order",
+      "seconds": 4198.7
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 20,
+  "h": 1.0,
+  "J2": 0.5,
+  "schema": "n20_small_ansatze_v1",
+  "status": "final"
+}

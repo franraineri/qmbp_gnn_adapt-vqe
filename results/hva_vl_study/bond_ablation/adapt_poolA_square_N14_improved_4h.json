@@ -1,0 +1,96 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/adapt_poolA_square_N14_improved_4h.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_adapt_poolA.py",
+  "generated_utc": "2026-10-07T16:35:23.754402+00:00",
+  "params": {
+    "experiment": "adapt_poolA",
+    "N": 14
+  },
+  "description": "ADAPT Option A \u2014 unrestricted-p growth by \u0394fid/\u03942q (add-bond vs repeat-layer), vs p=2 full expressivity anchor",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 14,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": null
+  },
+  "completed": 1,
+  "rows": [
+    {
+      "h": 0.3,
+      "status": "in_progress",
+      "pool_steps": [
+        {
+          "step": 0,
+          "action_kind": "seed",
+          "n_nn_bonds": 20,
+          "n_nnn_bonds": 0,
+          "n_bonds": 20,
+          "n_layers": 1,
+          "blocks": [
+            "nn",
+            "nnn",
+            "x"
+          ],
+          "best_fidelity": 0.04042878033533197,
+          "e_best": -9.162790389893685,
+          "e0": -12.131286644891961,
+          "gap": 0.00012120248654667876,
+          "abs_error": 2.9684962549982767,
+          "de_gap": 24492.04087784964,
+          "n_2q_transpiled": 40,
+          "n_params": 34,
+          "fidelity_per_cx": 0.0010107195083832992,
+          "best_theta_final": [
+            -0.2979436038981154,
+            -0.28439719785490786,
+            -0.21518208919379728,
+            -0.21295347733658015,
+            -0.3049431199830444,
+            -0.20778761791152195,
+            -0.27262131408282925,
+            -0.20957861112172937,
+            -0.2369875441813533,
+            -0.20557778821402617,
+            -0.19263263883932494,
+            -0.19975228156293767,
+            -0.2116668785763179,
+            -0.2659701617689269,
+            -0.2147977026788727,
+            -0.25731318568508327,
+            -0.1980555435610457,
+            -0.23064149231790854,
+            -0.3135983974028544,
+            -0.35579784592485164,
+            1.20871602856337,
+            1.219842152858849,
+            1.2292536746320573,
+            1.2001542082153165,
+            1.221506245708734,
+            1.238674604702327,
+            1.224726654507426,
+            1.2306642574897724,
+            1.2236862769151557,
+            1.2241382590442695,
+            1.234920351626666,
+            1.196438027276577,
+            1.2073909046870115,
+            1.2097879425533995
+          ],
+          "seconds": 5.8
+        }
+      ]
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 14,
+  "J2": 0.5,
+  "grow_step": 2,
+  "max_layers": 6,
+  "allow_repeat_layer": true,
+  "target_fid": 0.95,
+  "schema": "adapt_poolA_v1",
+  "status": "partial"
+}

@@ -1,0 +1,93 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/n20_extended_ansatze_square_N20_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_n20_small_ansatze.py",
+  "generated_utc": "2026-10-11T06:45:12.380242+00:00",
+  "params": {
+    "experiment": "n20_small_ansatze",
+    "N": 20,
+    "h": 0.5
+  },
+  "description": "N=20 small-ansatz fidelity/2q sweep (viable subset at dim 2^20)",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 20,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": 0.5
+  },
+  "completed": 2,
+  "rows": [
+    {
+      "label": "nnn2",
+      "h": 0.5,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "e0": -20.147324701126404,
+      "gap": 7.041871401014532e-05,
+      "phys_gap": 0.4074432463510149,
+      "manifold_dim": 2,
+      "degenerate": true,
+      "e_best": -18.880244531434066,
+      "abs_error": 1.2670801696923384,
+      "de_gap": 3.1098323043517597,
+      "best_fidelity": 0.4824820972809242,
+      "subspace_fidelity": 0.4824820972809375,
+      "report_fidelity": 0.4824820972809375,
+      "n_2q_transpiled": 308,
+      "n_params": 194,
+      "fidelity_per_cx": 0.0015665003158471997,
+      "seed_kind": "second_order",
+      "seconds": 1696.4,
+      "cpu_seconds": 1679.0
+    },
+    {
+      "label": "nnn2_half",
+      "h": 0.5,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -20.147324701126404,
+      "gap": 7.041871401014532e-05,
+      "phys_gap": 0.4074432463510149,
+      "manifold_dim": 2,
+      "degenerate": true,
+      "e_best": -20.05498371866882,
+      "abs_error": 0.0923409824575856,
+      "de_gap": 0.22663520204242937,
+      "best_fidelity": 0.9647009365305864,
+      "subspace_fidelity": 0.9647009365306162,
+      "report_fidelity": 0.9647009365306162,
+      "n_2q_transpiled": 370,
+      "n_params": 245,
+      "fidelity_per_cx": 0.0026072998284611248,
+      "seed_kind": "second_order",
+      "seconds": 2107.9,
+      "cpu_seconds": 2087.4
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 20,
+  "h": 0.5,
+  "J2": 0.5,
+  "schema": "n20_small_ansatze_v1",
+  "status": "final"
+}

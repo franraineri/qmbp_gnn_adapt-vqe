@@ -1,0 +1,81 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/n20_extended_ansatze_square_N20_h1.00.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_n20_small_ansatze.py",
+  "generated_utc": "2026-10-10T20:36:34.556446+00:00",
+  "params": {
+    "experiment": "n20_small_ansatze",
+    "N": 20,
+    "h": 1.0
+  },
+  "description": "N=20 small-ansatz fidelity/2q sweep (viable subset at dim 2^20)",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 20,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": 1.0
+  },
+  "completed": 2,
+  "rows": [
+    {
+      "label": "nnn2",
+      "h": 1.0,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "e0": -25.91935370779648,
+      "gap": 0.22726155181875285,
+      "e_best": -25.376101229577614,
+      "abs_error": 0.5432524782188644,
+      "de_gap": 2.3904284463045586,
+      "best_fidelity": 0.7836564367048855,
+      "n_2q_transpiled": 308,
+      "n_params": 194,
+      "fidelity_per_cx": 0.002544339080210667,
+      "seed_kind": "second_order",
+      "seconds": 1241.5
+    },
+    {
+      "label": "nnn2_half",
+      "h": 1.0,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -25.91935370779648,
+      "gap": 0.22726155181875285,
+      "e_best": -25.55148780775233,
+      "abs_error": 0.36786590004414776,
+      "de_gap": 1.6186895543929518,
+      "best_fidelity": 0.8657613581949613,
+      "n_2q_transpiled": 370,
+      "n_params": 245,
+      "fidelity_per_cx": 0.0023398955626890844,
+      "seed_kind": "second_order",
+      "seconds": 2128.9
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 20,
+  "h": 1.0,
+  "J2": 0.5,
+  "schema": "n20_small_ansatze_v1",
+  "status": "final"
+}
