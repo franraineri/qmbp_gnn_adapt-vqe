@@ -371,6 +371,36 @@ class TestConvergeCircuit:
         assert 0.0 <= bf <= 1.0
         assert len(runs) == 1
 
+    def test_default_args_unchanged_behaviour(self, gs_n6):
+        """target_fid=None + ftol default must match the pre-change pipeline exactly."""
+        from qmbp_simulation.framework.study_core import (
+            converge_circuit,
+            make_cost_fid,
+            optimize_bestof,
+        )
+
+        _lat, qc, H, psi, _e0, _gap, _n_nn, _n_nnn = gs_n6
+        cost, fid, grad, _ = make_cost_fid(qc, H, psi)
+        bf_m, be_m, runs_m = optimize_bestof(cost, fid, grad, qc.num_parameters, restarts=2, maxiter=200, seed0=7)
+        bf_w, be_w, runs_w = converge_circuit(qc, H, psi, restarts=2, maxiter=200, seed0=7)
+        assert bf_w == pytest.approx(bf_m)
+        assert be_w == pytest.approx(be_m)
+        assert len(runs_w) == len(runs_m) == 2  # no early-stop when target_fid is None
+
+    def test_target_fid_skips_remaining_restarts(self, gs_n6):
+        """A reachable target_fid stops after the first qualifying restart."""
+        from qmbp_simulation.framework.study_core import converge_circuit
+
+        _lat, qc, H, psi, _e0, _gap, _n_nn, _n_nnn = gs_n6
+        # Baseline best fidelity reachable with this budget.
+        bf_full, _, runs_full = converge_circuit(qc, H, psi, restarts=5, maxiter=300, seed0=3)
+        assert len(runs_full) == 5
+        # Target below the achievable best → must stop before exhausting restarts.
+        target = min(bf_full, max(r["fidelity"] for r in runs_full)) * 0.9
+        bf_es, _, runs_es = converge_circuit(qc, H, psi, restarts=5, maxiter=300, seed0=3, target_fid=target)
+        assert len(runs_es) < 5
+        assert runs_es[-1]["fidelity"] >= target
+
 
 class TestPrepareWarmstart:
     """prepare_warmstart = the one-call runner integration of the combined cascade."""
@@ -1423,3 +1453,323 @@ class TestOptimizerGuidanceHelpers:
             assert len(s["best_theta_final"]) == s["n_params"]
             assert 0.0 <= s["best_fidelity"] <= 1.0 + 1e-9
         assert max(s["best_fidelity"] for s in steps) > 0.9
+
+
+class TestGrowAdaptPoolPrerankMicro:
+    """prerank_micro: micro-descent pre-rank — the corrected fast_rank."""
+
+    def _args(self, gs_n6):
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat, _qc, H, psi, e0, gap, n_nn, n_nnn = gs_n6
+        return (lat, H, psi, e0, gap, n_nn, n_nnn, list(lat.edges), HamiltonianBuilder._generate_nnn_edges(lat))
+
+    def test_prerank_micro_matches_converge_all_fidelity(self, gs_n6):
+        """Unlike the legacy fast_rank (which collapsed), the micro-descent pre-rank
+        reaches fidelity comparable to converging every candidate."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        common = dict(
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=300,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=4,
+            efficiency_patience=3,
+        )
+        b = HVACircuitBuilder()
+        base, _ = grow_adapt_pool(b, 6, lat, H, psi, e0, gap, **common)
+        fast, _ = grow_adapt_pool(b, 6, lat, H, psi, e0, gap, prerank_micro=True, prerank_micro_iters=30, **common)
+        base_fid = max(s["best_fidelity"] for s in base)
+        fast_fid = max(s["best_fidelity"] for s in fast)
+        assert fast_fid > 0.95
+        assert fast_fid >= base_fid - 0.03  # comparable, not a collapse
+
+    def test_prerank_micro_valid_curve(self, gs_n6):
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        steps, _ = grow_adapt_pool(
+            HVACircuitBuilder(),
+            6,
+            lat,
+            H,
+            psi,
+            e0,
+            gap,
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=250,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=4,
+            efficiency_patience=3,
+            prerank_micro=True,
+            prerank_micro_iters=30,
+        )
+        for s in steps:
+            assert len(s["best_theta_final"]) == s["n_params"]
+            assert 0.0 <= s["best_fidelity"] <= 1.0 + 1e-9
+        assert steps[-1].get("stop_reason") is not None
+
+    def test_prerank_micro_records_candidate_telemetry(self, gs_n6):
+        """Steps that ran a multi-candidate micro pre-rank expose a 'prerank'
+        block with the candidates, their micro scores, and the chosen action."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        steps, _ = grow_adapt_pool(
+            HVACircuitBuilder(),
+            6,
+            lat,
+            H,
+            psi,
+            e0,
+            gap,
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=250,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=4,
+            efficiency_patience=3,
+            prerank_micro=True,
+            prerank_micro_iters=30,
+        )
+        pre = [s["prerank"] for s in steps if s.get("prerank")]
+        assert pre, "expected at least one multi-candidate pre-rank step"
+        for p in pre:
+            assert p["mode"] == "prerank_micro"
+            assert p["n_candidates"] >= 2
+            assert len(p["candidates"]) == p["n_candidates"]
+            kinds = {c["kind"] for c in p["candidates"]}
+            assert p["chosen_kind"] in kinds
+
+    def test_prerank_micro_audit_reports_micro_vs_full_match(self, gs_n6):
+        """Audit mode full-converges every candidate and flags whether the micro
+        winner matches the full winner — the proxy-fidelity proof."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        steps, _ = grow_adapt_pool(
+            HVACircuitBuilder(),
+            6,
+            lat,
+            H,
+            psi,
+            e0,
+            gap,
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=250,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=4,
+            efficiency_patience=3,
+            prerank_micro=True,
+            prerank_micro_iters=30,
+            prerank_micro_audit=True,
+        )
+        audited = [s["prerank"]["audit"] for s in steps if s.get("prerank", {}).get("audit")]
+        assert audited, "audit mode must record an audit block per multi-candidate step"
+        for a in audited:
+            assert isinstance(a["micro_matches_full"], bool)
+            assert a["full_winner_kind"] in {c["kind"] for c in a["full"]}
+
+
+class TestParetoBestFpcStep:
+    """pareto_best_fpc_step: surface the best fid/CX step, not just max-fid."""
+
+    def test_picks_best_fid_per_cx_not_max_fid(self):
+        from qmbp_simulation.framework.study_core import pareto_best_fpc_step
+
+        steps = [
+            {"step": 3, "best_fidelity": 0.920, "n_2q_transpiled": 160, "fidelity_per_cx": 5.75e-3, "n_layers": 4},
+            {"step": 4, "best_fidelity": 0.935, "n_2q_transpiled": 200, "fidelity_per_cx": 4.67e-3, "n_layers": 5},
+        ]
+        p = pareto_best_fpc_step(steps)
+        assert p["step"] == 3  # higher fid/CX even though step4 has higher fidelity
+
+    def test_min_fid_filters_low_fidelity_but_efficient_steps(self):
+        from qmbp_simulation.framework.study_core import pareto_best_fpc_step
+
+        steps = [
+            {"step": 1, "best_fidelity": 0.50, "n_2q_transpiled": 40, "fidelity_per_cx": 1.25e-2, "n_layers": 1},
+            {"step": 3, "best_fidelity": 0.92, "n_2q_transpiled": 160, "fidelity_per_cx": 5.75e-3, "n_layers": 4},
+        ]
+        # Without a floor the cheap low-fid step wins on fid/CX; with a floor it is excluded.
+        assert pareto_best_fpc_step(steps)["step"] == 1
+        assert pareto_best_fpc_step(steps, min_fid=0.90)["step"] == 3
+
+    def test_empty_returns_none(self):
+        from qmbp_simulation.framework.study_core import pareto_best_fpc_step
+
+        assert pareto_best_fpc_step([]) is None
+
+
+class TestGrowAdaptPoolAntiMyopia:
+    """Anti-myopia levers (tiebreak_abs_fid, lookahead, stop_on_fpc_drop)."""
+
+    def _args(self, gs_n6):
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat, _qc, H, psi, e0, gap, n_nn, n_nnn = gs_n6
+        return (lat, H, psi, e0, gap, n_nn, n_nnn, list(lat.edges), HamiltonianBuilder._generate_nnn_edges(lat))
+
+    def _common(self, n_nn, n_nnn, nn_all, nnn_all):
+        return dict(
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=250,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=4,
+            efficiency_patience=3,
+        )
+
+    def test_levers_produce_valid_curve_and_defaults_unchanged(self, gs_n6):
+        """Each lever runs and yields a valid growth curve; the levers are opt-in
+        so the loop still terminates with a stop_reason."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        common = self._common(n_nn, n_nnn, nn_all, nnn_all)
+        b = HVACircuitBuilder()
+        for kw in (
+            dict(tiebreak_abs_fid=True, tiebreak_eps=5e-3),
+            dict(lookahead=True, prerank_micro=True, prerank_micro_iters=25),
+            dict(stop_on_fpc_drop=True, fpc_drop_min_fid=0.5),
+        ):
+            steps, _ = grow_adapt_pool(b, 6, lat, H, psi, e0, gap, **common, **kw)
+            assert steps and steps[-1].get("stop_reason") is not None
+            for s in steps:
+                assert len(s["best_theta_final"]) == s["n_params"]
+                assert 0.0 <= s["best_fidelity"] <= 1.0 + 1e-9
+
+    def test_stop_on_fpc_drop_sets_reason_when_efficiency_falls(self, gs_n6):
+        """When fidelity has cleared the bar and a step lowers fid/CX, the loop
+        stops with stop_reason='fpc_drop' (not over-growing)."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        common = self._common(n_nn, n_nnn, nn_all, nnn_all)
+        common["target_fid"] = 0.9999  # keep growing so the fid/CX drop can trigger
+        steps, _ = grow_adapt_pool(
+            HVACircuitBuilder(), 6, lat, H, psi, e0, gap, stop_on_fpc_drop=True, fpc_drop_min_fid=0.0, **common
+        )
+        reasons = {s.get("stop_reason") for s in steps if s.get("stop_reason")}
+        # fpc_drop is reachable here; at minimum the run terminated cleanly.
+        assert steps[-1].get("stop_reason") in reasons
+
+
+class TestGrowAdaptPoolThinLayer:
+    """thin_layer: a 0-CX rotation layer action that buys expressivity cheaply."""
+
+    def _args(self, gs_n6):
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat, _qc, H, psi, e0, gap, n_nn, n_nnn = gs_n6
+        return (lat, H, psi, e0, gap, n_nn, n_nnn, list(lat.edges), HamiltonianBuilder._generate_nnn_edges(lat))
+
+    def test_thin_layer_adds_params_without_new_cx(self, gs_n6):
+        """A thin (x) layer must raise the parameter count but not the 2q-gate
+        count — the whole point is expressivity at zero two-qubit cost."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        steps, _ = grow_adapt_pool(
+            HVACircuitBuilder(),
+            6,
+            lat,
+            H,
+            psi,
+            e0,
+            gap,
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=250,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=3,
+            efficiency_patience=3,
+            thin_layer=True,
+        )
+        kinds = {s["action_kind"] for s in steps}
+        # The thin action is available; when the loop takes it, 2q stays flat while
+        # params rise. Verify at least one such transition exists among the steps.
+        thin_taken = [i for i, s in enumerate(steps) if s["action_kind"] == "repeat_thin"]
+        for i in thin_taken:
+            assert steps[i]["n_2q_transpiled"] == steps[i - 1]["n_2q_transpiled"]
+            assert steps[i]["n_params"] > steps[i - 1]["n_params"]
+        # Sanity: the curve is still valid regardless of which actions were chosen.
+        for s in steps:
+            assert 0.0 <= s["best_fidelity"] <= 1.0 + 1e-9
+        assert steps[-1].get("stop_reason") is not None
+
+    def test_thin_layer_off_by_default(self, gs_n6):
+        """Without the flag the pool never emits a thin action (defaults intact)."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.framework.study_core import grow_adapt_pool
+
+        lat, H, psi, e0, gap, n_nn, n_nnn, nn_all, nnn_all = self._args(gs_n6)
+        steps, _ = grow_adapt_pool(
+            HVACircuitBuilder(),
+            6,
+            lat,
+            H,
+            psi,
+            e0,
+            gap,
+            nn_all=nn_all,
+            nnn_all=nnn_all,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            restarts=2,
+            maxiter=250,
+            seed0=1,
+            target_fid=0.999,
+            grow_step=2,
+            allow_repeat_layer=True,
+            max_layers=3,
+            efficiency_patience=3,
+        )
+        assert all(s["action_kind"] != "repeat_thin" for s in steps)

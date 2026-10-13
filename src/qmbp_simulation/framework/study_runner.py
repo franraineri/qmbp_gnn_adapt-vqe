@@ -119,6 +119,8 @@ def _lbfgsb(
     *,
     maxiter: int,
     grad: Callable[[np.ndarray], np.ndarray] | None = None,
+    ftol: float = 1e-12,
+    stop_when: Callable[[np.ndarray], bool] | None = None,
 ):
     """Single L-BFGS-B run in the standard ``[-pi, pi]`` box. Returns (x, fun, nit).
 
@@ -126,8 +128,27 @@ def _lbfgsb(
     adjoint gradient), L-BFGS-B uses it instead of its internal finite-difference
     approximation — same optimum, far fewer circuit evaluations (the FD jac costs
     ~n_params extra cost() calls per step). When ``None``, behaviour is unchanged.
+
+    ``ftol`` is the relative energy tolerance for termination. The default
+    ``1e-12`` refines to machine precision (unchanged behaviour); a looser value
+    (e.g. ``1e-9``) lets a good warm-start converge in far fewer iterations when
+    machine-precision energy is not needed — the dominant cost at large N.
+
+    ``stop_when(x)`` is an optional per-iteration predicate. When it returns True
+    the run is aborted mid-optimization (via the scipy callback protocol) and the
+    best point so far is returned. This is what lets a warm-start that already
+    clears a fidelity target stop immediately instead of refining to ``ftol`` — the
+    dominant wall-clock cost at large N. ``None`` (default) = unchanged behaviour.
     """
     from scipy.optimize import minimize
+
+    callback = None
+    if stop_when is not None:
+
+        def callback(intermediate_result):  # scipy>=1.11 passes an OptimizeResult
+            x = getattr(intermediate_result, "x", intermediate_result)
+            if stop_when(np.asarray(x, float)):
+                raise StopIteration
 
     r = minimize(
         cost,
@@ -135,7 +156,8 @@ def _lbfgsb(
         method="L-BFGS-B",
         jac=grad,
         bounds=[(-np.pi, np.pi)] * len(x0),
-        options={"maxiter": maxiter, "ftol": 1e-12},
+        options={"maxiter": maxiter, "ftol": ftol},
+        callback=callback,
     )
     return r.x, float(r.fun), int(r.nit)
 

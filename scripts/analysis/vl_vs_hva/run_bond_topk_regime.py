@@ -26,6 +26,7 @@ Usage
     .venv/bin/python scripts/analysis/vl_vs_hva/run_bond_topk_regime.py \
         --n 18 --h 0.5 --p 2 --nnn-keep-frac 0.5 --restarts 4 --maxiter 2000
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,12 +40,10 @@ _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
-from hva_vl_study_common import StudyPersister, sync_scoreboard  # noqa: E402
+from hva_vl_study_common import StudyPersister, save_ansatz_spec, sync_scoreboard  # noqa: E402
 
 from qmbp_simulation.analysis.theta_patterns import extract_theta_metrics  # noqa: E402
 from qmbp_simulation.analysis.warmstart import (  # noqa: E402
-    ORDERED_H_MAX,
-    PARAMAGNETIC_H_MIN,
     crosses_transition,
     difficulty_index,
     phase_proximity,
@@ -113,11 +112,17 @@ def _load_theta_donors(topology, n, h, nnn_edges, *, min_fid=0.85):
                     n_nn_full, p_found = n_nn_candidate, p_try
             if n_nn_full is None:
                 continue
-            donors.append({
-                "theta": th, "n_nn": n_nn_full, "n_nnn": len(nnn_edges),
-                "p": p_found, "label": f"{r.get('variant', '?')}@{fid:.3f}",
-                "nnn_edges": nnn_edges, "_fid": fid,
-            })
+            donors.append(
+                {
+                    "theta": th,
+                    "n_nn": n_nn_full,
+                    "n_nnn": len(nnn_edges),
+                    "p": p_found,
+                    "label": f"{r.get('variant', '?')}@{fid:.3f}",
+                    "nnn_edges": nnn_edges,
+                    "_fid": fid,
+                }
+            )
     # Highest-fidelity donors first; de-dup by (label).
     donors.sort(key=lambda x: -x["_fid"])
     seen, uniq = set(), []
@@ -144,8 +149,7 @@ def _load_donor(topology, donor_n, donor_h, p, j2, *, min_fid=0.9):
 
     from qmbp_simulation.models import make_lattice
 
-    f = _P(f"results/hva_vl_study/bond_ablation/"
-           f"bond_topk_regime_{topology}_N{donor_n}_p{p}_h{donor_h:.2f}.json")
+    f = _P(f"results/hva_vl_study/bond_ablation/bond_topk_regime_{topology}_N{donor_n}_p{p}_h{donor_h:.2f}.json")
     if not f.exists():
         return None
     try:
@@ -163,9 +167,13 @@ def _load_donor(topology, donor_n, donor_h, p, j2, *, min_fid=0.9):
     nnn_edges = HamiltonianBuilder._generate_nnn_edges(lat)
     tag = f"N{donor_n}" if abs(donor_h - 0.0) < 0 else f"N{donor_n}h{donor_h:.2f}"
     return {
-        "theta": th, "n_nn": row.get("n_nn_bonds", len(lat.edges)),
-        "n_nnn": row.get("n_nnn_bonds", len(nnn_edges)), "p": p,
-        "n_qubits": donor_n, "nnn_edges": nnn_edges, "h": donor_h,
+        "theta": th,
+        "n_nn": row.get("n_nn_bonds", len(lat.edges)),
+        "n_nnn": row.get("n_nnn_bonds", len(nnn_edges)),
+        "p": p,
+        "n_qubits": donor_n,
+        "nnn_edges": nnn_edges,
+        "h": donor_h,
         "label": f"donor<{tag}>@{fid:.3f}",
     }
 
@@ -186,11 +194,17 @@ def _autodiscover_donors(topology, N, h, p, j2, *, max_donors=4):
     from qmbp_simulation.analysis.warmstart import discover_donors
 
     return discover_donors(
-        topology, N, h, p,
-        model="tfim_frustrated", frustrated=True,
-        max_donors=max_donors, same_phase=True,
+        topology,
+        N,
+        h,
+        p,
+        model="tfim_frustrated",
+        frustrated=True,
+        max_donors=max_donors,
+        same_phase=True,
         sources=("bond_ablation",),
-        ablation_variant="p2_full_ref", ablation_min_fid=0.9,
+        ablation_variant="p2_full_ref",
+        ablation_min_fid=0.9,
     )
 
 
@@ -213,13 +227,13 @@ def _preflight_output(out_file, *, force=False):
 
     # Live sibling processes (informational).
     try:
-        ps = _sp.run(["ps", "ax", "-o", "pid=,command="], capture_output=True,
-                     text=True, timeout=5).stdout
-        live = [ln.strip() for ln in ps.splitlines()
-                if "run_bond_topk_regime.py" in ln and "ps ax" not in ln]
+        ps = _sp.run(["ps", "ax", "-o", "pid=,command="], capture_output=True, text=True, timeout=5).stdout
+        live = [ln.strip() for ln in ps.splitlines() if "run_bond_topk_regime.py" in ln and "ps ax" not in ln]
         if live:
-            print(f"[preflight] {len(live)} live run_bond_topk_regime process(es) "
-                  f"detected — ensure no (N,h) collision:", flush=True)
+            print(
+                f"[preflight] {len(live)} live run_bond_topk_regime process(es) detected — ensure no (N,h) collision:",
+                flush=True,
+            )
             for ln in live[:4]:
                 print(f"[preflight]   {ln[:140]}", flush=True)
     except Exception:
@@ -235,15 +249,14 @@ def _preflight_output(out_file, *, force=False):
                 if v and f is not None:
                     prev[v] = float(f)
             tag = "will OVERWRITE (--force)" if force else "will overwrite (idempotent)"
-            print(f"[preflight] output exists → {tag}: {out_file} "
-                  f"(prev: {', '.join(f'{k}={v:.4f}' for k, v in prev.items())})",
-                  flush=True)
+            print(
+                f"[preflight] output exists → {tag}: {out_file} "
+                f"(prev: {', '.join(f'{k}={v:.4f}' for k, v in prev.items())})",
+                flush=True,
+            )
         except Exception:
             pass
     return prev
-
-
-
 
 
 def run(args) -> int:
@@ -255,8 +268,7 @@ def run(args) -> int:
     if args.restarts < 1:
         raise ValueError(f"--restarts must be >= 1, got {args.restarts}")
 
-    lat, _qc, Hop, psi, e0, gap, n_nn, n_nnn = ground_state(
-        args.topology, args.n, args.h, args.j2, 1)
+    lat, _qc, Hop, psi, e0, gap, n_nn, n_nnn = ground_state(args.topology, args.n, args.h, args.j2, 1)
     nn = lat.edges
     nnn = HamiltonianBuilder._generate_nnn_edges(lat)
     b = HVACircuitBuilder()
@@ -299,21 +311,24 @@ def run(args) -> int:
         from qmbp_simulation.analysis.warmstart import discover_donors
 
         auto = discover_donors(
-            args.topology, args.n, args.h, args.p,
-            model="tfim_frustrated", frustrated=True,
+            args.topology,
+            args.n,
+            args.h,
+            args.p,
+            model="tfim_frustrated",
+            frustrated=True,
             sources=("npz", "bond_ablation"),
-            ablation_variant="p2_full_ref", ablation_min_fid=0.9,
+            ablation_variant="p2_full_ref",
+            ablation_min_fid=0.9,
         )
         have = {d["label"] for d in donors}
         for d in auto:
             if d["label"] not in have:
                 donors.append(d)
         if auto:
-            print(f"[topk_regime] auto-discovered {len(auto)} same-phase donor(s) "
-                  f"[shared discover_donors]", flush=True)
+            print(f"[topk_regime] auto-discovered {len(auto)} same-phase donor(s) [shared discover_donors]", flush=True)
     if donors:
-        print(f"[topk_regime] loaded {len(donors)} θ donor(s): "
-              f"{[d['label'] for d in donors]}", flush=True)
+        print(f"[topk_regime] loaded {len(donors)} θ donor(s): {[d['label'] for d in donors]}", flush=True)
 
     # Gap-adaptive budget (improvements #2/#3): near-degenerate (small-gap)
     # points get more restarts and a more aggressive top-k mask; large-gap
@@ -325,26 +340,39 @@ def run(args) -> int:
         eff_keep_frac = topk_frac_for_gap(gap, args.nnn_keep_frac)
 
     # Which regime seed will be used (provenance up-front).
-    _, _seed_name = select_regime_seed(n_nn, n_nnn, args.n, args.p, args.h,
-                                       J=1.0, J2=args.j2)
-    print(f"[topk_regime] N={args.n} h={args.h} p={args.p} e0={e0:.5f} gap={gap:.5f} "
-          f"n_nn={n_nn} n_nnn={n_nnn} keep_frac={eff_keep_frac:.2f} "
-          f"restarts={eff_restarts} seed={_seed_name}"
-          + (" [+continuation donor]" if cont is not None else ""), flush=True)
+    _, _seed_name = select_regime_seed(n_nn, n_nnn, args.n, args.p, args.h, J=1.0, J2=args.j2)
+    print(
+        f"[topk_regime] N={args.n} h={args.h} p={args.p} e0={e0:.5f} gap={gap:.5f} "
+        f"n_nn={n_nn} n_nnn={n_nnn} keep_frac={eff_keep_frac:.2f} "
+        f"restarts={eff_restarts} seed={_seed_name}" + (" [+continuation donor]" if cont is not None else ""),
+        flush=True,
+    )
 
     persister = StudyPersister(
-        subdir=SUBDIR, out_file=out_file,
-        fingerprint={"n_qubits": args.n, "p_layers": args.p,
-                     "model": "tfim_frustrated", "topology": args.topology,
-                     "h": args.h},
-        extra={"topology": args.topology, "N": args.n, "h": args.h,
-               "p_layers": args.p, "J2": args.j2, "e0": e0, "gap": gap,
-               "nnn_keep_frac": args.nnn_keep_frac, "schema": "bond_topk_regime_v1"},
-        params={"experiment": "bond_topk_regime", "N": args.n, "h": args.h,
-                "p_layers": args.p},
-        description="k=0.5 nnn top-k at N=18 with regime-aware seed + "
-                    "θ_x-subspace exploration",
-        rows_ref=rows)
+        subdir=SUBDIR,
+        out_file=out_file,
+        fingerprint={
+            "n_qubits": args.n,
+            "p_layers": args.p,
+            "model": "tfim_frustrated",
+            "topology": args.topology,
+            "h": args.h,
+        },
+        extra={
+            "topology": args.topology,
+            "N": args.n,
+            "h": args.h,
+            "p_layers": args.p,
+            "J2": args.j2,
+            "e0": e0,
+            "gap": gap,
+            "nnn_keep_frac": args.nnn_keep_frac,
+            "schema": "bond_topk_regime_v1",
+        },
+        params={"experiment": "bond_topk_regime", "N": args.n, "h": args.h, "p_layers": args.p},
+        description="k=0.5 nnn top-k at N=18 with regime-aware seed + θ_x-subspace exploration",
+        rows_ref=rows,
+    )
 
     # This runner's in-progress row carries extra fields (seed_name, bond counts,
     # fidelity_per_cx), so the per-restart callback stays inline below; the shared
@@ -378,63 +406,115 @@ def run(args) -> int:
         # every runner wires it the same way. --warmstart regime reproduces the
         # pre-cascade behavior (regime seed only) for A/B.
         ws = prepare_warmstart(
-            qc_v, Hop, psi, n_nn=nn_bonds, n_nnn=nnn_bonds, n_qubits=args.n,
-            p_layers=args.p, h=args.h, J=1.0, J2=args.j2, donors=donors,
-            target_nnn_edges=target_nnn_edges, strategy=args.warmstart,
-            topology=args.topology, model="tfim_frustrated", gap=gap,
-            micro_descent=args.micro_descent, cost=cost_v, fid=fid_v, grad=grad_v)
+            qc_v,
+            Hop,
+            psi,
+            n_nn=nn_bonds,
+            n_nnn=nnn_bonds,
+            n_qubits=args.n,
+            p_layers=args.p,
+            h=args.h,
+            J=1.0,
+            J2=args.j2,
+            donors=donors,
+            target_nnn_edges=target_nnn_edges,
+            strategy=args.warmstart,
+            topology=args.topology,
+            model="tfim_frustrated",
+            gap=gap,
+            micro_descent=args.micro_descent,
+            cost=cost_v,
+            fid=fid_v,
+            grad=grad_v,
+        )
         seed_v, seed_vn, seed_fid = ws["seed"], ws["provenance"], ws["init_fidelity"]
         ws_report = ws["report"]
         if len(seed_v) != npar_v:
             raise ValueError(
                 f"warm-start seed length {len(seed_v)} != circuit params {npar_v} "
-                f"for {variant.name} (nn={nn_bonds} nnn={nnn_bonds} p={args.p})")
+                f"for {variant.name} (nn={nn_bonds} nnn={nnn_bonds} p={args.p})"
+            )
         x_idx_v = theta_x_indices(nn_bonds, nnn_bonds, args.n, args.p)
-        print(f"    [{variant.name}] seed={seed_vn} "
-              f"init_fid={seed_fid:.4f}" if seed_fid is not None else
-              f"    [{variant.name}] seed={seed_vn}", flush=True)
+        print(
+            f"    [{variant.name}] seed={seed_vn} init_fid={seed_fid:.4f}"
+            if seed_fid is not None
+            else f"    [{variant.name}] seed={seed_vn}",
+            flush=True,
+        )
         tv = time.time()
 
-        def _on_restart(partial_runs, best, _name=variant.name, _n2q=n2q_v,
-                        _npar=npar_v, _nnb=nn_bonds, _nnnb=nnn_bonds, _sn=seed_vn):
+        def _on_restart(
+            partial_runs,
+            best,
+            _name=variant.name,
+            _n2q=n2q_v,
+            _npar=npar_v,
+            _nnb=nn_bonds,
+            _nnnb=nnn_bonds,
+            _sn=seed_vn,
+        ):
             # Per-restart crash-safe partial: a provisional row so the artifact
             # (and the console) show progress during the long N=18 convergence.
             fid_now = (best or {}).get("fidelity")
             prog = {
-                "variant": _name, "status": "in_progress",
+                "variant": _name,
+                "status": "in_progress",
                 "n_restarts_done": len(partial_runs),
-                "best_fidelity": fid_now, "best_energy": (best or {}).get("energy"),
-                "n_2q_transpiled": _n2q, "n_params": _npar,
+                "best_fidelity": fid_now,
+                "best_energy": (best or {}).get("energy"),
+                "n_2q_transpiled": _n2q,
+                "n_params": _npar,
                 "fidelity_per_cx": (fid_now / _n2q) if fid_now is not None else None,
-                "n_nn_bonds": _nnb, "n_nnn_bonds": _nnnb, "seed_name": _sn,
-                "best_theta_final": (min(partial_runs, key=lambda r: r["energy"])
-                                     ["theta_final"] if partial_runs else None),
+                "n_nn_bonds": _nnb,
+                "n_nnn_bonds": _nnnb,
+                "seed_name": _sn,
+                "best_theta_final": (
+                    min(partial_runs, key=lambda r: r["energy"])["theta_final"] if partial_runs else None
+                ),
             }
             _persist_with_extra(rows + [prog])
-            print(f"    [{_name}] restart {len(partial_runs)}/{eff_restarts} "
-                  f"best_fid={fid_now:.4f}" if fid_now is not None else
-                  f"    [{_name}] restart {len(partial_runs)}", flush=True)
+            print(
+                f"    [{_name}] restart {len(partial_runs)}/{eff_restarts} best_fid={fid_now:.4f}"
+                if fid_now is not None
+                else f"    [{_name}] restart {len(partial_runs)}",
+                flush=True,
+            )
 
         fid_best, e_best_v, runs_v = optimize_xspace_bestof(
-            cost_v, fid_v, grad_v, seed_v, x_idx_v, restarts=eff_restarts,
-            maxiter=args.maxiter, seed0=args.seed0, sigma_x=args.sigma_x,
-            on_restart=_on_restart)
+            cost_v,
+            fid_v,
+            grad_v,
+            seed_v,
+            x_idx_v,
+            restarts=eff_restarts,
+            maxiter=args.maxiter,
+            seed0=args.seed0,
+            sigma_x=args.sigma_x,
+            on_restart=_on_restart,
+        )
         best = min(runs_v, key=lambda r: r["energy"])
         theta_final = np.asarray(best["theta_final"], float)
         # Derived angle metrics (automation): distance of the converged θ to the
         # regime seed + difficulty index, so downstream analysis never has to
         # recompute them from the raw θ. d_theta_to_seed is the signal that grows
         # with N in the transition (the collapse predictor).
-        regime_only, _ = select_regime_seed(nn_bonds, nnn_bonds, args.n, args.p,
-                                            args.h, J=1.0, J2=args.j2)
-        tm = extract_theta_metrics(theta_final, nn_bonds, nnn_bonds, args.n, args.p,
-                                   args.h, J2=args.j2, seed_theta=regime_only)
+        regime_only, _ = select_regime_seed(nn_bonds, nnn_bonds, args.n, args.p, args.h, J=1.0, J2=args.j2)
+        tm = extract_theta_metrics(
+            theta_final, nn_bonds, nnn_bonds, args.n, args.p, args.h, J2=args.j2, seed_theta=regime_only
+        )
         D = difficulty_index(args.n, args.h, gap, J2=args.j2)
         return {
-            "variant": variant.name, "best_fidelity": fid_best, "e_best": e_best_v,
-            "e0": e0, "gap": gap, "n_2q_transpiled": n2q_v, "n_params": npar_v,
-            "fidelity_per_cx": fid_best / n2q_v, "n_nn_bonds": nn_bonds,
-            "n_nnn_bonds": nnn_bonds, "seed_name": seed_vn,
+            "variant": variant.name,
+            "best_fidelity": fid_best,
+            "e_best": e_best_v,
+            "e0": e0,
+            "gap": gap,
+            "n_2q_transpiled": n2q_v,
+            "n_params": npar_v,
+            "fidelity_per_cx": fid_best / n2q_v,
+            "n_nn_bonds": nn_bonds,
+            "n_nnn_bonds": nnn_bonds,
+            "seed_name": seed_vn,
             "seconds": round(time.time() - tv, 1),
             "best_theta_final": best["theta_final"],
             # ── enriched metrics ──────────────────────────────────────────
@@ -445,8 +525,7 @@ def run(args) -> int:
             "difficulty_index": round(float(D), 3),
             "warmstart_report": ws_report,
             "prev_fidelity": prev_fids.get(variant.name),
-            "delta_vs_prev": (round(fid_best - prev_fids[variant.name], 4)
-                              if variant.name in prev_fids else None),
+            "delta_vs_prev": (round(fid_best - prev_fids[variant.name], 4) if variant.name in prev_fids else None),
             "d_theta_to_seed": tm["d_theta_to_seed"],
             "nn_absmean": round(tm["nn_absmean"], 4),
             "nnn_absmean": round(tm["nnn_absmean"], 4),
@@ -466,9 +545,12 @@ def run(args) -> int:
     _persist()
     _dv = ref_row.get("delta_vs_prev")
     _dtag = f" (Δ vs prev {_dv:+.4f})" if _dv is not None else ""
-    print(f"  p2_full_ref fid={ref_row['best_fidelity']:.4f} "
-          f"2q={ref_row['n_2q_transpiled']} seed={ref_row['seed_name']} "
-          f"({ref_row['seconds']}s){_dtag}", flush=True)
+    print(
+        f"  p2_full_ref fid={ref_row['best_fidelity']:.4f} "
+        f"2q={ref_row['n_2q_transpiled']} seed={ref_row['seed_name']} "
+        f"({ref_row['seconds']}s){_dtag}",
+        flush=True,
+    )
     theta_ref = np.asarray(ref_row["best_theta_final"], float)
 
     # ── 2) top-k selection (ranked from the converged reference θ) ──────────
@@ -476,29 +558,67 @@ def run(args) -> int:
     k = max(1, int(round(eff_keep_frac * n_nnn)))
     sel = top_k_by_weight(nn, nnn, w_nn, w_nnn, k_nn=None, k_nnn=k)
     v = make_masked_variant(
-        f"p{args.p}_topk_regime", f"p{args.p} topk nnn={k}/{n_nnn} + regime seed",
-        ["nn", "nnn", "x"] * args.p, sel, tags=("topk", "regime"))
+        f"p{args.p}_topk_regime",
+        f"p{args.p} topk nnn={k}/{n_nnn} + regime seed",
+        ["nn", "nnn", "x"] * args.p,
+        sel,
+        tags=("topk", "regime"),
+    )
     row = _eval_regime(v, len(sel.nn_edges), len(sel.nnn_edges), sel.nnn_edges)
     rows.append(row)
+    # D3 — promote the top-k ansatz to the portable spec library (reusable by any
+    # runner; same as bond_ablation/variant_topk). Gated by fidelity; records the
+    # spec path back into the row for run↔spec traceability.
+    if row.get("best_fidelity") is not None and row["best_fidelity"] >= 0.85 and row.get("best_theta_final"):
+        try:
+            spec_path = save_ansatz_spec(
+                v,
+                topology=args.topology,
+                n_qubits=args.n,
+                h=args.h,
+                j2=args.j2,
+                theta=row["best_theta_final"],
+                nn_edges=sel.nn_edges,
+                nnn_edges=sel.nnn_edges,
+                fidelity=float(row["best_fidelity"]),
+                n_2q=row["n_2q_transpiled"],
+                n_params=row.get("n_params"),
+                p_layers=args.p,
+            )
+            row["ansatz_spec_path"] = str(spec_path)
+        except Exception as _exc:  # noqa: BLE001 - spec save must not break the run
+            print(f"    [spec save skipped: {_exc}]", flush=True)
     _persist(status="final")
     _dv2 = row.get("delta_vs_prev")
     _dtag2 = f" (Δ vs prev {_dv2:+.4f})" if _dv2 is not None else ""
-    print(f"  p{args.p}_topk_regime fid={row['best_fidelity']:.4f} "
-          f"2q={row['n_2q_transpiled']} nnn={k}/{n_nnn} seed={row['seed_name']} "
-          f"({row['seconds']}s){_dtag2}", flush=True)
+    print(
+        f"  p{args.p}_topk_regime fid={row['best_fidelity']:.4f} "
+        f"2q={row['n_2q_transpiled']} nnn={k}/{n_nnn} seed={row['seed_name']} "
+        f"({row['seconds']}s){_dtag2}",
+        flush=True,
+    )
 
     print(f"\n=== RESULT (N={args.n}) ===", flush=True)
     for r in rows:
-        print(f"  {r['variant']:18s} fid={r['best_fidelity']:.4f} "
-              f"2q={r['n_2q_transpiled']:>3} fid/cx={r['fidelity_per_cx']:.2e}", flush=True)
+        print(
+            f"  {r['variant']:18s} fid={r['best_fidelity']:.4f} "
+            f"2q={r['n_2q_transpiled']:>3} fid/cx={r['fidelity_per_cx']:.2e}",
+            flush=True,
+        )
     print("  (baseline p2_half_nn_rx = 0.9268 @ 318 CX)", flush=True)
     print("DONE", flush=True)
     # Return the converged full-ref θ + layout so an h-sweep can reuse it as the
     # continuation donor for the next (descending) h step.
     return {
-        "theta_full_ref": theta_ref, "n_nn": n_nn, "n_nnn": n_nnn, "p": args.p,
-        "nnn_edges": nnn, "h": args.h, "gap": gap,
-        "ref_fid": ref_row["best_fidelity"], "topk_fid": row["best_fidelity"],
+        "theta_full_ref": theta_ref,
+        "n_nn": n_nn,
+        "n_nnn": n_nnn,
+        "p": args.p,
+        "nnn_edges": nnn,
+        "h": args.h,
+        "gap": gap,
+        "ref_fid": ref_row["best_fidelity"],
+        "topk_fid": row["best_fidelity"],
     }
 
 
@@ -515,8 +635,7 @@ def run_sweep(args) -> int:
     apply per point.
     """
     hs = sorted({float(x) for x in args.h_sweep}, reverse=True)
-    print(f"[h-sweep] N={args.n} descending h = {hs} "
-          f"(gap_adaptive={getattr(args, 'gap_adaptive', True)})", flush=True)
+    print(f"[h-sweep] N={args.n} descending h = {hs} (gap_adaptive={getattr(args, 'gap_adaptive', True)})", flush=True)
     prev = None
     summary = []
     for h in hs:
@@ -528,16 +647,19 @@ def run_sweep(args) -> int:
         donor = None
         if prev is not None and not crosses_transition(prev["h"], h):
             donor = {
-                "theta": prev["theta_full_ref"], "n_nn": prev["n_nn"],
-                "n_nnn": prev["n_nnn"], "p": prev["p"],
+                "theta": prev["theta_full_ref"],
+                "n_nn": prev["n_nn"],
+                "n_nnn": prev["n_nnn"],
+                "p": prev["p"],
                 "label": f"cont_h{prev['h']:.2f}@{prev['ref_fid']:.3f}",
                 "nnn_edges": prev["nnn_edges"],
             }
-            print(f"[h-sweep] step h={h}: continuation donor from h={prev['h']:.2f} "
-                  f"(same phase)", flush=True)
+            print(f"[h-sweep] step h={h}: continuation donor from h={prev['h']:.2f} (same phase)", flush=True)
         elif prev is not None:
-            print(f"[h-sweep] step h={h}: crossed phase boundary from "
-                  f"h={prev['h']:.2f} → reset to regime seed", flush=True)
+            print(
+                f"[h-sweep] step h={h}: crossed phase boundary from h={prev['h']:.2f} → reset to regime seed",
+                flush=True,
+            )
         step_args._continuation_donor = donor
         res = run(step_args)
         if isinstance(res, dict):
@@ -552,46 +674,71 @@ def run_sweep(args) -> int:
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description="top-k with regime seed + θ_x explore; "
-                                            "optional phase-aware h-sweep")
+    p = argparse.ArgumentParser(description="top-k with regime seed + θ_x explore; optional phase-aware h-sweep")
     p.add_argument("--topology", default="square")
     p.add_argument("--n", type=int, default=18)
     p.add_argument("--h", type=float, default=0.5)
-    p.add_argument("--h-sweep", type=float, nargs="+", default=None,
-                   help="Run a descending-h sweep over these values with "
-                        "phase-aware continuation (overrides --h).")
+    p.add_argument(
+        "--h-sweep",
+        type=float,
+        nargs="+",
+        default=None,
+        help="Run a descending-h sweep over these values with phase-aware continuation (overrides --h).",
+    )
     p.add_argument("--p", type=int, default=2)
     p.add_argument("--j2", type=float, default=0.5)
     p.add_argument("--nnn-keep-frac", type=float, default=0.5)
-    p.add_argument("--restarts", type=int, default=1,
-                   help="Base restarts. Gap-adaptive scaling raises it for "
-                        "small-gap points unless --no-gap-adaptive.")
+    p.add_argument(
+        "--restarts",
+        type=int,
+        default=1,
+        help="Base restarts. Gap-adaptive scaling raises it for small-gap points unless --no-gap-adaptive.",
+    )
     p.add_argument("--maxiter", type=int, default=2000)
     p.add_argument("--seed0", type=int, default=70000)
-    p.add_argument("--sigma-x", type=float, default=0.3,
-                   help="θ_x basin-hop perturbation stddev.")
-    p.add_argument("--micro-descent", type=int, default=None,
-                   help="L-BFGS-B iters for the warm-start cascade's micro-descent "
-                        "(default: auto = difficulty-adaptive from N,h). "
-                        "seed selection (0 = select by raw seed fidelity).")
-    p.add_argument("--no-gap-adaptive", dest="gap_adaptive", action="store_false",
-                   help="Disable gap-proportional restarts and aggressive top-k.")
-    p.add_argument("--cross-n-donor-n", type=int, default=None,
-                   help="Add a converged θ from this smaller N (same h) as an "
-                        "extra cascade donor (Fase B). Only engages near h_c.")
-    p.add_argument("--warmstart", choices=["combined", "regime"], default="combined",
-                   help="Warm-start strategy: 'combined' = full cascade "
-                        "(calibrated + regime + donors, micro-descent select); "
-                        "'regime' = regime seed only (pre-cascade A/B baseline).")
-    p.add_argument("--no-auto-donors", dest="auto_donors", action="store_false",
-                   help="Disable auto-discovery of same-phase donors from the "
-                        "artifact corpus (cross-N + cross-h).")
+    p.add_argument("--sigma-x", type=float, default=0.3, help="θ_x basin-hop perturbation stddev.")
+    p.add_argument(
+        "--micro-descent",
+        type=int,
+        default=None,
+        help="L-BFGS-B iters for the warm-start cascade's micro-descent "
+        "(default: auto = difficulty-adaptive from N,h). "
+        "seed selection (0 = select by raw seed fidelity).",
+    )
+    p.add_argument(
+        "--no-gap-adaptive",
+        dest="gap_adaptive",
+        action="store_false",
+        help="Disable gap-proportional restarts and aggressive top-k.",
+    )
+    p.add_argument(
+        "--cross-n-donor-n",
+        type=int,
+        default=None,
+        help="Add a converged θ from this smaller N (same h) as an "
+        "extra cascade donor (Fase B). Only engages near h_c.",
+    )
+    p.add_argument(
+        "--warmstart",
+        choices=["combined", "regime"],
+        default="combined",
+        help="Warm-start strategy: 'combined' = full cascade "
+        "(calibrated + regime + donors, micro-descent select); "
+        "'regime' = regime seed only (pre-cascade A/B baseline).",
+    )
+    p.add_argument(
+        "--no-auto-donors",
+        dest="auto_donors",
+        action="store_false",
+        help="Disable auto-discovery of same-phase donors from the artifact corpus (cross-N + cross-h).",
+    )
     p.set_defaults(auto_donors=True)
-    p.add_argument("--force", action="store_true",
-                   help="Acknowledge overwriting an existing output artifact "
-                        "(preflight warns either way; run never aborts).")
-    p.add_argument("--no-sync", action="store_true",
-                   help="Skip the post-run scoreboard refresh.")
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Acknowledge overwriting an existing output artifact (preflight warns either way; run never aborts).",
+    )
+    p.add_argument("--no-sync", action="store_true", help="Skip the post-run scoreboard refresh.")
     p.set_defaults(gap_adaptive=True)
     args = p.parse_args(argv)
     if args.h_sweep:

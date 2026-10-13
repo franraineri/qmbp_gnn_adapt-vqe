@@ -216,10 +216,7 @@ def is_point_failure(
     # near-critical points legitimately produce huge or even non-finite ΔE/gap
     # (gap→0) while the state itself is excellent.
     have_exact_fid = (
-        min_fidelity is not None
-        and fidelity is not None
-        and not fidelity_is_bound
-        and np.isfinite(fidelity)
+        min_fidelity is not None and fidelity is not None and not fidelity_is_bound and np.isfinite(fidelity)
     )
     if have_exact_fid:
         if fidelity >= min_fidelity:
@@ -4189,6 +4186,33 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
         _log("  ⏰ Timed out (120s limit)")
     except Exception as e:
         results["steps_failed"].append(f"eval_report: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 8: Auto-tuning override analysis ────────────────────────────
+    # Learn from --auto override divergences: compare the heuristic knob choice
+    # vs user overrides on the evidence log and adopt an override as a default
+    # only past the evidence gate (min cases + min fid/cx margin). Idempotent and
+    # byte-stable when no new evidence crossed the gate, so it is safe to run on
+    # every sync — while a manual analyze_override_log(...) call still works for
+    # ad-hoc inspection with custom thresholds. No-op when the log is absent.
+    _log("Step 8: Auto-tuning override analysis...")
+    try:
+        from qmbp_simulation.analysis.auto_tuning import analyze_override_log, read_override_log
+
+        if read_override_log():  # only when there is evidence to analyze
+            at_summary = analyze_override_log(write=True)
+            n_adopted = sum(1 for reg in at_summary.values() for d in reg.values() if d.get("adopted"))
+            results["auto_tuning"] = {
+                "n_regimes": len(at_summary),
+                "n_adopted_rules": n_adopted,
+            }
+            results["steps_completed"].append("auto_tuning")
+            _log(f"  ✅ Override analysis: {n_adopted} learned rule(s) adopted")
+        else:
+            results["steps_completed"].append("auto_tuning (no evidence)")
+            _log("  ⏭️ No override evidence logged yet — skipped")
+    except Exception as e:
+        results["steps_failed"].append(f"auto_tuning: {e}")
         _log(f"  ❌ Failed: {e}")
 
     # ── Summary ──────────────────────────────────────────────────────────

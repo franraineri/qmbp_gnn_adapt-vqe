@@ -73,6 +73,36 @@ from qmbp_simulation.models.hamiltonian import HamiltonianBuilder  # noqa: E402
 SUBDIR = "bond_ablation"
 
 
+def _load_same_prune_seed(label, args, npar):
+    """Reuse THIS masked variant's own converged θ as a re-run warm-start (C).
+
+    Looks for the spec saved by a previous run of the exact same masked variant
+    (``<label>_<topo>_N<n>_h<hh>.spec.json``). The label encodes variant + tol/kf +
+    rank-by + bond counts, so a hit is the identical layout at this N — its stored
+    θ matches ``npar`` verbatim (no transfer). Returns ``(theta, provenance)`` or
+    ``None`` when absent/mismatched. Only helps on re-runs; first-time runs skip it.
+    """
+
+    from hva_vl_study_common import STUDY_ROOT
+
+    from qmbp_simulation.circuits.ansatz_spec import AnsatzSpec
+
+    fname = f"{label}_{args.topology}_N{args.n}_h{args.h:.2f}.spec.json"
+    fpath = STUDY_ROOT / "ansatz_specs" / fname
+    if not fpath.exists():
+        return None
+    try:
+        s = AnsatzSpec.load(str(fpath))
+    except Exception:
+        return None
+    if s.theta is None:
+        return None
+    theta = np.asarray(s.theta, float)
+    if theta.size != npar:
+        return None
+    return (theta, f"sameprune<@{float(s.fidelity or 0.0):.3f}>")
+
+
 def _best_topk_seed(qc, H, psi, variant, sel, theta_ref, base, nnn_edges, args, backend):
     """Best warm-start for a masked top-k variant via the canonical cascade.
 
@@ -89,6 +119,15 @@ def _best_topk_seed(qc, H, psi, variant, sel, theta_ref, base, nnn_edges, args, 
     """
     npar = qc.num_parameters
     extra: list[tuple] = []
+    # C — same-prune seed: if THIS exact masked variant was converged before, its
+    # own stored θ (same N/structure/bond-selection → verbatim npar match) is the
+    # strongest possible re-run seed. Injected FIRST so the cascade ranks it ahead
+    # of transfer<full>/analytic; on a re-run the masked point converges in ~1
+    # restart. Keyed by the variant's label (encodes variant+tol/kf+rank+bond
+    # counts, so it only matches an identical prune).
+    same = _load_same_prune_seed(variant.name, args, npar)
+    if same is not None:
+        extra.append(same)
     transferred = transfer_theta_for_blocks(
         theta_ref,
         list(base.blocks),
@@ -251,6 +290,127 @@ def _load_cross_n_full_donor(args, base, nn_edges, nnn_edges, npar_ref, fid_fn=N
     return (seed, f"crossN<N{s.n_qubits}@{fid_d:.3f},cov{cov:.0%}>")
 
 
+def _load_same_n_full_seed(args, base, npar_ref):
+    """Reuse the SAME-N converged full θ as the reference warm-start (P1).
+
+    The most informed seed for the full reference is its OWN converged θ from a
+    previous run at this exact N/structure/topology/h — identical layout, so the
+    stored θ matches ``npar_ref`` verbatim (no transfer, no coverage loss). This
+    avoids re-converging the most expensive point (the full, 524 2q at N=20) from
+    the low-coverage cross-N donor. Scans the ansatz_specs library for the stored
+    full spec; returns ``(theta, label)`` or ``None`` when absent or mismatched.
+    """
+    import glob
+
+    from hva_vl_study_common import STUDY_ROOT
+
+    from qmbp_simulation.circuits.ansatz_spec import AnsatzSpec
+
+    specs_dir = STUDY_ROOT / "ansatz_specs"
+    # The full reference spec is saved as "<variant>_<topo>_N<n>_h<h>.spec.json"
+    # (no prune/topk suffix) — match that exact same-N file.
+    pattern = f"{args.variant}_{args.topology}_N{args.n}_h{args.h:.2f}.spec.json"
+    best = None  # (fid, theta, n_qubits)
+    for f in glob.glob(str(specs_dir / pattern)):
+        try:
+            s = AnsatzSpec.load(f)
+        except Exception:
+            continue
+        if s.n_qubits != args.n or s.theta is None:
+            continue
+        theta = np.asarray(s.theta, float)
+        if theta.size != npar_ref:
+            continue  # structure changed since the spec was written
+        fid = float(s.fidelity or 0.0)
+        if best is None or fid > best[0]:
+            best = (fid, theta, s.n_qubits)
+    if best is None:
+        return None
+    return (best[1], f"sameN<N{best[2]}@{best[0]:.3f}>")
+
+
+def _auto_knob_choice(regime_degenerate):
+    """Pure heuristic knob choice for a regime, before learned overrides/user.
+
+    Returns a dict {attr: value} the --auto selector would set. Kept separate so
+    the override-learning log can record what the heuristic WOULD have chosen
+    (knobs_auto) independently of what was effectively used.
+    """
+    if regime_degenerate:
+        return {"rank_by": "fidelity-grad", "ftol": 1e-9, "target_fid": 0.98, "two_pass": True, "micro_descent": -1}
+    return {"rank_by": "theta", "ftol": 1e-11}
+
+
+def _apply_auto_defaults(args, gap, manifold_dim):
+    """Fill the tunable knobs from the detected regime when ``--auto`` is set.
+
+    Precedence (highest first): explicit user flag > learned override (from the
+    auto-tuning feedback loop) > built-in heuristic. Only knobs the user did NOT
+    pass explicitly (``args._user_flags``) are touched, so every manual flag wins.
+
+    - DEGENERATE manifold (``manifold_dim > 1`` or ``gap < 1e-3``): flat energy →
+      |θ| is a poor proxy and tight ftol wastes compute. → rank-by=fidelity-grad,
+      ftol=1e-9, target-fid=0.98, two-pass, adaptive micro-descent (-1).
+    - HEALTHY gap: |θ| is fine, refine harder. → rank-by=theta, ftol=1e-11.
+
+    When ``results/.../auto_tuning/learned_overrides.json`` holds an adopted rule
+    for this regime+knob (evidence showed a user override consistently won), that
+    value replaces the heuristic — this is how the auto selector LEARNS.
+
+    Returns ``(summary_str, knobs_auto_pure)`` where ``knobs_auto_pure`` is the
+    pure-heuristic choice (for the learning log). Mutates ``args`` in place.
+    Returns ``(None, {})`` when ``--auto`` is off.
+    """
+    if not getattr(args, "auto", False):
+        return None, {}
+    user = getattr(args, "_user_flags", set())
+    degenerate = (manifold_dim or 1) > 1 or (gap is not None and gap < 1e-3)
+    reg_label = "degenerate" if degenerate else "healthy_gap"
+    knobs_auto_pure = _auto_knob_choice(degenerate)
+
+    # Learned overrides from the feedback loop (adopted only past the evidence
+    # gate). They bias the heuristic where measured evidence favoured a user
+    # override for this regime. Still subordinate to an explicit user flag.
+    learned = {}
+    try:
+        from qmbp_simulation.analysis.auto_tuning import load_learned_overrides
+
+        learned = load_learned_overrides().get("overrides", {}).get(reg_label, {})
+    except Exception as _exc:  # noqa: BLE001 - learning is optional, never fatal
+        learned = {}
+
+    flag_of = {
+        "rank_by": "--rank-by",
+        "ftol": "--ftol",
+        "target_fid": "--target-fid",
+        "two_pass": "--two-pass",
+        "micro_descent": "--micro-descent",
+    }
+    picks: list[str] = []
+    learned_used: list[str] = []
+    effective = dict(knobs_auto_pure)
+    for attr, heur_val in knobs_auto_pure.items():
+        if attr in learned:
+            effective[attr] = learned[attr]
+    for attr, value in effective.items():
+        if flag_of[attr] not in user:
+            setattr(args, attr, value)
+            tag = f"{attr}={value}"
+            if attr in learned:
+                tag += "*"  # learned-override marker
+                learned_used.append(attr)
+            picks.append(tag)
+
+    regime = f"degenerate (manifold={manifold_dim}, gap={gap:.2e})" if degenerate else f"healthy gap ({gap:.3f})"
+    kept = sorted(user) if user else []
+    summary = f"[auto] {regime} → set {picks or ['(nothing — all overridden)']}"
+    if learned_used:
+        summary += f"; learned* {learned_used}"
+    if kept:
+        summary += f"; user kept {kept}"
+    return summary, knobs_auto_pure
+
+
 def run(args) -> int:
     from qmbp_simulation.execution import NoiselessBackend
 
@@ -264,16 +424,46 @@ def run(args) -> int:
             raise SystemExit(f"--keep-fracs must be in (0, 1]; got {kf}")
     if args.restarts < 1:
         raise SystemExit(f"--restarts must be >= 1, got {args.restarts}")
-    # --micro-descent -1 → adaptive budget (prepare_warmstart computes it from the
-    # (N, h) difficulty). The selector_budget study showed the ranking only becomes
-    # correct near the transition at the adaptive K>=400, so M1 wants this.
-    if args.micro_descent is not None and args.micro_descent < 0:
-        args.micro_descent = None
 
     lat, _qc, H, psi, e0, gap, n_nn, n_nnn = ground_state(args.topology, args.n, args.h, args.j2, 1)
     nn_edges = list(lat.edges)
     nnn_edges = HamiltonianBuilder._generate_nnn_edges(lat)
     builder = HVACircuitBuilder()
+
+    # P2 — degenerate-manifold fidelity. Near the frustrated transition the ground
+    # space is a near-degenerate doublet (gap E1-E0 ~ 1e-5), so the energy optimizer
+    # may land on EITHER member; the vec-fidelity to a single |psi> then undersells
+    # a state that actually lives in the manifold. We additionally report the
+    # subspace fidelity (sum of weight over the k low eigenvectors) via the shared
+    # src helper, which is the degeneration-robust metric. Computed once here (k low
+    # eigvecs), applied per converged theta below.
+    _low_eigvecs = None
+    _manifold_dim = 1
+    try:
+        from qmbp_simulation.analysis.fidelity import degenerate_ground_manifold
+
+        _low_eigvecs, _e0_m, _phys_gap_m, _manifold_dim = degenerate_ground_manifold(H)
+    except Exception as _exc:  # noqa: BLE001 - sub-fid is a diagnostic, never fatal
+        print(f"[variant_topk] subspace-fidelity setup skipped: {_exc}", flush=True)
+
+    # --auto: tune the knobs from the detected regime (gap + manifold degeneracy)
+    # now that both are known, before they are first used. Manual flags win.
+    _auto_summary, _knobs_auto_pure = _apply_auto_defaults(args, gap, _manifold_dim)
+    if _auto_summary:
+        print(_auto_summary, flush=True)
+    # --micro-descent -1 → adaptive budget (prepare_warmstart computes it from the
+    # (N, h) difficulty). Done AFTER --auto so an auto-set -1 is mapped too.
+    if args.micro_descent is not None and args.micro_descent < 0:
+        args.micro_descent = None
+
+    def _subspace_fid(qc_, theta_):
+        """Subspace fidelity of theta over the low manifold (None if unavailable)."""
+        if _low_eigvecs is None:
+            return None
+        from qmbp_simulation.analysis.fidelity import subspace_fidelity
+
+        return subspace_fidelity(qc_, np.asarray(theta_, float), _low_eigvecs)
+
     backend = NoiselessBackend()  # shared across variants (reuses cached dense H)
     out_file = f"variant_topk_{args.variant}_{args.topology}_N{args.n}_h{args.h:.2f}.json"
 
@@ -336,6 +526,14 @@ def run(args) -> int:
     from qmbp_simulation.framework.study_core import make_cost_fid
 
     _cf, _ref_fid, _g, _ = make_cost_fid(ref_qc, H, psi, backend=backend)
+    # P1 — the strongest reference seed is the SAME-N converged full θ (verbatim
+    # layout match). Inject it FIRST so the cascade's micro-descent ranks it ahead
+    # of the analytic/cross-N candidates; when present the full reference converges
+    # in ~1 restart instead of being re-paid from a low-coverage cross-N donor.
+    same_n = _load_same_n_full_seed(args, base, npar_ref)
+    if same_n is not None:
+        extra_ref = (extra_ref or []) + [same_n]
+        print(f"[variant_topk] same-N full seed: {same_n[1]}", flush=True)
     cross = _load_cross_n_full_donor(args, base, nn_edges, nnn_edges, npar_ref, fid_fn=_ref_fid)
     if cross is not None:
         extra_ref = (extra_ref or []) + [cross]
@@ -368,9 +566,12 @@ def run(args) -> int:
         seed0=args.seed0,
         warm_theta=seed_ref,
         backend=backend,
+        target_fid=args.target_fid,
+        ftol=args.ftol,
         on_restart=persister.restart_callback(f"{args.variant}_full", n2q_ref, npar_ref),
     )
     theta_ref_best = min(runs_ref, key=lambda r: r["energy"])["theta_final"]
+    sub_ref = _subspace_fid(ref_qc, theta_ref_best)
     rows.append(
         build_variant_row(
             f"{args.variant}_full",
@@ -387,6 +588,8 @@ def run(args) -> int:
             seed_kind=seed_ref_kind,
             seconds=time.time() - t0,
             description=base.description,
+            subspace_fidelity=sub_ref,
+            manifold_dim=_manifold_dim,
         )
     )
     # Portable spec for the full ansatz (records its full nn/nnn edge sets).
@@ -409,9 +612,35 @@ def run(args) -> int:
     print(f"  {args.variant}_full fid={fid_ref:.4f} 2q={n2q_ref} ({rows[-1]['seconds']}s)", flush=True)
 
     theta_ref = np.asarray(rows[-1]["best_theta_final"], float)
-    w_nn, w_nnn = bond_weights_for_blocks(
-        theta_ref, base.blocks, n_nn, n_nnn, args.n, rx_final=base.rx_final, rz_final=base.rz_final
-    )
+    # Per-bond ranking signal. Default |θ| (bond_weights_for_blocks). With
+    # --rank-by fidelity-grad, rank by |∂Fidelity/∂θ| at the converged full θ
+    # (fidelity_bond_weights_for_blocks): in the near-degenerate manifold the
+    # energy is flat so |θ| is a poor proxy — the gradient signal keeps the bonds
+    # that actually carry the fidelity, the most valuable 2q to retain.
+    if args.rank_by == "fidelity-grad":
+        from qmbp_simulation.circuits.bond_mask import fidelity_bond_weights_for_blocks
+        from qmbp_simulation.framework.study_core import make_cost_fid
+
+        _c, _fid_ref_fn, _g, _ = make_cost_fid(ref_qc, H, psi, backend=backend)
+        w_nn, w_nnn = fidelity_bond_weights_for_blocks(
+            _fid_ref_fn,
+            theta_ref,
+            base.blocks,
+            n_nn,
+            n_nnn,
+            args.n,
+            rx_final=base.rx_final,
+            rz_final=base.rz_final,
+        )
+        print(
+            f"[variant_topk] ranking bonds by |∂Fid/∂θ| (fidelity-grad); "
+            f"nnn grad range [{float(w_nnn.min()):.2e}, {float(w_nnn.max()):.2e}]",
+            flush=True,
+        )
+    else:
+        w_nn, w_nnn = bond_weights_for_blocks(
+            theta_ref, base.blocks, n_nn, n_nnn, args.n, rx_final=base.rx_final, rz_final=base.rz_final
+        )
 
     # ── 2) Masked selections over the SAME structure ────────────────────────
     # Two modes, both ranked from the converged full θ:
@@ -422,6 +651,7 @@ def run(args) -> int:
     #     tolerance-based alternative to a fixed count.
     k_nn = None if args.nn_keep_frac >= 1.0 else max(1, int(round(args.nn_keep_frac * n_nn)))
 
+    rank_tag = "fg" if args.rank_by == "fidelity-grad" else "th"
     selections = []  # (label, BondSelection)
     if args.prune_tols:
         for tol in args.prune_tols:
@@ -435,17 +665,19 @@ def run(args) -> int:
                 rz_final=base.rz_final,
                 method="prune",
                 tol=tol,
+                weights_nn=w_nn,
+                weights_nnn=w_nnn,
             )
             if s.is_empty():
                 print(f"  prune tol={tol} removed ALL bonds — skipped", flush=True)
                 continue
-            selections.append((f"{args.variant}_prune{tol}_nn{len(s.nn_edges)}_nnn{len(s.nnn_edges)}", s))
+            selections.append((f"{args.variant}_prune{tol}_{rank_tag}_nn{len(s.nn_edges)}_nnn{len(s.nnn_edges)}", s))
     else:
         for kf in args.keep_fracs:
             k = max(1, int(round(kf * n_nnn)))
             s = top_k_by_weight(nn_edges, nnn_edges, w_nn, w_nnn, k_nn=k_nn, k_nnn=k)
             nn_tag = "" if k_nn is None else f"_nn{k_nn}of{n_nn}"
-            selections.append((f"{args.variant}_topk{k}of{n_nnn}{nn_tag}", s))
+            selections.append((f"{args.variant}_topk{k}of{n_nnn}_{rank_tag}{nn_tag}", s))
 
     for label, sel in selections:
         v = make_masked_variant(
@@ -472,9 +704,12 @@ def run(args) -> int:
             seed0=args.seed0,
             warm_theta=seed_m,
             backend=backend,
+            target_fid=args.target_fid,
+            ftol=args.ftol,
             on_restart=persister.restart_callback(label, n2q, npar),
         )
         theta_m = min(runs_m, key=lambda r: r["energy"])["theta_final"]
+        sub_m = _subspace_fid(qc, theta_m)
         rows.append(
             build_variant_row(
                 label,
@@ -491,10 +726,12 @@ def run(args) -> int:
                 seed_kind=seed_kind,
                 seconds=time.time() - t1,
                 description=v.description,
+                subspace_fidelity=sub_m,
+                manifold_dim=_manifold_dim,
             )
         )
         # Portable complete definition (exact edges + θ) for reuse in any runner.
-        save_ansatz_spec(
+        spec_path = save_ansatz_spec(
             v,
             topology=args.topology,
             n_qubits=args.n,
@@ -507,6 +744,38 @@ def run(args) -> int:
             seed_kind=seed_kind,
             base_variant=args.variant,
         )
+        # Auto-tuning feedback: when --auto drove this run, log the effective vs
+        # heuristic knobs + the achieved result so analyze_override_log can learn
+        # whether a user override consistently beats the heuristic. Observation
+        # only; never fatal.
+        if getattr(args, "auto", False):
+            try:
+                from qmbp_simulation.analysis.auto_tuning import log_auto_run, regime_key
+
+                effective_knobs = {
+                    "rank_by": args.rank_by,
+                    "ftol": args.ftol,
+                    "target_fid": args.target_fid,
+                    "two_pass": args.two_pass,
+                    "micro_descent": args.micro_descent,
+                }
+                log_auto_run(
+                    regime=regime_key(_manifold_dim, gap),
+                    knobs_effective=effective_knobs,
+                    knobs_auto=_knobs_auto_pure,
+                    result=rows[-1],
+                    context={
+                        "topology": args.topology,
+                        "n_qubits": args.n,
+                        "h": args.h,
+                        "variant": args.variant,
+                        "label": label,
+                    },
+                    spec_ref=str(spec_path),
+                    run_json_ref=str(persister.out_file) if hasattr(persister, "out_file") else None,
+                )
+            except Exception as _exc:  # noqa: BLE001 - learning must not break a run
+                print(f"  [auto-tuning log skipped: {_exc}]", flush=True)
         _persist(status="final")
         print(
             f"  {label} fid={fid_m:.4f} 2q={n2q} (nn={len(sel.nn_edges)}/{n_nn} "
@@ -601,8 +870,51 @@ def main(argv=None) -> int:
         help="Minimum donor fidelity to reuse a smaller-N spec as a "
         "cross-N warm-start (default 0.94 = auto-learn threshold).",
     )
+    p.add_argument(
+        "--target-fid",
+        type=float,
+        default=None,
+        help="Early-stop: skip remaining restarts once a restart clears this "
+        "fidelity. Essential in the degenerate manifold regime (gap~1e-5) where "
+        "L-BFGS-B otherwise refines the flat landscape for thousands of iters.",
+    )
+    p.add_argument(
+        "--ftol",
+        type=float,
+        default=1e-12,
+        help="L-BFGS-B relative tolerance (default 1e-12 = machine precision). "
+        "Loosen to 1e-9/1e-10 in the flat degenerate regime to stop chasing "
+        "infinitesimal energy gains that add no fidelity.",
+    )
+    p.add_argument(
+        "--rank-by",
+        choices=["theta", "fidelity-grad"],
+        default="theta",
+        help="Per-bond ranking signal for prune/top-k. 'theta' (default) ranks by "
+        "|θ|; 'fidelity-grad' ranks by |∂Fidelity/∂θ| at the converged full θ — the "
+        "better proxy in a near-degenerate manifold (flat energy). Applies to both "
+        "nnn and the nn backbone (with --nn-keep-frac<1).",
+    )
+    p.add_argument(
+        "--auto",
+        action="store_true",
+        help="Auto-tune the optimizer/selection knobs from the detected regime "
+        "(gap + manifold degeneracy), so you don't have to remember the right "
+        "flags. Degenerate manifold → rank-by=fidelity-grad, ftol=1e-9, "
+        "target-fid=0.98, two-pass, adaptive micro-descent; healthy gap → "
+        "rank-by=theta, ftol=1e-11. Any flag you pass EXPLICITLY overrides the "
+        "auto choice (manual methods always win).",
+    )
     p.add_argument("--no-sync", action="store_true", help="Skip the post-run scoreboard refresh.")
-    return run(p.parse_args(argv))
+    args = p.parse_args(argv)
+    # Record which tunable flags the user passed explicitly, so --auto only fills
+    # the ones left at their default (manual flags always win). Detected from argv
+    # by flag name — robust and leaves the existing defaults untouched.
+    raw = sys.argv[1:] if argv is None else list(argv)
+    args._user_flags = {
+        name for name in ("--rank-by", "--ftol", "--target-fid", "--two-pass", "--micro-descent") if name in raw
+    }
+    return run(args)
 
 
 if __name__ == "__main__":

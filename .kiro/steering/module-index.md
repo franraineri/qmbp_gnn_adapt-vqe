@@ -39,9 +39,10 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +19
 
 
-### qsim/analysis/ (31)
+### qsim/analysis/ (32)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +68
 
+  auto_tuning                      F:auto_tuning_dir,override_log_path,learned_overrides_path+6
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
   comparative                ANAL  C:RegimeDiscoveryResult,ComparativeMetrics | F:find_h_min,classify_result,filter_by_threshold+5
   constants                  CFG   F:compute_quality_score,grade_from_score
@@ -64,7 +65,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+53
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
-  observables                      F:half_chain_entropy,magnetization_z,magnetization_x+6
+  observables                      F:half_chain_entropy,magnetization_z,magnetization_x+8
   qpt_detection                    F:load_energy_curves,get_h_critical,compute_second_derivative+3
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
   state_prep_scoreboard      ANAL  F:config_key,make_entry,upsert+4
@@ -79,7 +80,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
   ansatz_spec                IO    C:AnsatzSpec | F:encode_ansatz_spec,decode_ansatz_spec
   aqc_compression            CIRC  C:AQCCompressionConfig,AQCCompressionResult,CompressionValidation+2
-  bond_mask                  CIRC  C:BondSelection | F:full_selection,prune_by_theta,top_k_by_weight+6
+  bond_mask                  CIRC  C:BondSelection | F:full_selection,prune_by_theta,top_k_by_weight+7
   hva                        MODEL C:HVACircuitBuilder | F:do_checks
   hva_variants               CIRC  C:AnsatzVariant | F:build_variant,make_masked_variant
   trotter                    CIRC  F:build_trotter_step,build_trotter_step_from_topology,build_frustrated_trotter_step+1
@@ -130,7 +131,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   study_artifacts                  C:StudyArtifactWriter,PathShim | F:build_artifact_name,meta_sidecar_path,git_commit+5
   study_checkpoint                 C:StudyCheckpoint | F:atomic_write_json,read_json,sanitize_theta+2
-  study_core                 CIRC  F:ground_state,make_cost_fid,diagnose_starvation+9
+  study_core                 CIRC  F:ground_state,make_cost_fid,diagnose_starvation+17
   study_index                CIRC  F:extract_coordinates,build_entry,build_index+4
   study_runner               PIPE  C:WarmStartResult,StudyRunner | F:make_adjoint_gradient,strategy_single,strategy_bestof+4
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -355,6 +356,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   analyze_bond_importance    PRED  F:analyze,main
   analyze_bond_importance_deep IO    F:analyze,main
   analyze_hva_vs_vl_resources VIS   F:build_summary,main
+  analyze_prerank_audit      VAL   F:summarize,main
   analyze_seed_vs_optimum    CFG   F:main
   analyze_theta_patterns     ANAL  F:analyze_one,main
   ansatz_expressivity_2d     OPT   F:expressivity_ceiling,run,format_rows+2
@@ -374,6 +376,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   export_hva_circuit_bundle  PRED  F:main
   fit_seed_profile                 F:main
   fit_sparsity_law                 F:keep_counts_for_N,build_table,main
+  generate_ansatz_summary    DIAG  C:Config,Solution | F:collect_exact,collect_specs,collect_bond_ablation+5
   generate_vl_hva_comparison_report CIRC  F:build_markdown,main
   generate_vl_hva_consolidated_report CIRC  C:Rec,Scenario | F:collect,build_markdown,main
   hva_nnn_h_sweep_frustrated OPT   F:run,format_rows,build_parser+1
@@ -387,6 +390,8 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_adapt_gate0                  F:run,main
   run_adapt_gate1                  F:run,main
   run_adapt_gate2                  F:run,main
+  run_adapt_poolA                  F:run,main
+  run_adapt_poolB                  F:run,main
   run_ansatz_variants              F:run_saturation,run_variants,main
   run_basin_count            CIRC  F:main
   run_bond_ablation          CIRC  F:run,main
@@ -398,6 +403,9 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_layer_ablation_direct  TEST  F:main
   run_n18_fair_convergence   ANAL  F:main
   run_n18_second_order       PIPE  F:main
+  run_n20_geometric          OPT   F:run,main
+  run_n20_hybrid_prune             F:run,main
+  run_n20_small_ansatze      OPT   F:run,main
   run_native_routing_budget        F:run,build_parser
   run_prep_evolution_noise         F:run,build_parser
   run_prune03_dynamics             F:run,build_parser

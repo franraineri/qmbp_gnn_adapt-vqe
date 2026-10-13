@@ -67,9 +67,7 @@ def _ground_state(topology, n, h, j2):
     return lat, H, psi, e0, gap
 
 
-def _optimize_bestof(
-    qc, H, psi, *, restarts, maxiter, sigma, seed0, warm_theta=None, on_restart=None, backend=None
-):
+def _optimize_bestof(qc, H, psi, *, restarts, maxiter, sigma, seed0, warm_theta=None, on_restart=None, backend=None):
     """Robust multi-seed best-of from a single warm seed. Returns (best_fid, best_e, runs).
 
     Thin wrapper over :func:`study_core.converge_circuit`: restart 0 starts from
@@ -81,8 +79,16 @@ def _optimize_bestof(
     from qmbp_simulation.framework.study_core import converge_circuit
 
     return converge_circuit(
-        qc, H, psi, restarts=restarts, maxiter=maxiter, seed0=seed0,
-        warm_theta=warm_theta, on_restart=on_restart, backend=backend)
+        qc,
+        H,
+        psi,
+        restarts=restarts,
+        maxiter=maxiter,
+        seed0=seed0,
+        warm_theta=warm_theta,
+        on_restart=on_restart,
+        backend=backend,
+    )
 
 
 def _cx_and_params(qc):
@@ -115,12 +121,29 @@ def run_saturation(args) -> int:
         n_nnn = len(HamiltonianBuilder._generate_nnn_edges(lat))
         backend = NoiselessBackend()
         ws = prepare_warmstart(
-            qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=n, p_layers=1,
-            h=args.h, J2=args.j2, micro_descent=args.micro_descent,
-            backend=backend, target_len=npar)
+            qc,
+            H,
+            psi,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=n,
+            p_layers=1,
+            h=args.h,
+            J2=args.j2,
+            micro_descent=args.micro_descent,
+            backend=backend,
+            target_len=npar,
+        )
         fid, e_best, runs = _optimize_bestof(
-            qc, H, psi, restarts=args.restarts, maxiter=args.maxiter,
-            sigma=args.sigma, seed0=args.seed0, warm_theta=ws["seed"], backend=backend
+            qc,
+            H,
+            psi,
+            restarts=args.restarts,
+            maxiter=args.maxiter,
+            sigma=args.sigma,
+            seed0=args.seed0,
+            warm_theta=ws["seed"],
+            backend=backend,
         )
         saturates = fid >= args.sat_threshold
         row = {
@@ -267,14 +290,22 @@ def run_variants(args) -> int:
             if base_hit is not None:
                 _, base_theta, base_src = base_hit
                 composed = compose_extend_theta(
-                    base_theta, list(v.extra_blocks), n_nn, n_nnn, args.n, args.h,
-                    J=1.0, J2=args.j2, extra_rx_final=v.rx_final, extra_rz_final=v.rz_final,
+                    base_theta,
+                    list(v.extra_blocks),
+                    n_nn,
+                    n_nnn,
+                    args.n,
+                    args.h,
+                    J=1.0,
+                    J2=args.j2,
+                    extra_rx_final=v.rx_final,
+                    extra_rz_final=v.rz_final,
                 )
                 if len(composed) == npar:
                     extra.append((composed, f"extend-from-{v.extends}({base_src})"))
         analytic_theta = variant_warmstart_theta(
-            v.blocks, n_nn, n_nnn, args.n, args.h, J=1.0, J2=args.j2,
-            rx_final=v.rx_final, rz_final=v.rz_final)
+            v.blocks, n_nn, n_nnn, args.n, args.h, J=1.0, J2=args.j2, rx_final=v.rx_final, rz_final=v.rz_final
+        )
         if len(analytic_theta) == npar:
             extra.append((analytic_theta, "analytic"))
         warm_src = None
@@ -284,9 +315,20 @@ def run_variants(args) -> int:
                 extra.append((warm_theta_ck, f"checkpoint({warm_src})"))
 
         ws = prepare_warmstart(
-            qc, H, psi, n_nn=n_nn, n_nnn=n_nnn, n_qubits=args.n, p_layers=1,
-            h=args.h, J2=args.j2, extra_candidates=(extra or None),
-            micro_descent=args.micro_descent, backend=backend, target_len=npar)
+            qc,
+            H,
+            psi,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=args.n,
+            p_layers=1,
+            h=args.h,
+            J2=args.j2,
+            extra_candidates=(extra or None),
+            micro_descent=args.micro_descent,
+            backend=backend,
+            target_len=npar,
+        )
         warm_theta, seed_note = ws["seed"], ws["provenance"]
 
         # Per-restart crash-safety: persist a PARTIAL artifact after every restart
@@ -391,6 +433,30 @@ def run_variants(args) -> int:
             "seconds": round(time.time() - t0, 1),
         }
         rows.append(row)
+        # D3 — promote the converged ansatz to the portable spec library so it is
+        # reusable by any other runner (same as run_bond_ablation/variant_topk do).
+        # Gated by a minimum fidelity so junk structures aren't saved. The link is
+        # also recorded back into the row for run↔spec traceability.
+        if fid >= 0.85:
+            try:
+                from hva_vl_study_common import save_ansatz_spec
+
+                spec_path = save_ansatz_spec(
+                    v,
+                    topology=args.topology,
+                    n_qubits=args.n,
+                    h=args.h,
+                    j2=args.j2,
+                    theta=best_run["theta_final"],
+                    fidelity=float(fid),
+                    n_2q=n_2q,
+                    n_params=npar,
+                    p_layers=1,
+                    seed_kind=seed_note,
+                )
+                row["ansatz_spec_path"] = str(spec_path)
+            except Exception as _exc:  # noqa: BLE001 - spec save must not break the run
+                print(f"    [spec save skipped: {_exc}]", flush=True)
         save_json(
             {
                 "rows": rows,
@@ -448,9 +514,11 @@ def main(argv=None) -> int:
     p.add_argument("--sigma", type=float, default=0.0)  # reserved (best-of uses random)
     p.add_argument("--seed0", type=int, default=70000)
     p.add_argument(
-        "--micro-descent", type=int, default=60,
+        "--micro-descent",
+        type=int,
+        default=60,
         help="L-BFGS-B iters to score each prepare_warmstart candidate "
-             "(calibrated/regime/extend/analytic/checkpoint); 0 = rank by init-fid only.",
+        "(calibrated/regime/extend/analytic/checkpoint); 0 = rank by init-fid only.",
     )
     p.add_argument(
         "--sat-threshold", type=float, default=0.93, help="Ceiling below this = p=1 no longer saturates (headroom)."

@@ -309,6 +309,52 @@ def compute_fidelity_decomposition(
     return result
 
 
+def degenerate_ground_manifold(hamiltonian, *, k: int = 4, doublet_tol: float = 1e-3):
+    """Diagonalize ``H`` and return its low ground manifold + physical gap.
+
+    The single source of truth for the "is the ground space degenerate?" question
+    that four study sites were each re-implementing inline (run_n20_hybrid_prune,
+    run_n20_geometric, run_variant_topk, generate_ansatz_summary). Near the
+    frustrated transition the ground space is a near-degenerate doublet (gap
+    E1-E0 ~ 1e-5), so a single |E0> fidelity is ambiguous; the subspace fidelity
+    over this manifold is the member-agnostic metric.
+
+    Computes the ``k`` lowest eigenpairs via sparse ``eigsh`` (ascending), counts
+    how many lie within ``doublet_tol`` of the ground energy (the manifold
+    dimension), and defines the PHYSICAL gap as the distance from E0 to the first
+    state ABOVE the manifold (not E1-E0, which is ~0 inside a doublet).
+
+    Returns ``(eigvecs, e0, phys_gap, manifold_dim)`` where ``eigvecs`` are the k
+    low eigenvectors as columns (ascending eigenvalue, complex), ready to pass to
+    :func:`compute_state_spectral_decomposition`. ``phys_gap`` is ``nan`` when all
+    k states fall inside the manifold (raise ``k``). Pure; lazy scipy import.
+    """
+    from scipy.sparse.linalg import eigsh
+
+    ev, evec = eigsh(hamiltonian.to_matrix(sparse=True), k=k, which="SA")
+    order = np.argsort(ev)
+    ev, evec = ev[order], evec[:, order]
+    e0 = float(ev[0])
+    manifold_idx = [i for i in range(len(ev)) if ev[i] - e0 <= doublet_tol]
+    above = [i for i in range(len(ev)) if i not in manifold_idx]
+    phys_gap = float(ev[above[0]] - e0) if above else float("nan")
+    return evec[:, manifold_idx].astype(complex), e0, phys_gap, len(manifold_idx)
+
+
+def subspace_fidelity(circuit, theta, manifold) -> float:
+    """Fidelity of the prepared state onto a degenerate ground ``manifold``.
+
+    ``manifold`` is the matrix of low eigenvectors as columns (from
+    :func:`degenerate_ground_manifold`). Returns Σ_i |⟨mᵢ|ψ(θ)⟩|² clipped to
+    [0,1] — the member-agnostic metric. Thin shared replacement for the
+    ``_subspace_fidelity`` helper duplicated across the study runners.
+    """
+    from qiskit.quantum_info import Statevector
+
+    psi = np.asarray(Statevector(circuit.assign_parameters(theta)).data)
+    return float(np.clip(np.sum(np.abs(manifold.conj().T @ psi) ** 2), 0.0, 1.0))
+
+
 def compute_state_spectral_decomposition(
     circuit,
     theta: np.ndarray,

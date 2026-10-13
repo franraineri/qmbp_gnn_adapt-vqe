@@ -283,6 +283,74 @@ def bond_weights_for_blocks(
     return w_nn, w_nnn
 
 
+def fidelity_bond_weights_for_blocks(
+    fid_fn,
+    theta,
+    blocks: list[str],
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    *,
+    rx_final: bool = False,
+    rz_final: bool = False,
+    eps: float = 0.1,
+):
+    """Per-bond ``max|∂Fidelity/∂θ|`` for an arbitrary block sequence.
+
+    The fidelity-sensitivity analogue of :func:`bond_weights_for_blocks`: instead
+    of ranking a bond by its angle magnitude ``|θ|``, it ranks by how much the
+    exact ground-state fidelity *moves* when that bond's angle is perturbed, at the
+    CONVERGED ``theta``. In a near-degenerate manifold the energy landscape is flat
+    while the fidelity is not, so ``|θ|`` is a poor proxy for a bond's value; this
+    signal measures the actual objective (same rationale as
+    :func:`study_core.fidelity_bond_gradients`, but for the bonds already present
+    in the optimized circuit rather than θ=0 candidates).
+
+    ``fid_fn(theta) -> float`` is the exact overlap evaluator (from
+    ``make_cost_fid``). For each nn / nnn RZZ angle it takes the central difference
+    ``|fid(θ+eps·e_i) − fid(θ−eps·e_i)| / (2·eps)`` and, mirroring
+    :func:`bond_weights_for_blocks`, keeps the MAX sensitivity a bond reaches
+    across the blocks it appears in. Returns ``(g_nn, g_nnn)`` aligned with the
+    nn / nnn edge lists. Costs ~2 fid() evals per (bond × block occurrence).
+
+    Raises if ``theta`` length does not match the block sequence (same guard as
+    :func:`bond_weights_for_blocks`). Pure w.r.t. ``theta`` (never mutates it).
+    """
+    import numpy as np
+
+    theta = np.asarray(theta, float)
+    size = {"nn": n_nn, "nnn": n_nnn, "x": n_qubits, "z": n_qubits}
+    expected = sum(size[b] for b in blocks)
+    expected += n_qubits if rx_final else 0
+    expected += n_qubits if rz_final else 0
+    if theta.size != expected:
+        raise ValueError(
+            f"theta length {theta.size} != expected {expected} for this lattice "
+            f"(n_nn={n_nn} n_nnn={n_nnn} n_qubits={n_qubits} blocks={blocks} "
+            f"rx_final={rx_final} rz_final={rz_final})."
+        )
+
+    def _sens(idx: int) -> float:
+        tp = theta.copy()
+        tp[idx] += eps
+        tm = theta.copy()
+        tm[idx] -= eps
+        return abs(float(fid_fn(tp)) - float(fid_fn(tm))) / (2.0 * eps)
+
+    g_nn = np.zeros(n_nn)
+    g_nnn = np.zeros(n_nnn)
+    off = 0
+    for b in blocks:
+        if b == "nn" and n_nn:
+            for j in range(n_nn):
+                g_nn[j] = max(g_nn[j], _sens(off + j))
+        elif b == "nnn" and n_nnn:
+            for j in range(n_nnn):
+                g_nnn[j] = max(g_nnn[j], _sens(off + j))
+        off += size[b]
+    return g_nn, g_nnn
+
+
 def selection_from_variant_theta(
     theta,
     blocks: list[str],
@@ -295,6 +363,9 @@ def selection_from_variant_theta(
     method: str = "top_k",
     keep_frac: float = 0.5,
     tol: float = 0.05,
+    weights_nn=None,
+    weights_nnn=None,
+    nn_keep_frac: float | None = None,
 ) -> BondSelection:
     """Derive a bond :class:`BondSelection` from a converged structure-variant θ.
 
@@ -305,23 +376,41 @@ def selection_from_variant_theta(
     then applies either technique:
 
     - ``method="top_k"`` (T2): keep every nn bond + the strongest ``keep_frac`` of
-      nnn bonds by ``|θ|`` (:func:`top_k_by_weight`).
-    - ``method="prune"`` (T1): drop any nn/nnn bond with ``|θ| < tol``
+      nnn bonds by weight (:func:`top_k_by_weight`).
+    - ``method="prune"`` (T1): drop any nn/nnn bond with weight ``< tol``
       (:func:`prune_by_theta`).
+
+    By default the per-bond weight is ``|θ|`` (from :func:`bond_weights_for_blocks`).
+    Pass ``weights_nn`` / ``weights_nnn`` to rank by a DIFFERENT signal — e.g. the
+    fidelity sensitivity ``|∂Fidelity/∂θ|`` from
+    :func:`fidelity_bond_weights_for_blocks` — which is a better proxy than ``|θ|``
+    in a near-degenerate manifold where the energy landscape is flat. The provided
+    arrays must align with ``nn_edges`` / ``nnn_edges``.
+
+    ``nn_keep_frac`` (``method="top_k"`` only) also prunes the nn backbone, keeping
+    its strongest ``nn_keep_frac`` fraction by weight — the biggest 2q saving lever,
+    since the nn backbone is the largest RZZ source. ``None`` (default) keeps all nn.
 
     Previously T1/T2 only worked on the uniform ``[nn,nnn,x]*p`` layout because
     the runners sliced θ by hand assuming that layout; this makes both techniques
     available to any registry structure variant. Pure (edges + θ in, selection
     out). Raises on an unknown ``method``.
     """
+    import numpy as np
+
     nn_edges = _normalize_edges(nn_edges)
     nnn_edges = _normalize_edges(nnn_edges)
-    w_nn, w_nnn = bond_weights_for_blocks(
-        theta, blocks, len(nn_edges), len(nnn_edges), n_qubits, rx_final=rx_final, rz_final=rz_final
-    )
+    if weights_nn is not None and weights_nnn is not None:
+        w_nn = np.asarray(weights_nn, float)
+        w_nnn = np.asarray(weights_nnn, float)
+    else:
+        w_nn, w_nnn = bond_weights_for_blocks(
+            theta, blocks, len(nn_edges), len(nnn_edges), n_qubits, rx_final=rx_final, rz_final=rz_final
+        )
     if method == "top_k":
         k = max(1, int(round(keep_frac * len(nnn_edges))))
-        return top_k_by_weight(nn_edges, nnn_edges, w_nn, w_nnn, k_nn=None, k_nnn=k)
+        k_nn = None if nn_keep_frac is None or nn_keep_frac >= 1.0 else max(1, int(round(nn_keep_frac * len(nn_edges))))
+        return top_k_by_weight(nn_edges, nnn_edges, w_nn, w_nnn, k_nn=k_nn, k_nnn=k)
     if method == "prune":
         return prune_by_theta(nn_edges, nnn_edges, w_nn, w_nnn, tol=tol)
     raise ValueError(f"unknown method {method!r}; expected 'top_k' or 'prune'")

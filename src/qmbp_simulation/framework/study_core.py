@@ -145,7 +145,9 @@ def starvation_probe(cost, grad, x0, *, maxiter):
     return x_fin, float(e_fin), total_nit, float(e_half), late_gain, converged
 
 
-def optimize_bestof(cost, fid, grad, npar, *, restarts, maxiter, seed0, warm_theta=None, on_restart=None):
+def optimize_bestof(
+    cost, fid, grad, npar, *, restarts, maxiter, seed0, warm_theta=None, on_restart=None, target_fid=None, ftol=1e-12
+):
     """Multi-seed best-of to genuine convergence. Returns ``(best_fid, best_e, runs)``.
 
     Restart 0 uses ``warm_theta`` (clipped to the box) when it matches ``npar``,
@@ -160,6 +162,14 @@ def optimize_bestof(cost, fid, grad, npar, *, restarts, maxiter, seed0, warm_the
     persistence hook: any runner can pass a persister so a crash/interrupt at
     large N never loses completed restarts (the expensive part). Exceptions in
     the callback are swallowed (persistence must never break the optimization).
+
+    ``target_fid`` — optional early-stop: when a restart reaches fidelity
+    ``>= target_fid`` the remaining restarts are skipped. This is what turns a
+    good warm-start into a wall-clock saving at large N: a transferred/informed
+    seed that already lands in the right basin clears the bar on restart 0 and
+    the random restarts (the expensive part) never run. ``None`` (default) keeps
+    the exhaustive behaviour. ``ftol`` is forwarded to L-BFGS-B (default
+    ``1e-12`` = unchanged machine-precision refinement).
     """
     if restarts < 1:
         raise ValueError(f"restarts must be >= 1, got {restarts}")
@@ -168,6 +178,11 @@ def optimize_bestof(cost, fid, grad, npar, *, restarts, maxiter, seed0, warm_the
     if warm_theta is not None and len(warm_theta) == npar:
         warm0 = np.clip(np.asarray(warm_theta, float), -np.pi, np.pi)
 
+    # Mid-optimization abort: once fidelity clears target_fid, stop refining. The
+    # fid(x) call reuses make_cost_fid's single-slot statevector cache (L-BFGS-B
+    # evaluates cost then callback at the same x), so the check is ~free.
+    stop_when = (lambda x: fid(x) >= target_fid) if target_fid is not None else None
+
     rng = np.random.default_rng(seed0)
     best_e, best_fid, best_r, runs = None, None, None, []
     for r in range(restarts):
@@ -175,7 +190,7 @@ def optimize_bestof(cost, fid, grad, npar, *, restarts, maxiter, seed0, warm_the
             x0 = warm0 if warm0 is not None else np.zeros(npar)
         else:
             x0 = rng.uniform(-np.pi, np.pi, npar)
-        x, e, nit = _lbfgsb(cost, x0, maxiter=maxiter, grad=grad)
+        x, e, nit = _lbfgsb(cost, x0, maxiter=maxiter, grad=grad, ftol=ftol, stop_when=stop_when)
         f = fid(x)  # computed once per restart; reused as the return value
         runs.append(
             {
@@ -195,6 +210,8 @@ def optimize_bestof(cost, fid, grad, npar, *, restarts, maxiter, seed0, warm_the
                 on_restart(runs, {"fidelity": best_fid, "energy": best_e, "restart": best_r})
             except Exception:
                 pass  # persistence must never break the optimization
+        if target_fid is not None and f >= target_fid:
+            break  # warm-start already cleared the bar — skip remaining restarts
     return best_fid, best_e, runs
 
 
@@ -269,13 +286,31 @@ def cx_and_params(qc):
     return n_2q, int(logical["n_parameters"])
 
 
-def converge_circuit(qc, H, psi, *, restarts, maxiter, seed0=0, warm_theta=None, on_restart=None, backend=None):
+def converge_circuit(
+    qc,
+    H,
+    psi,
+    *,
+    restarts,
+    maxiter,
+    seed0=0,
+    warm_theta=None,
+    on_restart=None,
+    backend=None,
+    target_fid=None,
+    ftol=1e-12,
+):
     """Build the cost/fid pair and run the multi-seed best-of in one call.
 
     The three-line ``make_cost_fid`` + ``optimize_bestof`` wrapper every study
     runner re-implemented. Pass a shared ``backend`` to reuse the cached dense
     Hamiltonian across the variants of one sweep (set up once, not per circuit).
     Returns ``(best_fid, best_e, runs)`` — the same tuple as ``optimize_bestof``.
+
+    ``target_fid`` / ``ftol`` are forwarded to :func:`optimize_bestof` for
+    warm-start-aware early-stopping (skip remaining restarts once the target
+    fidelity is cleared) and a configurable L-BFGS-B tolerance. Both default to
+    the exhaustive, machine-precision behaviour.
     """
     cost, fid, grad, _ = make_cost_fid(qc, H, psi, backend=backend)
     return optimize_bestof(
@@ -285,6 +320,8 @@ def converge_circuit(qc, H, psi, *, restarts, maxiter, seed0=0, warm_theta=None,
         qc.num_parameters,
         restarts=restarts,
         maxiter=maxiter,
+        target_fid=target_fid,
+        ftol=ftol,
         seed0=seed0,
         warm_theta=warm_theta,
         on_restart=on_restart,
@@ -380,6 +417,9 @@ def prepare_warmstart(
     short_descent=None,
     two_pass_top_k=2,
     warm_restart_full=False,
+    auto_donors=False,
+    donor_sources=("ansatz_specs", "npz"),
+    max_donors=4,
 ):
     """One-call warm-start for any runner — the canonical integration point.
 
@@ -486,6 +526,32 @@ def prepare_warmstart(
     profile = warmstart_profile(model=model, topology=topology, J2=J2)
     combined = strategy == "combined"
     use_donors = donors if combined else None
+
+    # Auto-donor discovery (opt-in): when the caller did not supply donors, scan
+    # the corpora — most importantly ``ansatz_specs``, the dozens of real
+    # converged θ the study already saved at neighbouring (N, h) — and feed them
+    # to the cascade. The cascade still ranks each by micro-descent, so a weak
+    # (low-coverage) donor simply loses to the analytic seed; a strong same-phase
+    # neighbour wins. This is the most DIRECT warm-start: reuse a solved state,
+    # not an analytic guess. Off by default so validated runs are unchanged.
+    if auto_donors and combined and donors is None:
+        try:
+            from qmbp_simulation.analysis.warmstart import discover_donors
+
+            found = discover_donors(
+                topology=topology or "square",
+                n_qubits=n_qubits,
+                h=h,
+                p_layers=p_layers,
+                model=model or "tfim_frustrated",
+                frustrated=True,
+                max_donors=max_donors,
+                sources=donor_sources,
+            )
+            if found:
+                use_donors = found
+        except Exception:
+            use_donors = donors  # discovery is best-effort; never break the seed
 
     res = best_combined_warmstart(
         n_nn=n_nn,
@@ -806,6 +872,16 @@ def grow_adapt_pool(
     min_dfid_keep_growing=0.01,
     layer_growth_penalty=0.0,
     fast_rank=False,
+    prerank_micro=False,
+    prerank_micro_iters=40,
+    prerank_micro_audit=False,
+    tiebreak_abs_fid=False,
+    tiebreak_eps=3e-3,
+    lookahead=False,
+    stop_on_fpc_drop=False,
+    fpc_drop_min_fid=0.90,
+    thin_layer=False,
+    thin_block=("x",),
     analytic_seed_new=False,
     select_by_fidelity=False,
     block_precondition=False,
@@ -858,6 +934,30 @@ def grow_adapt_pool(
       cost, so the loop stops over-growing at the critical point (N14 h=0.7 grew to
       5 layers) while still rescuing the paramagnetic phase (growth there is early).
 
+    Anti-myopia levers (the N14 h=0.7 audit showed the greedy Δfid/Δ2q criterion
+    is short-sighted: it rewards a cheap ``add_bonds`` that dead-ends at 0.74 over
+    an expensive ``repeat_layer`` that is the only route to 0.92):
+
+    - ``tiebreak_abs_fid`` (default False): when two candidates' Δfid/Δ2q are
+      within ``tiebreak_eps``, pick the higher absolute fidelity instead of the
+      marginally-more-efficient one — avoids the cheap dead-end when efficiency
+      barely distinguishes the actions.
+    - ``lookahead`` (default False): before letting the greedy criterion drop an
+      expensive action, micro-descend the best NEXT action on top of it; score the
+      action by the two-step Δfid/Δ(2q) so an action that unlocks a jump next step
+      is not penalized for its one-step cost. Reuses the shared backend.
+    - ``stop_on_fpc_drop`` (default False): stop growing once a step lowers the
+      cumulative fid-per-CX AND absolute fidelity already cleared
+      ``fpc_drop_min_fid`` — keeps the Pareto-best fid/CX point (e.g. N14 h=0.7
+      step3) instead of over-growing to a higher-fid but worse-fid/CX step4.
+    - ``thin_layer`` (default False): add a cheap "thin" action to the pool that
+      appends only ``thin_block`` (default ``("x",)`` — a single-qubit rotation
+      layer, ZERO CX) instead of a full entangling layer. The N18 h=0.5 audit
+      showed repeat_layer burns ~54 2q per layer (all 27 nn) for ~5e-5 Δfid/Δ2q
+      late; a thin rotation layer buys extra expressivity at NO two-qubit cost, so
+      the greedy Δfid/Δ2q strongly prefers it when it helps. Reuses the same
+      block grammar and ``_append_blocks_warm`` — no builder change.
+
     Returns ``(steps, reached)`` with the same per-step schema as
     :func:`grow_bonds_adapt` plus ``blocks`` and ``action_kind`` per step.
     """
@@ -866,6 +966,7 @@ def grow_adapt_pool(
 
     base_blocks = list(base_blocks)
     repeat_block = list(repeat_block)
+    thin_block = list(thin_block)
 
     if seed_selection is not None:
         selection = BondSelection(
@@ -877,7 +978,7 @@ def grow_adapt_pool(
         selection = BondSelection(nn_edges=list(nn_all), nnn_edges=[], provenance="adapt_pool_seed(nn_only)")
     blocks = list(base_blocks)
 
-    def _converge(bl, sel, warm):
+    def _converge_budget(bl, sel, warm, *, restarts=restarts, maxiter=maxiter):
         v = make_masked_variant(
             "adapt_pool", f"adapt pool ({sel.n_bonds} bonds, {len(bl)} blocks)", bl, sel, tags=("adapt_pool",)
         )
@@ -936,9 +1037,57 @@ def grow_adapt_pool(
             return float("-inf"), float("inf"), n_2q, npar, np.zeros(npar)
         return fid, e_best, n_2q, npar, theta
 
+    def _converge(bl, sel, warm):
+        # Full-budget convergence (the pre-rank micro-descent uses _converge_budget).
+        return _converge_budget(bl, sel, warm)
+
     def _layer_count(bl):
         # One entangling layer == one nn block (every standard/repeat layer has one).
         return sum(1 for b in bl if b == "nn")
+
+    def _lookahead_best_next(r, *, theta_prev, n_2q_prev, fid_prev):
+        """Two-step score for a converged candidate ``r``: micro-descend the best
+        NEXT action stacked on ``r`` and return ``(best_two_step_fid, two_step_2q)``.
+
+        An expensive action that dead-ends scores low here; one that unlocks a jump
+        next step scores high. Uses a short micro-descent (prerank_micro_iters) of
+        each next-action so the probe is cheap; the shared backend caches H.
+        Falls back to the one-step result when no next action exists.
+        """
+        bl_r = list(r["act"]["blocks"])
+        sel_r = r["act"]["selection"]
+        th_r = np.asarray(r["theta"], float)
+        nexts = _adapt_pool_actions(
+            builder,
+            n,
+            lat,
+            H,
+            psi,
+            bl_r,
+            sel_r,
+            th_r,
+            nnn_all,
+            n_nn,
+            n,
+            grow_step=grow_step,
+            grad_tol=grad_tol,
+            repeat_block=repeat_block,
+            allow_repeat_layer=allow_repeat_layer,
+            max_layers=max_layers,
+            rank_by_gradient=rank_by_gradient,
+            _BondSelection=BondSelection,
+            select_by_fidelity=select_by_fidelity,
+        )
+        if not nexts:
+            return float(r["fid"]), int(r["n_2q"])
+        best_nf, best_n2 = float(r["fid"]), int(r["n_2q"])
+        for nxt in nexts:
+            nf, _ne, n2, _np, _nt = _converge_budget(
+                nxt["blocks"], nxt["selection"], nxt["warm"], restarts=1, maxiter=prerank_micro_iters
+            )
+            if np.isfinite(nf) and nf > best_nf:
+                best_nf, best_n2 = float(nf), int(n2)
+        return best_nf, best_n2
 
     # Step 0: converge the seed state (no action chosen yet).
     t0 = time.time()
@@ -947,6 +1096,8 @@ def grow_adapt_pool(
     best_fpc = (fid / n_2q) if n_2q > 0 else 0.0
     stale = 0
     reached = False
+
+    prerank_telemetry: dict = {}
 
     def _record(it, action_kind, fid, e_best, n_2q, npar, theta, seconds):
         fpc = (fid / n_2q) if n_2q > 0 else None
@@ -970,6 +1121,9 @@ def grow_adapt_pool(
             "best_theta_final": theta.tolist(),
             "seconds": round(seconds, 1),
         }
+        if prerank_telemetry:
+            s["prerank"] = dict(prerank_telemetry)
+            prerank_telemetry.clear()
         steps.append(s)
         if on_step is not None:
             try:
@@ -1008,16 +1162,103 @@ def grow_adapt_pool(
             rank_by_gradient=rank_by_gradient,
             _BondSelection=BondSelection,
             select_by_fidelity=select_by_fidelity,
+            thin_layer=thin_layer,
+            thin_block=thin_block,
         )
         if not candidates:
             steps[-1]["stop_reason"] = "no_action"
             break
 
         tcand = time.time()
-        if fast_rank and len(candidates) > 1:
-            # Cheap pre-rank: score each candidate by |energy gradient on its NEW
-            # params| / Δ2q at the current optimum (no optimization), then converge
-            # ONLY the top one. Collapses len(pool) full optimizations/step → ~1.
+        if prerank_micro and len(candidates) > 1:
+            # Corrected pre-rank: fast_rank's raw-gradient proxy mis-ranked
+            # heterogeneous actions (bond vs layer). Instead, run a SHORT
+            # micro-descent (prerank_micro_iters L-BFGS steps) of each candidate —
+            # a cheap but FAITHFUL proxy for Δfid/Δ2q — and keep only the winner to
+            # full-converge. The micro-descent reuses the shared backend (cached
+            # dense H), and its θ is handed to the full converge as warm (so the
+            # pre-rank work is not thrown away). ~len(pool) short + 1 full per step
+            # instead of len(pool) full.
+            scored = []
+            for ci, act in enumerate(candidates):
+                mf, _me, m2q, _mp, mth = _converge_budget(
+                    act["blocks"], act["selection"], act["warm"], restarts=1, maxiter=prerank_micro_iters
+                )
+                d2q = max(m2q - n_2q, 1)
+                scored.append(
+                    {
+                        "idx": ci,
+                        "kind": act["kind"],
+                        "micro_fid": float(mf),
+                        "micro_score": (mf - fid) / d2q,
+                        "delta_2q": int(m2q - n_2q),
+                        "act": act,
+                        "theta": mth,
+                    }
+                )
+            scored.sort(key=lambda t: -t["micro_score"])
+            win = scored[0]
+            tele = {
+                "mode": "prerank_micro",
+                "micro_iters": prerank_micro_iters,
+                "n_candidates": len(candidates),
+                "candidates": [
+                    {
+                        "kind": s["kind"],
+                        "micro_fid": round(s["micro_fid"], 6),
+                        "micro_score": s["micro_score"],
+                        "delta_2q": s["delta_2q"],
+                    }
+                    for s in scored
+                ],
+                "chosen_kind": win["kind"],
+                "chosen_micro_score": win["micro_score"],
+            }
+            # Audit: full-converge EVERY candidate (as if no pre-rank) and record
+            # whether the micro winner matches the full winner — the direct proof
+            # that the cheap proxy is faithful. Opt-in (defeats the speedup), used
+            # to validate prerank_micro before trusting it on expensive points.
+            if prerank_micro_audit:
+                full = []
+                for s in scored:
+                    cf, _ce, c2q, _cp, _ct = _converge(s["act"]["blocks"], s["act"]["selection"], s["act"]["warm"])
+                    cd2q = max(c2q - n_2q, 1)
+                    full.append({"kind": s["kind"], "full_fid": float(cf), "full_score": (cf - fid) / cd2q})
+                full_win = max(full, key=lambda r: r["full_score"])
+                tele["audit"] = {
+                    "full": [
+                        {"kind": r["kind"], "full_fid": round(r["full_fid"], 6), "full_score": r["full_score"]}
+                        for r in full
+                    ],
+                    "full_winner_kind": full_win["kind"],
+                    "micro_matches_full": win["kind"] == full_win["kind"],
+                }
+            prerank_telemetry.update(tele)
+            # Hand each candidate its micro-refined θ as warm (reuse the pre-rank
+            # work). When an anti-myopia lever needs to compare the full-converged
+            # candidates (tiebreak_abs_fid / lookahead), keep ALL of them with warm
+            # seeds instead of collapsing to the micro winner — the micro-descent
+            # ranking was the very thing the N14 audit showed to be myopic. Without
+            # those levers, keep the original single-winner speedup.
+            micro_theta = {s["idx"]: s["theta"] for s in scored}
+            if tiebreak_abs_fid or lookahead:
+                seeded = []
+                for ci, act in enumerate(candidates):
+                    a = dict(act)
+                    mth = micro_theta.get(ci)
+                    if mth is not None and np.all(np.isfinite(mth)) and len(mth) == len(a["warm"]):
+                        a["warm"] = mth
+                    seeded.append(a)
+                candidates = seeded
+            else:
+                win_act = dict(win["act"])
+                wtheta = win["theta"]
+                if np.all(np.isfinite(wtheta)) and len(wtheta) == len(win_act["warm"]):
+                    win_act["warm"] = wtheta
+                candidates = [win_act]
+        elif fast_rank and len(candidates) > 1:
+            # Legacy gradient pre-rank (NOT recommended — see docstring). Kept for
+            # A/B. Mis-ranks bond-vs-layer; prefer prerank_micro.
             scored = []
             for act in candidates:
                 g = _candidate_grad_score(
@@ -1025,7 +1266,7 @@ def grow_adapt_pool(
                 )
                 scored.append((g, act))
             scored.sort(key=lambda t: -t[0])
-            candidates = [scored[0][1]]  # keep only the gradient-best action
+            candidates = [scored[0][1]]
 
         evaluated = []
         for act in candidates:
@@ -1044,7 +1285,43 @@ def grow_adapt_pool(
                     "dfid": dfid,
                 }
             )
-        best = max(evaluated, key=lambda r: r["dfid_per_2q"])
+        # Lookahead (B): an expensive action that dead-ends looks bad on one-step
+        # Δfid/Δ2q, but an expensive action that UNLOCKS a jump next step is the
+        # real winner (N14 h=0.7 step3). For each candidate, micro-descend the best
+        # next action on top of it and rescore by the two-step Δfid/Δ(2q).
+        # Optimization: the lookahead (a per-candidate micro-descent of its own
+        # next actions) is O(pool^2) and dominates the cost at large N. It can only
+        # CHANGE the pick when the one-step winner is NOT already dominant — i.e.
+        # when the top-2 one-step scores are within tiebreak_eps. When one action
+        # clearly wins on one-step Δfid/Δ2q, the two-step score cannot overturn it
+        # by enough to matter, so skip the lookahead entirely (measured: same pick,
+        # fraction of the cost). Gate it on the one-step top-2 margin.
+        one_step_best = max(evaluated, key=lambda r: r["dfid_per_2q"])
+        do_lookahead = lookahead and len(evaluated) > 1
+        if do_lookahead:
+            ordered = sorted(evaluated, key=lambda r: -r["dfid_per_2q"])
+            margin = ordered[0]["dfid_per_2q"] - ordered[1]["dfid_per_2q"]
+            if margin > tiebreak_eps:
+                do_lookahead = False  # one-step winner is dominant; lookahead is moot
+        if do_lookahead:
+            for r in evaluated:
+                nf, n2 = _lookahead_best_next(r, theta_prev=theta, n_2q_prev=n_2q, fid_prev=fid)
+                r["look_fid"] = nf
+                r["look_dfid_per_2q"] = (nf - fid) / max(n2 - n_2q, 1)
+            best = max(evaluated, key=lambda r: r.get("look_dfid_per_2q", r["dfid_per_2q"]))
+        else:
+            best = one_step_best
+
+        # Tiebreak (A): when the top candidates' Δfid/Δ2q are within tiebreak_eps,
+        # the efficiency metric barely separates them — prefer the higher absolute
+        # fidelity to avoid picking a cheap dead-end over the route that climbs.
+        if tiebreak_abs_fid and len(evaluated) > 1:
+            key = "look_dfid_per_2q" if (lookahead and "look_dfid_per_2q" in best) else "dfid_per_2q"
+            top_score = best[key]
+            near = [r for r in evaluated if abs(r[key] - top_score) <= tiebreak_eps]
+            if len(near) > 1:
+                best = max(near, key=lambda r: r["fid"])
+
         if not np.isfinite(best["fid"]):
             # Every candidate diverged (all fid=-inf) — keep the last good state.
             steps[-1]["stop_reason"] = "diverged"
@@ -1058,6 +1335,16 @@ def grow_adapt_pool(
         if fid >= target_fid:
             reached = True
             steps[-1]["stop_reason"] = "target_fid"
+            break
+
+        # Stop-on-fpc-drop (D): once absolute fidelity has cleared a useful bar,
+        # stop as soon as a step LOWERS the cumulative fid-per-CX. This keeps the
+        # Pareto-best fid/CX point (N14 h=0.7 step3: 0.920 @ 160, fpc 5.75e-3)
+        # instead of over-growing to a higher-fid but worse-fid/CX step (step4:
+        # 0.935 @ 200, fpc 4.67e-3 — +40 gates for +0.015 fid). Opt-in.
+        fpc_now = (fid / n_2q) if n_2q > 0 else 0.0
+        if stop_on_fpc_drop and fid >= fpc_drop_min_fid and fpc_now < best_fpc - 1e-9:
+            steps[-1]["stop_reason"] = "fpc_drop"
             break
 
         # Progress = fid/CX improved, OR absolute fidelity still rising hard.
@@ -1089,6 +1376,24 @@ def grow_adapt_pool(
     if steps and "stop_reason" not in steps[-1]:
         steps[-1]["stop_reason"] = "max_steps"
     return steps, reached
+
+
+def pareto_best_fpc_step(steps, *, min_fid=0.0):
+    """Return the grow_adapt_pool step with the best fid-per-CX, among steps whose
+    absolute fidelity is at least ``min_fid``.
+
+    The runner's headline ``best`` is ``max(fidelity)`` — but the project objective
+    is fidelity PER two-qubit gate, and the highest-fid step is often not the most
+    efficient (N14 h=0.7: step4 is max-fid 0.935 @ fpc 4.67e-3, yet step3 at 0.920
+    @ fpc 5.75e-3 is the better fid/CX point). This surfaces that Pareto point so
+    it is not hidden behind the max-fid step. Falls back to the global best fid/CX
+    when no step clears ``min_fid``. Returns ``None`` for empty input.
+    """
+    if not steps:
+        return None
+    eligible = [s for s in steps if s.get("best_fidelity", 0.0) >= min_fid]
+    pool = eligible or steps
+    return max(pool, key=lambda s: s.get("fidelity_per_cx") or 0.0)
 
 
 def _candidate_grad_score(
@@ -1155,6 +1460,8 @@ def _adapt_pool_actions(
     rank_by_gradient,
     _BondSelection,
     select_by_fidelity=False,
+    thin_layer=False,
+    thin_block=("x",),
 ):
     """Build the candidate action pool for one grow_adapt_pool step.
 
@@ -1225,6 +1532,31 @@ def _adapt_pool_actions(
         extra = 2 * (n_nn_sel * repeat_block.count("nn") + n_nnn_sel * repeat_block.count("nnn"))
         actions.append(
             {"kind": "repeat_layer", "blocks": new_blocks, "selection": selection, "warm": warm, "delta_2q_hint": extra}
+        )
+
+    # Action: append a THIN block (default ("x",) — rotations only, 0 CX). Buys
+    # expressivity at no two-qubit cost, so the Δfid/Δ2q criterion favors it over a
+    # full repeat_layer whenever it moves fidelity at all. Reuses _append_blocks_warm
+    # (the thin block is just a short block sequence) and the same θ=0-symmetry
+    # perturbation on the new tail so a near-identity rotation layer can activate.
+    thin = list(thin_block)
+    if thin_layer and thin:
+        thin_blocks = list(blocks) + thin
+        warm = _append_blocks_warm(theta, thin, n_nn_sel, n_nnn_sel, n_qubits)
+        n_prev = len(np.asarray(theta, float))
+        rng = np.random.default_rng(n_prev + len(thin_blocks) + 999)
+        warm = np.asarray(warm, float).copy()
+        if warm.size > n_prev:
+            warm[n_prev:] = rng.normal(0.0, 0.05, warm.size - n_prev)
+        extra_thin = 2 * (n_nn_sel * thin.count("nn") + n_nnn_sel * thin.count("nnn"))
+        actions.append(
+            {
+                "kind": "repeat_thin",
+                "blocks": thin_blocks,
+                "selection": selection,
+                "warm": warm,
+                "delta_2q_hint": max(extra_thin, 0),
+            }
         )
     return actions
 

@@ -712,6 +712,63 @@ def _bond_ablation_donor_candidates(topology, n_qubits, h, p_layers, *, same_pha
     return out
 
 
+def _spec_donor_candidates(topology, n_qubits, h, *, same_phase, min_fid, root):
+    """(|ΔN|, |Δh|, donor) candidates from the ``ansatz_specs`` corpus.
+
+    Scans ``results/hva_vl_study/ansatz_specs/*_{topo}_N*_h*.spec.json`` — the
+    portable converged-ansatz specs the study already writes (every variant_topk
+    and ADAPT run saves one). Each spec with a stored ``theta`` and fidelity ≥
+    ``min_fid`` at an OTHER (N, h) in the same phase becomes a donor. This is the
+    MOST DIRECT warm-start source: a real converged θ of the same model/structure
+    family, not an analytic approximation. Richest corpus by far (dozens of specs
+    across N6..N18), so it fills the cross-N gap the NPZ/ablation sources missed.
+    Pure (JSON + lattice reads only).
+    """
+    import glob as _glob
+    from pathlib import Path as _P
+
+    import numpy as np
+
+    from qmbp_simulation.circuits.ansatz_spec import AnsatzSpec
+    from qmbp_simulation.models import make_lattice
+    from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+    base = _P(root) if root is not None else _P("results/hva_vl_study/ansatz_specs")
+    tgt_phase = _phase_of(h)
+    out: list[tuple[int, float, dict]] = []
+    for fp in _glob.glob(str(base / f"*_{topology}_N*_h*.spec.json")):
+        try:
+            s = AnsatzSpec.load(fp)
+        except Exception:
+            continue
+        dn, dh = int(s.n_qubits), float(s.h)
+        if dn == n_qubits:
+            continue  # exclude self-N (same-N cross-h is the continuation donor's job)
+        if same_phase and _phase_of(dh) != tgt_phase:
+            continue
+        if s.theta is None or (s.fidelity is not None and s.fidelity < min_fid):
+            continue
+        theta_i = np.asarray(s.theta, dtype=np.float64)
+        if theta_i.size == 0 or not np.all(np.isfinite(theta_i)):
+            continue
+        lat = make_lattice(topology, dn, J=1.0, h=dh)
+        nnn_edges = s.nnn_edges or HamiltonianBuilder._generate_nnn_edges(lat)
+        nn_edges = s.nn_edges or list(lat.edges)
+        fid_tag = f"@{s.fidelity:.3f}" if s.fidelity is not None else ""
+        donor = {
+            "theta": theta_i,
+            "n_nn": len(nn_edges),
+            "n_nnn": len(nnn_edges),
+            "p": s.p_layers or 1,
+            "n_qubits": dn,
+            "nnn_edges": nnn_edges,
+            "h": dh,
+            "label": f"spec<{s.name[:16]}N{dn}h{dh:.2f}>{fid_tag}",
+        }
+        out.append((abs(dn - n_qubits), abs(dh - h), donor))
+    return out
+
+
 def discover_donors(
     topology: str,
     n_qubits: int,
@@ -726,6 +783,7 @@ def discover_donors(
     sources: tuple[str, ...] = ("npz",),
     npz_root=None,
     ablation_root=None,
+    spec_root=None,
     ablation_min_fid: float = 0.9,
     ablation_variant: str = "p2_full_ref",
 ):
@@ -778,6 +836,17 @@ def discover_donors(
                 min_fid=ablation_min_fid,
                 variant=ablation_variant,
                 root=ablation_root,
+            )
+        )
+    if "ansatz_specs" in sources:
+        cands.extend(
+            _spec_donor_candidates(
+                topology,
+                n_qubits,
+                h,
+                same_phase=same_phase,
+                min_fid=ablation_min_fid,
+                root=spec_root,
             )
         )
 

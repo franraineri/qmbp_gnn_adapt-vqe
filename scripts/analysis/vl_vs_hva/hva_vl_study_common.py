@@ -1046,8 +1046,9 @@ class StudyPersister:
     threading it in.
     """
 
-    def __init__(self, *, subdir, out_file, fingerprint, extra, params,
-                 description, rows_ref=None, total_restarts=None):
+    def __init__(
+        self, *, subdir, out_file, fingerprint, extra, params, description, rows_ref=None, total_restarts=None
+    ):
         self.subdir = subdir
         self.out_file = out_file
         self.fingerprint = dict(fingerprint)
@@ -1067,27 +1068,33 @@ class StudyPersister:
             fingerprint=self.fingerprint,
             extra={**self.extra, "status": status},
         )
-        return save_json(payload, self.subdir, self.out_file,
-                         params=self.params, description=self.description)
+        return save_json(payload, self.subdir, self.out_file, params=self.params, description=self.description)
 
     def restart_callback(self, label, n_2q, n_params):
         """Return an ``on_restart(runs, best)`` persister for one variant."""
+
         def _cb(partial_runs, best):
-            best_theta = (min(partial_runs, key=lambda r: r["energy"])["theta_final"]
-                          if partial_runs else None)
-            prog = {"variant": label, "status": "in_progress",
-                    "n_restarts_done": len(partial_runs),
-                    "best_fidelity": (best or {}).get("fidelity"),
-                    "best_energy": (best or {}).get("energy"),
-                    "n_2q_transpiled": n_2q, "n_params": n_params,
-                    "best_theta_final": best_theta}
+            best_theta = min(partial_runs, key=lambda r: r["energy"])["theta_final"] if partial_runs else None
+            prog = {
+                "variant": label,
+                "status": "in_progress",
+                "n_restarts_done": len(partial_runs),
+                "best_fidelity": (best or {}).get("fidelity"),
+                "best_energy": (best or {}).get("energy"),
+                "n_2q_transpiled": n_2q,
+                "n_params": n_params,
+                "best_theta_final": best_theta,
+            }
             self.persist(self.rows_ref + [prog])
             fid_now = (best or {}).get("fidelity")
             total = f"/{self.total_restarts}" if self.total_restarts else ""
-            msg = (f"    [{label}] restart {len(partial_runs)}{total} "
-                   f"best_fid={fid_now:.4f}" if fid_now is not None
-                   else f"    [{label}] restart {len(partial_runs)}{total}")
+            msg = (
+                f"    [{label}] restart {len(partial_runs)}{total} best_fid={fid_now:.4f}"
+                if fid_now is not None
+                else f"    [{label}] restart {len(partial_runs)}{total}"
+            )
             print(msg, flush=True)
+
         return _cb
 
 
@@ -1109,23 +1116,33 @@ def sync_scoreboard(*, blocking: bool = False) -> None:
     import subprocess
     import sys
 
-    script = Path(__file__).resolve().parent / "update_scoreboard.py"
+    # study_sync.py is the single study-level sync entry point (I1): it refreshes
+    # coherence + per-config ansatz summaries + the study scoreboard + the
+    # auto-tuning learning, all idempotent. It subsumes the old direct
+    # update_scoreboard.py call (which it runs internally as step 3). Falls back
+    # to update_scoreboard.py if study_sync is missing (older checkouts).
+    here = Path(__file__).resolve().parent
+    script = here / "study_sync.py"
+    if not script.exists():
+        script = here / "update_scoreboard.py"
+    cmd = [sys.executable, str(script)] + (["--quiet"] if script.name == "study_sync.py" else [])
     if blocking:
-        subprocess.run([sys.executable, str(script)], check=False)
+        subprocess.run(cmd, check=False)
         return
     try:
         subprocess.Popen(  # noqa: S603 — fixed, in-repo script path
-            [sys.executable, str(script)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
     except Exception:
         pass  # a failed scoreboard sync must never fail the experiment
 
 
-def save_ansatz_spec(variant, *, topology, n_qubits, h, j2, theta,
-                     subdir="ansatz_specs", nn_edges=None, nnn_edges=None,
-                     **metrics):
+def save_ansatz_spec(
+    variant, *, topology, n_qubits, h, j2, theta, subdir="ansatz_specs", nn_edges=None, nnn_edges=None, **metrics
+):
     """Persist a portable, complete ``AnsatzSpec`` for one converged ansatz.
 
     The standard way every runner records an ansatz so it can be re-selected and
@@ -1138,7 +1155,15 @@ def save_ansatz_spec(variant, *, topology, n_qubits, h, j2, theta,
     from qmbp_simulation.circuits.ansatz_spec import AnsatzSpec
 
     spec = AnsatzSpec.from_variant(
-        variant, topology=topology, n_qubits=n_qubits, h=h, j2=j2, theta=theta,
-        nn_edges=nn_edges, nnn_edges=nnn_edges, **metrics)
+        variant,
+        topology=topology,
+        n_qubits=n_qubits,
+        h=h,
+        j2=j2,
+        theta=theta,
+        nn_edges=nn_edges,
+        nnn_edges=nnn_edges,
+        **metrics,
+    )
     fname = f"{variant.name}_{topology}_N{n_qubits}_h{h:.2f}.spec.json"
     return spec.save(study_dir(subdir) / fname)
