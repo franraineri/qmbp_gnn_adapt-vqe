@@ -696,10 +696,10 @@
     0.33889574942921485,
     -0.04794177035834511
   ],
-  "fidelity": 0.9652040582492418,
+  "fidelity": 0.9652040582492484,
   "n_2q": 524,
   "n_params": 362,
-  "seed_kind": "analytic+descent",
+  "seed_kind": "spec:sameN<N20@0.965>",
   "base_variant": "p3_half_nn_rx",
   "ansatz_kind": "frustrated_zz",
   "initial_state": "plus",

@@ -735,6 +735,7 @@ class HVACircuitBuilder:
             ``"nn"``  — RZZ on nearest-neighbour edges (2 CX per edge),
             ``"nnn"`` — RZZ on next-nearest-neighbour edges (2 CX per edge),
             ``"x"``   — RX on every site (0 CX),
+            ``"y"``   — RY on every site (0 CX, symmetry-breaking layer),
             ``"z"``   — RZ on every site (0 CX, breaks Z2 symmetry).
             Example: ``["nn","nnn","x"]`` reproduces one standard frustrated layer;
             ``["nn","nnn","x","nn","nnn","x","nn"]`` is p=2 plus a half-layer of nn.
@@ -752,10 +753,10 @@ class HVACircuitBuilder:
 
         nn_edges = lattice.edges
         nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
-        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges), "x": n_qubits, "z": n_qubits}
+        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges), "x": n_qubits, "y": n_qubits, "z": n_qubits}
         for b in blocks:
             if b not in block_sizes:
-                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|y|z")
 
         n_params = sum(block_sizes[b] for b in blocks)
         n_params += n_qubits if rx_final else 0
@@ -773,6 +774,9 @@ class HVACircuitBuilder:
             elif b == "x":
                 for i in range(n_qubits):
                     qc.rx(2 * theta[off + i], i)
+            elif b == "y":
+                for i in range(n_qubits):
+                    qc.ry(2 * theta[off + i], i)
             elif b == "z":
                 for i in range(n_qubits):
                     qc.rz(2 * theta[off + i], i)
@@ -834,10 +838,10 @@ class HVACircuitBuilder:
 
         nn_edges = list(bond_selection.nn_edges)
         nnn_edges = list(bond_selection.nnn_edges)
-        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges), "x": n_qubits, "z": n_qubits}
+        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges), "x": n_qubits, "y": n_qubits, "z": n_qubits}
         for b in blocks:
             if b not in block_sizes:
-                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|y|z")
 
         # Edge bounds: a hand-built selection could name an out-of-range qubit.
         for i, j in nn_edges + nnn_edges:
@@ -860,6 +864,9 @@ class HVACircuitBuilder:
             elif b == "x":
                 for i in range(n_qubits):
                     qc.rx(2 * theta[off + i], i)
+            elif b == "y":
+                for i in range(n_qubits):
+                    qc.ry(2 * theta[off + i], i)
             elif b == "z":
                 for i in range(n_qubits):
                     qc.rz(2 * theta[off + i], i)
@@ -872,6 +879,109 @@ class HVACircuitBuilder:
             for i in range(n_qubits):
                 qc.rz(2 * theta[off + i], i)
             off += n_qubits
+        return qc, theta
+
+    def create_bond_resolved_symmetry_tied(
+        self,
+        n_qubits: int,
+        lattice: LatticeConfig,
+        *,
+        blocks: list[str],
+        bond_selection,
+        symmetry_group,
+        rx_final: bool = False,
+        rz_final: bool = False,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Symmetry-TIED bond-resolved frustrated HVA — one parameter per ORBIT.
+
+        Identical circuit (gates, 2q count) to :meth:`create_bond_resolved_masked`,
+        but bonds/sites in the same symmetry orbit SHARE a single variational
+        parameter instead of each carrying its own. The lattice's point-group
+        symmetry (see :mod:`qmbp_simulation.circuits.symmetry`) partitions the nn
+        edges, nnn edges and sites into orbits; the frustrated ground state is
+        invariant under that group, so tying costs no relevant expressivity while
+        shrinking the parameter space (e.g. ×3.3 at N=20 square), which is the
+        lever for better convergence in the near-degenerate regime.
+
+        The orbit → parameter contract comes from
+        :func:`qmbp_simulation.circuits.symmetry.orbit_index_map` /
+        :func:`...site_index_map` (single source of truth, shared with the study),
+        so study and circuit agree by construction.
+
+        Parameters
+        ----------
+        n_qubits, lattice : system definition.
+        blocks : list[str]
+            Block grammar over ``nn | nnn | x | z`` (same as the masked builder).
+        bond_selection : BondSelection
+            The nn/nnn edges that carry an RZZ (exact list, not re-derived).
+        symmetry_group : LatticeSymmetryGroup
+            The group whose orbits define the parameter sharing. A trivial group
+            (order 1) reduces this to the plain masked builder (one param/bond).
+        rx_final, rz_final : bool
+            Trailing single-qubit blocks (0 CX), also orbit-tied over sites.
+
+        Returns
+        -------
+        (qc, theta)
+            Circuit and its ParameterVector. The vector length is the TIED count
+            (sum over blocks of #orbits), far smaller than the masked builder's.
+            Parameter ordering follows ``blocks`` (one slot per orbit per block),
+            then rx_final, rz_final.
+        """
+        from qmbp_simulation.circuits.symmetry import orbit_index_map, site_index_map
+
+        do_checks(1, n_qubits, lattice)
+        nn_edges = list(bond_selection.nn_edges)
+        nnn_edges = list(bond_selection.nnn_edges)
+        for i, j in nn_edges + nnn_edges:
+            if not (0 <= i < n_qubits and 0 <= j < n_qubits) or i == j:
+                raise ValueError(f"bond_selection edge ({i}, {j}) invalid for N={n_qubits}")
+
+        # Orbit id per bond/site within THIS selection (0-based, contiguous), from
+        # the shared symmetry contract. #distinct ids = #parameters for that block.
+        nn_orbit = orbit_index_map(nn_edges, symmetry_group) if nn_edges else []
+        nnn_orbit = orbit_index_map(nnn_edges, symmetry_group) if nnn_edges else []
+        site_orbit = site_index_map(n_qubits, symmetry_group)
+        n_nn_p = (max(nn_orbit) + 1) if nn_orbit else 0
+        n_nnn_p = (max(nnn_orbit) + 1) if nnn_orbit else 0
+        n_site_p = (max(site_orbit) + 1) if site_orbit else 0
+        block_params = {"nn": n_nn_p, "nnn": n_nnn_p, "x": n_site_p, "y": n_site_p, "z": n_site_p}
+        for b in blocks:
+            if b not in block_params:
+                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|y|z")
+
+        n_params = sum(block_params[b] for b in blocks)
+        n_params += n_site_p if rx_final else 0
+        n_params += n_site_p if rz_final else 0
+
+        qc, theta = _init_circuit(n_qubits, n_params)
+        off = 0
+        for b in blocks:
+            if b == "nn":
+                for k, (i, j) in enumerate(nn_edges):
+                    qc.rzz(2 * theta[off + nn_orbit[k]], i, j)
+            elif b == "nnn":
+                for k, (i, j) in enumerate(nnn_edges):
+                    qc.rzz(2 * theta[off + nnn_orbit[k]], i, j)
+            elif b == "x":
+                for i in range(n_qubits):
+                    qc.rx(2 * theta[off + site_orbit[i]], i)
+            elif b == "y":
+                for i in range(n_qubits):
+                    qc.ry(2 * theta[off + site_orbit[i]], i)
+            elif b == "z":
+                for i in range(n_qubits):
+                    qc.rz(2 * theta[off + site_orbit[i]], i)
+            off += block_params[b]
+        if rx_final:
+            for i in range(n_qubits):
+                qc.rx(2 * theta[off + site_orbit[i]], i)
+            off += n_site_p
+        if rz_final:
+            for i in range(n_qubits):
+                qc.rz(2 * theta[off + site_orbit[i]], i)
+            off += n_site_p
         return qc, theta
 
     def create_operator_list_circuit(self, n_qubits, operators, *, initial_state="plus"):

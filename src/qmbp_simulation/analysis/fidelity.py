@@ -341,6 +341,85 @@ def degenerate_ground_manifold(hamiltonian, *, k: int = 4, doublet_tol: float = 
     return evec[:, manifold_idx].astype(complex), e0, phys_gap, len(manifold_idx)
 
 
+_MANIFOLD_CACHE_DIR = __import__("pathlib").Path(__file__).resolve().parents[3] / "data" / "manifold_cache"
+
+
+def _manifold_cache_path(topology: str, n_qubits: int, model: str, h: float, j2: float):
+    """NPZ path for a manifold cache entry (h rounded to the 2-decimal convention)."""
+    from pathlib import Path
+
+    key = f"{topology}|{n_qubits}|{model}|{h:.2f}|{j2:.2f}"
+    safe = key.replace("|", "_")
+    return Path(_MANIFOLD_CACHE_DIR) / f"{safe}.npz"
+
+
+def cached_degenerate_ground_manifold(
+    hamiltonian,
+    *,
+    topology: str,
+    n_qubits: int,
+    model: str,
+    h: float,
+    j2: float,
+    k: int = 4,
+    doublet_tol: float = 1e-3,
+    cache_dir=None,
+):
+    """:func:`degenerate_ground_manifold` with a persistent on-disk NPZ cache.
+
+    The degenerate manifold is a property of the Hamiltonian ``(topology, N,
+    model, h, J2)``, not of any ansatz, so it can be computed once and reused
+    across every runner and re-run. At N=20 the sparse ``eigsh`` costs ~50s per
+    call and five study runners each recompute it — this wrapper makes the second
+    and later calls instant (a dense-array read).
+
+    The entry stores the manifold eigenvectors (complex, 2^N × dim), ``e0``,
+    ``phys_gap`` and ``manifold_dim`` in a single ``atomic_savez`` NPZ keyed by
+    the 2-decimal-``h`` convention (``data/manifold_cache/<key>.npz``). A cache
+    MISS computes via :func:`degenerate_ground_manifold` and persists; a HIT is a
+    direct load. Returns the SAME 4-tuple as the uncached function, so a caller
+    swaps one for the other with no other change.
+
+    A corrupt/unreadable NPZ is treated as a miss (recompute + overwrite), never
+    an error. ``cache_dir`` overrides the location (tests use a tmp dir).
+    """
+    from pathlib import Path
+
+    path = (
+        _manifold_cache_path(topology, n_qubits, model, h, j2)
+        if cache_dir is None
+        else Path(cache_dir) / _manifold_cache_path(topology, n_qubits, model, h, j2).name
+    )
+    if path.exists():
+        try:
+            with np.load(path) as data:
+                manifold = data["manifold"].astype(complex)
+                e0 = float(data["e0"])
+                phys_gap = float(data["phys_gap"])
+                m_dim = int(data["manifold_dim"])
+            logger.debug("manifold cache HIT %s", path.name)
+            return manifold, e0, phys_gap, m_dim
+        except (OSError, KeyError, ValueError, EOFError):
+            logger.warning("manifold cache corrupt, recomputing: %s", path.name)
+
+    manifold, e0, phys_gap, m_dim = degenerate_ground_manifold(hamiltonian, k=k, doublet_tol=doublet_tol)
+
+    from qmbp_simulation.utils.helpers import atomic_savez
+
+    try:
+        atomic_savez(
+            path,
+            manifold=manifold,
+            e0=np.asarray(e0, float),
+            phys_gap=np.asarray(phys_gap, float),
+            manifold_dim=np.asarray(m_dim, int),
+        )
+        logger.debug("manifold cache WRITE %s", path.name)
+    except OSError:
+        logger.warning("manifold cache write failed (continuing uncached): %s", path.name)
+    return manifold, e0, phys_gap, m_dim
+
+
 def subspace_fidelity(circuit, theta, manifold) -> float:
     """Fidelity of the prepared state onto a degenerate ground ``manifold``.
 

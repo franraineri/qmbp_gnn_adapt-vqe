@@ -381,14 +381,15 @@
     0.17236838482989336,
     0.3676123089700757
   ],
-  "fidelity": 0.9500383189109085,
+  "fidelity": 0.9500383189109033,
   "n_2q": 228,
   "n_params": 170,
-  "seed_kind": "analytic+descent",
+  "seed_kind": "spec:sameN<N14@0.950>",
   "base_variant": "p2_half_nn_rx",
   "ansatz_kind": "frustrated_zz",
   "initial_state": "plus",
   "p_layers": null,
+  "symmetry": null,
   "metrics": {},
   "schema": "ansatz_spec_v1"
 }

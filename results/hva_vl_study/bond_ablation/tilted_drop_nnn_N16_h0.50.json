@@ -1,0 +1,210 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/tilted_drop_nnn_N16_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_tilted_drop_nnn.py",
+  "generated_utc": "2026-11-17T01:38:28.277846+00:00",
+  "params": {
+    "experiment": "tilted_drop_nnn",
+    "N": 16,
+    "h": 0.5
+  },
+  "description": "Drop near-zero nnn blocks from tied N p4 to cut 2q at equal fidelity",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 16,
+    "p_layers": 4,
+    "model": "tfim_frustrated",
+    "topology": "square_tilted",
+    "h": 0.5
+  },
+  "completed": 4,
+  "rows": [
+    {
+      "variant": "p4_full",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "n_nnn_blocks": 4,
+      "seed_init_fidelity": 0.7950831393268017,
+      "report_fidelity": 0.7950831393268017,
+      "n_2q_transpiled": 512,
+      "n_params": 13,
+      "delta_2q_vs_full": 0,
+      "fidelity_per_cx": 0.0015528967564976597,
+      "theta_best": [
+        -0.15094197784800198,
+        0.024974132681937405,
+        1.0957831157226667,
+        -0.2766499861037449,
+        0.1332794582009425,
+        1.2344330620863113,
+        -0.3421210593487039,
+        0.17056033113802216,
+        1.2815541162850173,
+        -0.3454770890138362,
+        0.17104822849096937,
+        1.4743988087627327,
+        1.4743988545865374
+      ]
+    },
+    {
+      "variant": "p4_drop_L0nnn",
+      "blocks": [
+        "nn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "n_nnn_blocks": 3,
+      "seed_init_fidelity": 0.7789056748291158,
+      "report_fidelity": 0.7880887991445681,
+      "n_2q_transpiled": 448,
+      "n_params": 12,
+      "delta_2q_vs_full": -64,
+      "fidelity_per_cx": 0.0017591267838048396,
+      "theta_best": [
+        -0.14915853134755608,
+        1.089306879787031,
+        -0.26103888431633254,
+        0.14306448303433614,
+        1.242688316472367,
+        -0.3406156895202738,
+        0.16263106380075246,
+        1.27318384569401,
+        -0.34719413714660685,
+        0.16423130964910096,
+        1.4736884527382403,
+        1.4736884925329066
+      ]
+    },
+    {
+      "variant": "p4_drop_L0L1nnn",
+      "blocks": [
+        "nn",
+        "x",
+        "nn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "n_nnn_blocks": 2,
+      "seed_init_fidelity": 0.28800496039911566,
+      "report_fidelity": 0.6923157671788344,
+      "n_2q_transpiled": 384,
+      "n_params": 11,
+      "delta_2q_vs_full": -128,
+      "fidelity_per_cx": 0.001802905643694881,
+      "theta_best": [
+        -0.08979063350385977,
+        1.0271732538093383,
+        -0.2394429162415011,
+        1.227536421064945,
+        -0.2579008117246625,
+        0.23450257264998264,
+        1.283990068616634,
+        -0.3723376220989509,
+        0.11899235338310918,
+        1.4518034206273547,
+        1.451803703593463
+      ]
+    },
+    {
+      "variant": "p4_drop_L0L1L2nnn",
+      "blocks": [
+        "nn",
+        "x",
+        "nn",
+        "x",
+        "nn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "n_nnn_blocks": 1,
+      "seed_init_fidelity": 0.06221498263204068,
+      "report_fidelity": 0.49824969682872033,
+      "n_2q_transpiled": 320,
+      "n_params": 10,
+      "delta_2q_vs_full": -192,
+      "fidelity_per_cx": 0.001557030302589751,
+      "theta_best": [
+        -0.6042428935831772,
+        1.513175338202,
+        0.516944226756781,
+        1.0307395011831375,
+        -0.2740696243569712,
+        1.153346032857175,
+        -0.3190527292186623,
+        0.2024157965552957,
+        1.47165711938958,
+        1.441450568636429
+      ]
+    }
+  ],
+  "best_theta": null,
+  "topology": "square_tilted",
+  "tilt": [
+    4,
+    0
+  ],
+  "N": 16,
+  "h": 0.5,
+  "J2": 0.5,
+  "schema": "tilted_drop_nnn_v1",
+  "manifold_dim": 1,
+  "group_order": 128,
+  "phys_gap": 0.037680714287049,
+  "e0": -17.132859336900314,
+  "baseline_p4_full_fid": 0.7951,
+  "status": "final"
+}

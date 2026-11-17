@@ -1,0 +1,29 @@
+{
+  "topology": "square",
+  "n": 20,
+  "h": 0.5,
+  "j2": 0.5,
+  "grid": [
+    4,
+    5
+  ],
+  "n_nn": 31,
+  "n_nnn": 46,
+  "valid_symmetries": [
+    "sym1",
+    "sym2",
+    "sym3"
+  ],
+  "nn_orbits": 10,
+  "nnn_orbits": 13,
+  "site_orbits": 6,
+  "per_layer_params_independent": 97,
+  "per_layer_params_tied": 29,
+  "reduction_factor": 3.3448275862068964,
+  "manifold_dim": 2,
+  "gs_invariance": {
+    "sym1": 1.000000000000059,
+    "sym2": 1.0000000000000586,
+    "sym3": 1.0000000000000537
+  }
+}

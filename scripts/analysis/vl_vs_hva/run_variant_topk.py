@@ -61,6 +61,10 @@ from qmbp_simulation.circuits.hva_variants import (  # noqa: E402
     build_variant,
     make_masked_variant,
 )
+from qmbp_simulation.circuits.symmetry import (  # noqa: E402
+    compress_seed_to_orbits,
+    detect_symmetry_group,
+)
 from qmbp_simulation.framework.study_core import (  # noqa: E402
     build_variant_row,
     converge_circuit,
@@ -389,7 +393,7 @@ def _apply_auto_defaults(args, gap, manifold_dim):
     picks: list[str] = []
     learned_used: list[str] = []
     effective = dict(knobs_auto_pure)
-    for attr, heur_val in knobs_auto_pure.items():
+    for attr in knobs_auto_pure:
         if attr in learned:
             effective[attr] = learned[attr]
     for attr, value in effective.items():
@@ -430,6 +434,19 @@ def run(args) -> int:
     nnn_edges = HamiltonianBuilder._generate_nnn_edges(lat)
     builder = HVACircuitBuilder()
 
+    # --symmetry-tied: detect the lattice point group once. When it ties anything
+    # (order > 1) every masked selection below is rebuilt with one parameter per
+    # orbit (same 2q, fewer params → easier landscape in the degenerate regime).
+    # A trivial group (the generic case at N != 20 square) is a no-op: the tied
+    # build then equals the masked one, so the flag is always safe to pass.
+    sym_group = None
+    if getattr(args, "symmetry_tied", False):
+        sym_group = detect_symmetry_group(nn_edges, nnn_edges, args.n)
+        print(
+            f"[variant_topk] symmetry-tied ON: group order={sym_group.order} (trivial={sym_group.is_trivial})",
+            flush=True,
+        )
+
     # P2 — degenerate-manifold fidelity. Near the frustrated transition the ground
     # space is a near-degenerate doublet (gap E1-E0 ~ 1e-5), so the energy optimizer
     # may land on EITHER member; the vec-fidelity to a single |psi> then undersells
@@ -440,9 +457,11 @@ def run(args) -> int:
     _low_eigvecs = None
     _manifold_dim = 1
     try:
-        from qmbp_simulation.analysis.fidelity import degenerate_ground_manifold
+        from qmbp_simulation.analysis.fidelity import cached_degenerate_ground_manifold
 
-        _low_eigvecs, _e0_m, _phys_gap_m, _manifold_dim = degenerate_ground_manifold(H)
+        _low_eigvecs, _e0_m, _phys_gap_m, _manifold_dim = cached_degenerate_ground_manifold(
+            H, topology=args.topology, n_qubits=args.n, model="tfim_frustrated", h=args.h, j2=args.j2
+        )
     except Exception as _exc:  # noqa: BLE001 - sub-fid is a diagnostic, never fatal
         print(f"[variant_topk] subspace-fidelity setup skipped: {_exc}", flush=True)
 
@@ -465,7 +484,11 @@ def run(args) -> int:
         return subspace_fidelity(qc_, np.asarray(theta_, float), _low_eigvecs)
 
     backend = NoiselessBackend()  # shared across variants (reuses cached dense H)
-    out_file = f"variant_topk_{args.variant}_{args.topology}_N{args.n}_h{args.h:.2f}.json"
+    # Include the ranking signal in the artifact name so a theta-vs-fidelity-grad
+    # A/B (same variant/N/h) does NOT overwrite the same JSON — each rank-by keeps
+    # its own aggregated result file.
+    _rank_tag = "fg" if args.rank_by == "fidelity-grad" else "th"
+    out_file = f"variant_topk_{args.variant}_{_rank_tag}_{args.topology}_N{args.n}_h{args.h:.2f}.json"
 
     print(
         f"[variant_topk] N={args.n} h={args.h} variant={args.variant} "
@@ -534,42 +557,63 @@ def run(args) -> int:
     if same_n is not None:
         extra_ref = (extra_ref or []) + [same_n]
         print(f"[variant_topk] same-N full seed: {same_n[1]}", flush=True)
-    cross = _load_cross_n_full_donor(args, base, nn_edges, nnn_edges, npar_ref, fid_fn=_ref_fid)
-    if cross is not None:
-        extra_ref = (extra_ref or []) + [cross]
-        print(f"[variant_topk] cross-N donor: {cross[1]}", flush=True)
-    ws_ref = prepare_warmstart(
-        ref_qc,
-        H,
-        psi,
-        n_nn=n_nn,
-        n_nnn=n_nnn,
-        n_qubits=args.n,
-        p_layers=1,
-        h=args.h,
-        J2=args.j2,
-        extra_candidates=extra_ref,
-        micro_descent=args.micro_descent,
-        backend=backend,
-        target_len=npar_ref,
-        two_pass=args.two_pass,
-        two_pass_top_k=args.two_pass_top_k,
-    )
-    seed_ref, seed_ref_kind = ws_ref["seed"], ws_ref["provenance"]
-    t0 = time.time()
-    fid_ref, e_ref, runs_ref = converge_circuit(
-        ref_qc,
-        H,
-        psi,
-        restarts=args.restarts,
-        maxiter=args.maxiter,
-        seed0=args.seed0,
-        warm_theta=seed_ref,
-        backend=backend,
-        target_fid=args.target_fid,
-        ftol=args.ftol,
-        on_restart=persister.restart_callback(f"{args.variant}_full", n2q_ref, npar_ref),
-    )
+
+    # Reference-from-spec: at N=20 re-converging the full reference (524 2q, 362
+    # params in the degenerate 2^N manifold) costs as much as generating it the
+    # first time — hours — yet its converged θ already exists in the same-N spec.
+    # When --reference-from-spec is set and that θ is available, use it verbatim
+    # as the reference (no converge_circuit, no warm-start cascade): the bond
+    # ranking needs the θ, not a re-optimization. The energy/fidelity are read off
+    # with a single evaluation. Falls back to full convergence if no same-N spec.
+    if getattr(args, "reference_from_spec", False) and same_n is not None:
+        theta_ref_best = list(map(float, same_n[0]))
+        seed_ref_kind = f"spec:{same_n[1]}"
+        t0 = time.time()
+        e_ref = float(_cf(theta_ref_best))
+        fid_ref = float(_ref_fid(theta_ref_best))
+        runs_ref = [{"theta_final": theta_ref_best, "energy": e_ref, "fidelity": fid_ref}]
+        print(
+            f"[variant_topk] reference-from-spec: using stored full θ "
+            f"({seed_ref_kind}) — skipping reference convergence",
+            flush=True,
+        )
+    else:
+        cross = _load_cross_n_full_donor(args, base, nn_edges, nnn_edges, npar_ref, fid_fn=_ref_fid)
+        if cross is not None:
+            extra_ref = (extra_ref or []) + [cross]
+            print(f"[variant_topk] cross-N donor: {cross[1]}", flush=True)
+        ws_ref = prepare_warmstart(
+            ref_qc,
+            H,
+            psi,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=args.n,
+            p_layers=1,
+            h=args.h,
+            J2=args.j2,
+            extra_candidates=extra_ref,
+            micro_descent=args.micro_descent,
+            backend=backend,
+            target_len=npar_ref,
+            two_pass=args.two_pass,
+            two_pass_top_k=args.two_pass_top_k,
+        )
+        seed_ref, seed_ref_kind = ws_ref["seed"], ws_ref["provenance"]
+        t0 = time.time()
+        fid_ref, e_ref, runs_ref = converge_circuit(
+            ref_qc,
+            H,
+            psi,
+            restarts=args.restarts,
+            maxiter=args.maxiter,
+            seed0=args.seed0,
+            warm_theta=seed_ref,
+            backend=backend,
+            target_fid=args.target_fid,
+            ftol=args.ftol,
+            on_restart=persister.restart_callback(f"{args.variant}_full", n2q_ref, npar_ref),
+        )
     theta_ref_best = min(runs_ref, key=lambda r: r["energy"])["theta_final"]
     sub_ref = _subspace_fid(ref_qc, theta_ref_best)
     rows.append(
@@ -689,9 +733,35 @@ def run(args) -> int:
             rz_final=base.rz_final,
             tags=("masked", "structure"),
         )
-        qc, _ = build_variant(builder, args.n, lat, v)
+        # Independent (per-bond) build first — it carries the warm-start cascade.
+        qc_ind, _ = build_variant(builder, args.n, lat, v)
+        seed_ind, seed_kind = _best_topk_seed(qc_ind, H, psi, v, sel, theta_ref, base, nnn_edges, args, backend)
+        # --symmetry-tied: rebuild this selection with one param per orbit and
+        # compress the independent seed to the tied layout (same contract as the
+        # circuit). A trivial group leaves the variant unchanged (no-op).
+        if sym_group is not None and not sym_group.is_trivial:
+            from dataclasses import replace
+
+            v = replace(v, symmetry_group=sym_group)
+            qc, _ = build_variant(builder, args.n, lat, v)
+            if seed_ind is not None:
+                seed_m = compress_seed_to_orbits(
+                    seed_ind,
+                    list(v.blocks),
+                    sel.nn_edges,
+                    sel.nnn_edges,
+                    args.n,
+                    sym_group,
+                    rx_final=v.rx_final,
+                    rz_final=v.rz_final,
+                )
+                seed_kind = f"{seed_kind}+tied"
+            else:
+                seed_m = None
+        else:
+            qc = qc_ind
+            seed_m = seed_ind
         n2q, npar = cx_and_params(qc)
-        seed_m, seed_kind = _best_topk_seed(qc, H, psi, v, sel, theta_ref, base, nnn_edges, args, backend)
         if seed_m is not None and len(seed_m) != npar:
             seed_m, seed_kind = None, "zero"
         t1 = time.time()
@@ -906,6 +976,24 @@ def main(argv=None) -> int:
         "auto choice (manual methods always win).",
     )
     p.add_argument("--no-sync", action="store_true", help="Skip the post-run scoreboard refresh.")
+    p.add_argument(
+        "--symmetry-tied",
+        action="store_true",
+        help="Rebuild each masked selection with one parameter per symmetry orbit "
+        "(same 2q, fewer params → easier landscape in the degenerate regime). The "
+        "lattice point group is auto-detected; a trivial group (generic at N!=20 "
+        "square) makes this a no-op, so the flag is always safe. The saved specs "
+        "are marked tied and round-trip as tied ansätze.",
+    )
+    p.add_argument(
+        "--reference-from-spec",
+        action="store_true",
+        help="Use the stored same-N converged full θ as the reference instead of "
+        "re-converging it. At N=20 the full reference (hundreds of 2q, degenerate "
+        "manifold) costs hours to re-converge, yet its θ already exists in the "
+        "ansatz_specs library — the bond ranking only needs that θ. Falls back to "
+        "full convergence when no same-N spec is found.",
+    )
     args = p.parse_args(argv)
     # Record which tunable flags the user passed explicitly, so --auto only fills
     # the ones left at their default (manual flags always win). Detected from argv

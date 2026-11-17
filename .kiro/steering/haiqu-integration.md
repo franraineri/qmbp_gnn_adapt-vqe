@@ -97,6 +97,38 @@ What gets captured per operation:
 
 Output convention: `results/haiqu/haiqu_{topology}_n{N}_p{P}_{device}_{ts}.json`.
 
+## Data loading (`vector_loading` / `mps_loading`)
+
+State preparation, not QPU execution: Haiqu synthesizes a fixed circuit that loads a
+known state. Used as a **reference/benchmark** for ground-state preparation (it needs
+the ground state as input; it is not a solver). Results and conclusions:
+`results/hva_vl_study/reports/REPORT_VL_square_frustrated.md`; handoff:
+`internal/documentation/binnacles/binnacle-vl-haiqu-square-frustrated.md`.
+
+| Need                                                     | Use (all in `scripts/analysis/vl_vs_hva/`)                       |
+|----------------------------------------------------------|------------------------------------------------------------------|
+| Load a dense ground state (N ≤ 20)                       | `hva_vl_study_common.run_vl_job`                                 |
+| Load an MPS (large N, bond ≤ 64, standard or Vidal form) | `hva_vl_study_common.run_vl_mps_job`                             |
+| Get a bond-capped MPS from any `SparsePauliOp`           | `mps_extraction.dmrg_mps_capped` (+ `capped_mps_vidal`)          |
+| Energy error of the loaded circuit (local)               | `hva_vl_study_common.circuit_energy`                             |
+| Keep the circuit for later (no cloud, no key)            | `save_circuit_qpy` / `load_circuit_qpy`                          |
+| Batch sweep with result cache                            | `vl_quality_sweep_frustrated.py` (`--force-recompute` to bypass) |
+
+Rules learned (see `error-patterns.md` for the failure details):
+
+1. Quality knobs: `num_layers` (2q gates double per step), `fine_tuning_iterations`
+   (no gate cost), `truncation_cutoff`. Small-gap states need L8/F50 or more.
+2. **Poll longer than the compute budget.** Pass `max_time` to the job and poll for
+   `max_time + 300 s`, otherwise long jobs stay `RUNNING`.
+3. **Jobs spend credits.** The account hit HTTP 402. Use the cache, persist
+   `circuit_id` and the QPY circuit, and prefer `vector_loading_estimates` (unused so
+   far) before large batches.
+4. `vector_loading` caps at N ≤ 20; `mps_loading` accepts bond ≤ 64 (build the MPS
+   from the operator so frustrated couplings are included).
+5. Never trust `ClassicalSolver` frustrated energies at N > 16 from before commit
+   `6cf7465`. The N = 18 reference is the operator-based DMRG energy.
+6. SDK in use: `haiqu-sdk` v1.6.0 (the API table above was confirmed on v1.4).
+
 ## Credentials
 
 | Layer | Env var | Needed for |

@@ -1,0 +1,212 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/tilted_pareto_2q_N16_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_tilted_pareto_2q.py",
+  "generated_utc": "2026-10-20T00:17:43.391093+00:00",
+  "params": {
+    "experiment": "tilted_pareto_2q",
+    "N": 16,
+    "h": 0.5
+  },
+  "description": "Tilted PBC 2q-Pareto: tied symmetric structures, warm-start cascade",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 16,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square_tilted",
+    "h": 0.5
+  },
+  "completed": 4,
+  "rows": [
+    {
+      "arm": "tied",
+      "family": "full",
+      "p_layers": 1,
+      "structure_sig": "nn+nnn+x|rxf",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "rx_final": true,
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "e0": -17.132859336900314,
+      "delta_e": 2.9042206426115946,
+      "manifold_dim": 1,
+      "init_fidelity": 0.16206974411210875,
+      "report_fidelity": 0.1620697441121087,
+      "n_2q_transpiled": 128,
+      "n_params": 4,
+      "fidelity_per_cx": 0.0012661698758758492,
+      "seed_provenance": "calibrated",
+      "theta_best": [
+        -0.1971467345444823,
+        -0.03579324925062538,
+        1.3784508189187483,
+        1.3784508189187472
+      ]
+    },
+    {
+      "arm": "tied",
+      "family": "full",
+      "p_layers": 2,
+      "structure_sig": "nn+nnn+x+nn+nnn+x|rxf",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "rx_final": true,
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "e0": -17.132859336900314,
+      "delta_e": 1.6899321436333476,
+      "manifold_dim": 1,
+      "init_fidelity": 0.3030559060077368,
+      "report_fidelity": 0.3030561997920162,
+      "n_2q_transpiled": 256,
+      "n_params": 7,
+      "fidelity_per_cx": 0.0011838132804375633,
+      "seed_provenance": "cascade<full_p1>",
+      "theta_best": [
+        -2.979779159400569,
+        1.587040978043256,
+        -1.0707934109440143,
+        -2.878072102920598,
+        -0.08551349370384509,
+        0.4342368451297002,
+        1.3724274056055925
+      ]
+    },
+    {
+      "arm": "tied",
+      "family": "full",
+      "p_layers": 3,
+      "structure_sig": "nn+nnn+x+nn+nnn+x+nn+nnn+x|rxf",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "rx_final": true,
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "e0": -17.132859336900314,
+      "delta_e": 0.9665471859615877,
+      "manifold_dim": 1,
+      "init_fidelity": 0.27932976710512736,
+      "report_fidelity": 0.27932995714179765,
+      "n_2q_transpiled": 384,
+      "n_params": 10,
+      "fidelity_per_cx": 0.000727421763390098,
+      "seed_provenance": "cascade<full_p2>",
+      "theta_best": [
+        -3.0411754480034756,
+        1.6577244427137579,
+        -0.9513310115778797,
+        -2.946992437104282,
+        0.03273562319473393,
+        0.42577948878853095,
+        -2.8657442881829565,
+        -0.09772924066562458,
+        0.4292656362166828,
+        1.3674561966925833
+      ]
+    },
+    {
+      "arm": "tied",
+      "family": "full",
+      "p_layers": 4,
+      "structure_sig": "nn+nnn+x+nn+nnn+x+nn+nnn+x+nn+nnn+x|rxf",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x"
+      ],
+      "rx_final": true,
+      "n_qubits": 16,
+      "tilt": [
+        4,
+        0
+      ],
+      "h": 0.5,
+      "topology": "square_tilted",
+      "e0": -17.132859336900314,
+      "delta_e": 0.3813781635205018,
+      "manifold_dim": 1,
+      "init_fidelity": 0.3721871204465033,
+      "report_fidelity": 0.09997305114093558,
+      "n_2q_transpiled": 512,
+      "n_params": 13,
+      "fidelity_per_cx": 0.0001952598655096398,
+      "seed_provenance": "cascade<full_p3>",
+      "theta_best": [
+        0.000378086207129494,
+        2.9494218374085164,
+        -2.5047346353757383,
+        -1.5726418769800035,
+        2.89533538071991,
+        -2.4989138669044695,
+        1.5810867507580912,
+        2.85759632601234,
+        -2.885238807240895,
+        -3.057628203817427,
+        -3.141592653589793,
+        -3.0741647309072784,
+        -3.1081742361786193
+      ]
+    }
+  ],
+  "best_theta": null,
+  "topology": "square_tilted",
+  "tilt": [
+    4,
+    0
+  ],
+  "N": 16,
+  "h": 0.5,
+  "J2": 0.5,
+  "schema": "tilted_pareto_2q_v1",
+  "manifold_dim": 1,
+  "group_order": 128,
+  "phys_gap": 0.037680714287049,
+  "e0": -17.132859336900314,
+  "families": [
+    "full"
+  ],
+  "status": "final"
+}

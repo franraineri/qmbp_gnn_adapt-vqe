@@ -1,0 +1,259 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/n20_geo_cluster_square_N20_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_n20_geo_cluster.py",
+  "generated_utc": "2026-10-19T23:23:40.162511+00:00",
+  "params": {
+    "experiment": "n20_geo_cluster",
+    "N": 20,
+    "h": 0.5
+  },
+  "description": "N=20 connected-cluster nnn selection (geometric) + calibrated warm-start",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 20,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": 0.5
+  },
+  "completed": 4,
+  "rows": [
+    {
+      "label": "geo_cluster_k3",
+      "h": 0.5,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "n_nn": 31,
+      "n_nnn": 3,
+      "e0": -20.147324701126234,
+      "phys_gap": 0.4074432463511002,
+      "degenerate": true,
+      "e_best": -16.819004116842958,
+      "de_gap": 8.168795566230125,
+      "best_fidelity": 0.08182116296168292,
+      "subspace_fidelity": 0.08182116296168723,
+      "report_fidelity": 0.08182116296168723,
+      "n_2q_transpiled": 198,
+      "n_params": 159,
+      "fidelity_per_cx": 0.00041323819677619816,
+      "seed_kind": "second_order",
+      "seconds": 173.7,
+      "cpu_seconds": 169.6,
+      "cluster_bonds": [
+        [
+          2,
+          12
+        ],
+        [
+          6,
+          12
+        ],
+        [
+          6,
+          8
+        ]
+      ]
+    },
+    {
+      "label": "geo_cluster_k4",
+      "h": 0.5,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "n_nn": 31,
+      "n_nnn": 4,
+      "e0": -20.147324701126234,
+      "phys_gap": 0.4074432463511002,
+      "degenerate": true,
+      "e_best": -16.702432061738484,
+      "de_gap": 8.454901805929634,
+      "best_fidelity": 0.03964901252447747,
+      "subspace_fidelity": 0.03964901252447918,
+      "report_fidelity": 0.03964901252447918,
+      "n_2q_transpiled": 202,
+      "n_params": 161,
+      "fidelity_per_cx": 0.00019628224022019396,
+      "seed_kind": "second_order",
+      "seconds": 173.1,
+      "cpu_seconds": 169.5,
+      "cluster_bonds": [
+        [
+          2,
+          12
+        ],
+        [
+          6,
+          12
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          12
+        ]
+      ]
+    },
+    {
+      "label": "geo_cluster_k6",
+      "h": 0.5,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "n_nn": 31,
+      "n_nnn": 6,
+      "e0": -20.147324701126234,
+      "phys_gap": 0.4074432463511002,
+      "degenerate": true,
+      "e_best": -17.17807589505948,
+      "de_gap": 7.287515089912932,
+      "best_fidelity": 0.12277847821722149,
+      "subspace_fidelity": 0.12277847821723592,
+      "report_fidelity": 0.12277847821723592,
+      "n_2q_transpiled": 210,
+      "n_params": 165,
+      "fidelity_per_cx": 0.0005846594200820759,
+      "seed_kind": "second_order",
+      "seconds": 184.0,
+      "cpu_seconds": 177.1,
+      "cluster_bonds": [
+        [
+          2,
+          12
+        ],
+        [
+          6,
+          12
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          12
+        ],
+        [
+          2,
+          6
+        ],
+        [
+          2,
+          8
+        ]
+      ]
+    },
+    {
+      "label": "geo_cluster_k8",
+      "h": 0.5,
+      "n_qubits": 20,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "n_nn": 31,
+      "n_nnn": 8,
+      "e0": -20.147324701126234,
+      "phys_gap": 0.4074432463511002,
+      "degenerate": true,
+      "e_best": -17.207862671810364,
+      "de_gap": 7.214408523495047,
+      "best_fidelity": 0.0407625833743163,
+      "subspace_fidelity": 0.04076258337432207,
+      "report_fidelity": 0.04076258337432207,
+      "n_2q_transpiled": 218,
+      "n_params": 169,
+      "fidelity_per_cx": 0.0001869843274051471,
+      "seed_kind": "second_order",
+      "seconds": 258.3,
+      "cpu_seconds": 208.8,
+      "cluster_bonds": [
+        [
+          2,
+          12
+        ],
+        [
+          6,
+          12
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          8,
+          12
+        ],
+        [
+          2,
+          6
+        ],
+        [
+          2,
+          8
+        ],
+        [
+          6,
+          16
+        ],
+        [
+          8,
+          18
+        ]
+      ]
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 20,
+  "h": 0.5,
+  "J2": 0.5,
+  "grid_cols": 5,
+  "schema": "n20_geo_cluster_v1",
+  "manifold_dim": 2,
+  "phys_gap": 0.4074432463511002,
+  "e0": -20.147324701126234,
+  "cluster_sizes": [
+    3,
+    4,
+    6,
+    8
+  ],
+  "status": "final"
+}

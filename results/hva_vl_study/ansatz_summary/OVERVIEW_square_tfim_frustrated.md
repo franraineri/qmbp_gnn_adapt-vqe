@@ -1,6 +1,6 @@
 # Resumen general — square tfim_frustrated
 
-*Auto-generado: 2026-10-13 03:47 UTC. Regenerar con `generate_ansatz_summary.py --overview`.*
+*Auto-generado: 2026-10-15 18:29 UTC. Regenerar con `generate_ansatz_summary.py --overview`.*
 
 Vista única de todas las configuraciones (N, h) con artefactos. Por cada config se muestra la **frontera de Pareto** (fid vs 2q). El detalle completo vive en los JSON/specs — este markdown es una vista, no una fuente de datos.
 
@@ -18,8 +18,8 @@ Vista única de todas las configuraciones (N, h) con artefactos. Por cada config
 | 18 | 0.50 | no-degen | 34 | 0.9516 | 450 | 6.408e-03 | 128 |
 | 18 | 0.70 | no-degen | 6 | 0.8932 | 318 | 3.908e-03 | 138 |
 | 18 | 3.00 | no-degen | 1 | 0.9912 | 83 | 1.194e-02 | 83 |
-| 20 | 0.50 | degen | 17 | 0.9919 | 524 | 5.185e-03 | 172 |
-| 20 | 1.00 | no-degen | 14 | 0.9652 | 524 | 8.561e-03 | 62 |
+| 20 | 0.50 | degen | 34 | 0.9939 | 524 | 6.073e-03 | 148 |
+| 20 | 1.00 | no-degen | 18 | 0.9652 | 524 | 8.561e-03 | 62 |
 
 ## Notas
 

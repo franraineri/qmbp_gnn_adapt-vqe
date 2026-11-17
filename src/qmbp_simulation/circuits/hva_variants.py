@@ -53,6 +53,11 @@ class AnsatzVariant:
     # ADAPT-grown ones — are expressed as ordinary registry variants. When None,
     # the variant uses the full edge set (standard configurable build).
     bond_selection: object | None = None
+    # When set (a symmetry.LatticeSymmetryGroup), bonds/sites in the same orbit
+    # SHARE one parameter — the symmetry-tied build (same 2q, fewer params). The
+    # tied engine needs an explicit edge set, so build_variant pairs it with the
+    # variant's bond_selection, or the full lattice selection when that is None.
+    symmetry_group: object | None = None
 
     def theoretical_cx(self, n_nn: int, n_nnn: int, cx_per_rzz: int = 2) -> int:
         """Theoretical 2q-gate count = cx_per_rzz × (#nn RZZ + #nnn RZZ)."""
@@ -113,6 +118,14 @@ VARIANTS: dict[str, AnsatzVariant] = {
         rx_final=True,
         tags=("intermediate_2q",),
     ),
+    "p1_half_nn_rx_y": AnsatzVariant(
+        "p1_half_nn_rx_y",
+        "p=1 half-layer nn RZZ + trailing RX + symmetry-breaking RY layer "
+        "(Park arXiv:2106.02509); +0 CX over p1_half_nn_rx",
+        blocks=["nn", "nnn", "x", "nn", "x", "y"],
+        rx_final=True,
+        tags=("symmetry_breaking",),
+    ),
     "p2_base": AnsatzVariant(
         "p2_base",
         "Two standard frustrated layers (anchor)",
@@ -147,6 +160,14 @@ VARIANTS: dict[str, AnsatzVariant] = {
         tags=("intermediate_2q", "partial_p3"),
         extends="p2_base",
         extra_blocks=("nn", "x"),
+    ),
+    "p2_half_nn_rx_y": AnsatzVariant(
+        "p2_half_nn_rx_y",
+        "p=2 half-layer nn RZZ then x + trailing RX + symmetry-breaking RY layer "
+        "(Park arXiv:2106.02509); +0 CX over p2_half_nn_rx",
+        blocks=["nn", "nnn", "x", "nn", "nnn", "x", "nn", "x", "y"],
+        rx_final=True,
+        tags=("symmetry_breaking",),
     ),
     "p3_base": AnsatzVariant(
         "p3_base",
@@ -208,11 +229,24 @@ VARIANTS: dict[str, AnsatzVariant] = {
 def build_variant(builder, n_qubits: int, lattice, variant: AnsatzVariant):
     """Build the circuit for a variant.
 
-    Routes to the masked engine when the variant carries a ``bond_selection``
-    (pruned / subset / ADAPT-grown bonds), otherwise to the configurable engine
-    (full edge set). Both share the same block grammar and gate convention, so
-    the choice is transparent to callers.
+    Routes to the symmetry-tied engine when the variant carries a
+    ``symmetry_group`` (one param per orbit), to the masked engine when it
+    carries a ``bond_selection`` (pruned / subset / ADAPT-grown bonds), and
+    otherwise to the configurable engine (full edge set). All three share the
+    same block grammar and gate convention, so the choice is transparent to
+    callers.
     """
+    if variant.symmetry_group is not None:
+        sel = variant.bond_selection or _full_lattice_selection(lattice)
+        return builder.create_bond_resolved_symmetry_tied(
+            n_qubits,
+            lattice,
+            blocks=variant.blocks,
+            bond_selection=sel,
+            symmetry_group=variant.symmetry_group,
+            rx_final=variant.rx_final,
+            rz_final=variant.rz_final,
+        )
     if variant.bond_selection is not None:
         return builder.create_bond_resolved_masked(
             n_qubits,
@@ -229,6 +263,20 @@ def build_variant(builder, n_qubits: int, lattice, variant: AnsatzVariant):
         rx_final=variant.rx_final,
         rz_final=variant.rz_final,
     )
+
+
+def _full_lattice_selection(lattice):
+    """The full nn+nnn :class:`BondSelection` for a lattice (tied-build default).
+
+    Used when a symmetry-tied variant does not name an explicit selection: the
+    tied engine still needs the exact edge set, so we entangle every nn and nnn
+    edge (the nnn set from the shared Hamiltonian generator, single source).
+    """
+    from qmbp_simulation.circuits.bond_mask import full_selection
+    from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+    nnn = HamiltonianBuilder._generate_nnn_edges(lattice)
+    return full_selection(list(lattice.edges), nnn)
 
 
 def make_masked_variant(

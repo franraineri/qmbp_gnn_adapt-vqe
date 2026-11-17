@@ -7,9 +7,13 @@ measurements** taken directly from the study artifacts — no derived quantities
 except infidelity `1 − F`, which is VL's native loading-error metric.
 
 - Model: `tfim_frustrated`, `J2 = 0.5`, `J = 1.0`
-- Lattice: `square`, system sizes `N = 9` and `N = 10`
-- VL target: the exact ground-state vector (statevector-exact), loaded by Haiqu
-  `vector_loading` in the Haiqu cloud
+- Lattice: `square`, system sizes `N = 9` and `N = 10` (`vector_loading`) and
+  `N = 18` (`mps_loading`, section 5)
+- VL target: for `N ≤ 10`, the exact ground-state vector (statevector-exact),
+  loaded by Haiqu `vector_loading`; for `N = 18`, a bond-capped DMRG MPS (χ ≤ 64)
+  loaded by Haiqu `mps_loading`
+- Handoff document with code map, data map and open items:
+  `internal/documentation/binnacles/binnacle-vl-haiqu-square-frustrated.md`
 - Fidelity: `F = |⟨ψ_exact | ψ_VL⟩|²` (exact statevector overlap)
 - Energy error: `|ΔE| = |⟨ψ_VL|H|ψ_VL⟩ − E0|` (energy of the VL-prepared state)
 - Source artifacts:
@@ -185,29 +189,34 @@ with its Haiqu `circuit_id`, for Haiqu-independent re-analysis.
 
 ---
 
-## 6bis. Not yet measured
+## 7. Not yet measured
 
 Whether pushing `fine_tuning_iterations = 200`, a smaller `truncation_cutoff`
 (1e-8), or the Vidal MPS form lifts the N = 18 fidelity above the L8/F50 baseline
 is **untested** — those runs were blocked by Haiqu credit exhaustion (HTTP 402).
 The tooling (`vl_mps_large_n.py --fine-tuning --truncation-cutoff --mps-form`) is
-in place to resume once credits are available.
+in place to resume once credits are available. The failed attempt is kept (status
+`deprecated`) in `vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json`; it
+holds only HTTP 402 errors, no measurements.
 
 ---
 
-## 7. Reproduction
+## 8. Reproduction
+
+Scripts live in `scripts/analysis/vl_vs_hva/`. They import the shared helper
+`hva_vl_study_common` from the same directory.
 
 ```bash
 # Default per-h characterization (requires HAIQU_API_KEY)
-HAIQU_API_KEY=... .venv/bin/python scripts/analysis/vl_h_sweep_frustrated.py \
+HAIQU_API_KEY=... .venv/bin/python scripts/analysis/vl_vs_hva/vl_h_sweep_frustrated.py \
     --topologies square --n 9 --p 2 --j2 0.5 --h 0.5 1.0 2.0 3.0
 
 # Quality-knob sweep on the small-gap points (cached; --force-recompute to re-run)
-HAIQU_API_KEY=... .venv/bin/python scripts/analysis/vl_quality_sweep_frustrated.py \
+HAIQU_API_KEY=... .venv/bin/python scripts/analysis/vl_vs_hva/vl_quality_sweep_frustrated.py \
     --num-layers 2 4 8 --fine-tuning 20 50 --n 9 --j2 0.5
 
 # Large N via mps_loading (bond-capped DMRG → Haiqu mps_loading)
-HAIQU_API_KEY=... .venv/bin/python scripts/analysis/vl_mps_large_n.py \
+HAIQU_API_KEY=... .venv/bin/python scripts/analysis/vl_vs_hva/vl_mps_large_n.py \
     --topology square --n 18 --j2 0.5 --h 0.5 1.0 \
     --num-layers 8 --fine-tuning 50 --chi-max 64
 ```

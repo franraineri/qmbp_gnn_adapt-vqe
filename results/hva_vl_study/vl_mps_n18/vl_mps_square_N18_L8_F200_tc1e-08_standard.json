@@ -74,5 +74,10 @@
       "max_bond_realized": 64,
       "error": "HTTPError: 402 Client Error: Payment Required for url: https://api.haiqu.ai/data_loading"
     }
-  ]
+  ],
+  "meta": {
+    "status": "deprecated",
+    "updated_utc": "2026-11-17T01:37:28.650123+00:00",
+    "deprecated_reason": "Failed attempt: both rows hold only HTTP 402 Payment Required (Haiqu credits exhausted). No measurements. Re-run with the same flags once credits are available; see internal/documentation/binnacles/binnacle-vl-haiqu-square-frustrated.md"
+  }
 }

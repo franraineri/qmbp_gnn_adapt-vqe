@@ -1,0 +1,356 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/symmetrized_warmstart_ab_square_N9_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_symmetrized_warmstart_ab.py",
+  "generated_utc": "2026-10-17T00:54:57.293199+00:00",
+  "params": {
+    "experiment": "symmetrized_warmstart_ab",
+    "N": 9,
+    "h": 0.5
+  },
+  "description": "A/B: symmetry-projected vs raw analytic warm-start (equal circuit)",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 9,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": 0.5
+  },
+  "completed": 32,
+  "rows": [
+    {
+      "trial": 0,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9740375807571742,
+      "iters": 150,
+      "init_fidelity": 0.002228960608482976,
+      "seconds": 1.52
+    },
+    {
+      "trial": 0,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9932960966084622,
+      "iters": 150,
+      "init_fidelity": 0.17242675749447595,
+      "seconds": 1.44
+    },
+    {
+      "trial": 1,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9721324983174667,
+      "iters": 150,
+      "init_fidelity": 0.006851233542737945,
+      "seconds": 1.52
+    },
+    {
+      "trial": 1,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.98986764908723,
+      "iters": 150,
+      "init_fidelity": 0.20019608205480144,
+      "seconds": 1.52
+    },
+    {
+      "trial": 2,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9845289540181362,
+      "iters": 150,
+      "init_fidelity": 0.007541368862781472,
+      "seconds": 1.56
+    },
+    {
+      "trial": 2,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9928126759670446,
+      "iters": 150,
+      "init_fidelity": 0.5296300804700598,
+      "seconds": 1.67
+    },
+    {
+      "trial": 3,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9772425694344673,
+      "iters": 150,
+      "init_fidelity": 0.008946808885125074,
+      "seconds": 1.34
+    },
+    {
+      "trial": 3,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9899607413338692,
+      "iters": 150,
+      "init_fidelity": 0.12318203426461856,
+      "seconds": 1.48
+    },
+    {
+      "trial": 4,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9688820619919204,
+      "iters": 150,
+      "init_fidelity": 0.00020101900911567765,
+      "seconds": 1.52
+    },
+    {
+      "trial": 4,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.993454037681241,
+      "iters": 150,
+      "init_fidelity": 0.31985679981369264,
+      "seconds": 1.51
+    },
+    {
+      "trial": 5,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9759912437361498,
+      "iters": 150,
+      "init_fidelity": 0.002101584471309884,
+      "seconds": 1.46
+    },
+    {
+      "trial": 5,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9899748289318143,
+      "iters": 150,
+      "init_fidelity": 0.2609880214396877,
+      "seconds": 1.38
+    },
+    {
+      "trial": 6,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9762097495707158,
+      "iters": 150,
+      "init_fidelity": 0.0005558040370262254,
+      "seconds": 1.5
+    },
+    {
+      "trial": 6,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9934917409495579,
+      "iters": 150,
+      "init_fidelity": 0.3149557621652997,
+      "seconds": 1.52
+    },
+    {
+      "trial": 7,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9773424179442802,
+      "iters": 150,
+      "init_fidelity": 0.0013869400882290709,
+      "seconds": 1.49
+    },
+    {
+      "trial": 7,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9899854846643972,
+      "iters": 150,
+      "init_fidelity": 0.2710060525575905,
+      "seconds": 1.56
+    },
+    {
+      "trial": 8,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9753669191734586,
+      "iters": 150,
+      "init_fidelity": 0.003378881934065531,
+      "seconds": 1.37
+    },
+    {
+      "trial": 8,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9899189012879499,
+      "iters": 150,
+      "init_fidelity": 0.19443658327207178,
+      "seconds": 1.51
+    },
+    {
+      "trial": 9,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9678580001583598,
+      "iters": 150,
+      "init_fidelity": 0.000293572830608589,
+      "seconds": 1.46
+    },
+    {
+      "trial": 9,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9898951150212545,
+      "iters": 150,
+      "init_fidelity": 0.2267343364935772,
+      "seconds": 1.57
+    },
+    {
+      "trial": 10,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9715451512206107,
+      "iters": 150,
+      "init_fidelity": 0.0014292877437846515,
+      "seconds": 1.44
+    },
+    {
+      "trial": 10,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9899283832140757,
+      "iters": 150,
+      "init_fidelity": 0.17331525954158747,
+      "seconds": 1.48
+    },
+    {
+      "trial": 11,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9599405124351126,
+      "iters": 150,
+      "init_fidelity": 0.00016344403548337156,
+      "seconds": 1.56
+    },
+    {
+      "trial": 11,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9898181695135256,
+      "iters": 150,
+      "init_fidelity": 0.17695268399541317,
+      "seconds": 1.49
+    },
+    {
+      "trial": 12,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9780061263917379,
+      "iters": 150,
+      "init_fidelity": 0.005086014890676197,
+      "seconds": 1.49
+    },
+    {
+      "trial": 12,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9892378852509567,
+      "iters": 150,
+      "init_fidelity": 0.15363115748430278,
+      "seconds": 1.54
+    },
+    {
+      "trial": 13,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9627182605478203,
+      "iters": 150,
+      "init_fidelity": 0.016794726013462928,
+      "seconds": 1.41
+    },
+    {
+      "trial": 13,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9944448078617218,
+      "iters": 150,
+      "init_fidelity": 0.5218558147294728,
+      "seconds": 1.5
+    },
+    {
+      "trial": 14,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9800273121820227,
+      "iters": 150,
+      "init_fidelity": 0.0066712071942313595,
+      "seconds": 1.46
+    },
+    {
+      "trial": 14,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9944626324572563,
+      "iters": 150,
+      "init_fidelity": 0.1923521160521044,
+      "seconds": 1.61
+    },
+    {
+      "trial": 15,
+      "arm": "raw",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9702578447431495,
+      "iters": 150,
+      "init_fidelity": 0.0035085266290227823,
+      "seconds": 1.45
+    },
+    {
+      "trial": 15,
+      "arm": "symmetrized",
+      "n_qubits": 9,
+      "h": 0.5,
+      "final_fidelity": 0.9936509272543841,
+      "iters": 150,
+      "init_fidelity": 0.3427610191661837,
+      "seconds": 1.37
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 9,
+  "h": 0.5,
+  "J2": 0.5,
+  "schema": "symmetrized_warmstart_ab_v1",
+  "structure": "p3_half_nn_rx",
+  "init_fid_raw": 0.9893970716246151,
+  "init_fid_sym": 0.9893970716246149,
+  "seed_distance": 2.629992027122186e-10,
+  "group_order": 8,
+  "trials": 16,
+  "noise": 0.25,
+  "status": "final"
+}

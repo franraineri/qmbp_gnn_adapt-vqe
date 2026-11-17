@@ -3,7 +3,7 @@
   "model": "tfim_frustrated",
   "J2": 0.5,
   "topology": "square",
-  "n_entries": 191,
+  "n_entries": 248,
   "entries": [
     {
       "method": "HVA",
@@ -13,16 +13,16 @@
       "loader": null,
       "chi": null,
       "fidelity": 0.9994913793434931,
-      "abs_error": 0.002130719782922341,
-      "de_gap": 0.008501546960695461,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 54,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N6_h0.50.json",
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk3of6_square_N6_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.922239+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231547+00:00"
     },
     {
       "method": "HVA",
@@ -41,8 +41,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N6_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.257341+00:00",
-      "previous_fidelity": 0.9992953626764463
+      "updated_utc": "2026-10-15T14:27:36.231362+00:00"
     },
     {
       "method": "HVA",
@@ -52,16 +51,16 @@
       "loader": null,
       "chi": null,
       "fidelity": 0.9991663733700057,
-      "abs_error": 0.003487932984832298,
-      "de_gap": 0.013916811729058431,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 50,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N6_h0.50.json",
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk2of6_square_N6_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.922405+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231485+00:00"
     },
     {
       "method": "HVA",
@@ -80,7 +79,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N6_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.257449+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231423+00:00"
     },
     {
       "method": "HVA",
@@ -89,17 +88,17 @@
       "variant": "p2_base",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9957327182100111,
-      "abs_error": 0.01398330624305899,
-      "de_gap": 0.055793228018052796,
+      "fidelity": 0.9957327182100135,
+      "abs_error": 0.013983306243071425,
+      "de_gap": 0.05579322801810102,
       "n_2q": 52,
       "total_gates": null,
       "depth": null,
-      "converged": "1/2",
+      "converged": "0/2",
       "source": "ansatz_variants:ansatz_variants_square_N6_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476493+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231302+00:00"
     },
     {
       "method": "HVA",
@@ -118,26 +117,7 @@
       "source": "faircov:n6_square_N6_p1_faircov_mi200.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T20:12:55.051686+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 6,
-      "h": 0.5,
-      "variant": "p1_base",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.6967376634174304,
-      "abs_error": 0.3047100216807035,
-      "de_gap": 1.2157894151432254,
-      "n_2q": 26,
-      "total_gates": null,
-      "depth": null,
-      "converged": "2/2",
-      "source": "ansatz_variants:ansatz_variants_square_N6_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476436+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231242+00:00"
     },
     {
       "method": "HVA",
@@ -156,7 +136,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N8_p2_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394104+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241852+00:00"
     },
     {
       "method": "HVA",
@@ -175,7 +155,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N8_p2_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394193+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241984+00:00"
     },
     {
       "method": "HVA",
@@ -194,7 +174,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N8_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.125237+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242970+00:00"
     },
     {
       "method": "HVA",
@@ -213,7 +193,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N8_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.125331+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243112+00:00"
     },
     {
       "method": "HVA",
@@ -232,7 +212,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N8_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.125057+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242657+00:00"
     },
     {
       "method": "HVA",
@@ -251,7 +231,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N8_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.125155+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242791+00:00"
     },
     {
       "method": "HVA",
@@ -260,8 +240,8 @@
       "variant": "p2_topk_regime (nnn=6)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9638109805788746,
-      "abs_error": 0.0851917746189903,
+      "fidelity": 0.9637674764773211,
+      "abs_error": 0.08519234190676261,
       "de_gap": null,
       "n_2q": 64,
       "total_gates": null,
@@ -270,7 +250,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N8_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394383+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242254+00:00"
     },
     {
       "method": "HVA",
@@ -279,8 +259,8 @@
       "variant": "p2_full_ref (nnn=11)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9628151300453346,
-      "abs_error": 0.07377351211069527,
+      "fidelity": 0.9628153272610037,
+      "abs_error": 0.07377352015683947,
       "de_gap": null,
       "n_2q": 84,
       "total_gates": null,
@@ -289,7 +269,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N8_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394292+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242122+00:00"
     },
     {
       "method": "HVA",
@@ -308,7 +288,7 @@
       "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N8_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.124897+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242387+00:00"
     },
     {
       "method": "HVA",
@@ -327,7 +307,7 @@
       "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N8_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.124975+00:00"
+      "updated_utc": "2026-10-15T14:27:36.242521+00:00"
     },
     {
       "method": "HVA",
@@ -346,7 +326,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N8_p2_h1.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394475+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243273+00:00"
     },
     {
       "method": "HVA",
@@ -365,7 +345,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N8_p2_h1.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394568+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243415+00:00"
     },
     {
       "method": "HVA",
@@ -384,7 +364,7 @@
       "source": "compare_ceiling",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475084+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228830+00:00"
     },
     {
       "method": "HVA",
@@ -403,7 +383,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475075+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228603+00:00"
     },
     {
       "method": "HVA",
@@ -422,7 +402,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475052+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228586+00:00"
     },
     {
       "method": "HVA",
@@ -441,7 +421,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475066+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228596+00:00"
     },
     {
       "method": "HVA",
@@ -460,7 +440,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475009+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228556+00:00"
     },
     {
       "method": "VL",
@@ -479,7 +459,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475175+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228997+00:00"
     },
     {
       "method": "VL",
@@ -498,7 +478,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475159+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228985+00:00"
     },
     {
       "method": "VL",
@@ -517,7 +497,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475143+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228974+00:00"
     },
     {
       "method": "VL",
@@ -536,7 +516,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475129+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228961+00:00"
     },
     {
       "method": "VL",
@@ -555,7 +535,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475116+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228927+00:00"
     },
     {
       "method": "VL",
@@ -574,7 +554,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475105+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228872+00:00"
     },
     {
       "method": "VL",
@@ -593,7 +573,7 @@
       "source": "vl_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475094+00:00"
+      "updated_utc": "2026-10-15T14:27:36.228858+00:00"
     },
     {
       "method": "HVA",
@@ -612,7 +592,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N9_p2_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394662+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243557+00:00"
     },
     {
       "method": "HVA",
@@ -631,7 +611,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N9_p2_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394757+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243698+00:00"
     },
     {
       "method": "HVA",
@@ -650,7 +630,7 @@
       "source": "compare_ceiling",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475276+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229073+00:00"
     },
     {
       "method": "HVA",
@@ -669,7 +649,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475254+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229056+00:00"
     },
     {
       "method": "HVA",
@@ -688,7 +668,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475212+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229023+00:00"
     },
     {
       "method": "HVA",
@@ -707,7 +687,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475232+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229040+00:00"
     },
     {
       "method": "HVA",
@@ -726,7 +706,7 @@
       "source": "hva_ansatze_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475193+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229010+00:00"
     },
     {
       "method": "VL",
@@ -745,7 +725,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475544+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229228+00:00"
     },
     {
       "method": "VL",
@@ -764,7 +744,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475408+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229162+00:00"
     },
     {
       "method": "VL",
@@ -783,7 +763,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475480+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229202+00:00"
     },
     {
       "method": "VL",
@@ -802,7 +782,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475379+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229143+00:00"
     },
     {
       "method": "VL",
@@ -821,7 +801,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475352+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229124+00:00"
     },
     {
       "method": "VL",
@@ -840,7 +820,7 @@
       "source": "vl_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475301+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229090+00:00"
     },
     {
       "method": "VL",
@@ -859,7 +839,7 @@
       "source": "vl_quality_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475325+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229107+00:00"
     },
     {
       "method": "HVA",
@@ -878,7 +858,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N9_p2_h1.80.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394853+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243842+00:00"
     },
     {
       "method": "HVA",
@@ -897,7 +877,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N9_p2_h1.80.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394970+00:00"
+      "updated_utc": "2026-10-15T14:27:36.243987+00:00"
     },
     {
       "method": "HVA",
@@ -916,7 +896,7 @@
       "source": "compare_ceiling",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475601+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229254+00:00"
     },
     {
       "method": "VL",
@@ -935,7 +915,7 @@
       "source": "vl_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475636+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229338+00:00"
     },
     {
       "method": "HVA",
@@ -954,7 +934,7 @@
       "source": "compare_ceiling",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475692+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229363+00:00"
     },
     {
       "method": "VL",
@@ -973,7 +953,7 @@
       "source": "vl_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475761+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229387+00:00"
     },
     {
       "method": "HVA",
@@ -992,7 +972,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.392784+00:00"
+      "updated_utc": "2026-10-15T14:27:36.239061+00:00"
     },
     {
       "method": "HVA",
@@ -1011,7 +991,26 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.392867+00:00"
+      "updated_utc": "2026-10-15T14:27:36.239241+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 10,
+      "h": 0.3,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9830544343918867,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 68,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N10.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.239365+00:00"
     },
     {
       "method": "HVA",
@@ -1030,8 +1029,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.595798+00:00",
-      "previous_fidelity": 0.9984489842109705
+      "updated_utc": "2026-10-15T14:27:36.232993+00:00"
     },
     {
       "method": "HVA",
@@ -1041,35 +1039,16 @@
       "loader": null,
       "chi": null,
       "fidelity": 0.9977117161343417,
-      "abs_error": 0.0056691515260833825,
-      "de_gap": 0.9244671855768462,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 152,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N10_h0.50.json",
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk8of15_square_N10_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.121736+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p3_base",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.996258537020686,
-      "abs_error": 0.008422523013949856,
-      "de_gap": 1.373458816601869,
-      "n_2q": 168,
-      "total_gates": null,
-      "depth": null,
-      "converged": "2/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476181+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233231+00:00"
     },
     {
       "method": "HVA",
@@ -1088,7 +1067,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.121478+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232840+00:00"
     },
     {
       "method": "HVA",
@@ -1107,46 +1086,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.121574+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p2_base",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9916886730490223,
-      "abs_error": 0.01885656307825556,
-      "de_gap": 3.0749352382587114,
-      "n_2q": 112,
-      "total_gates": null,
-      "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476097+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p2_full_ref (nnn=15)",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.989770448350592,
-      "abs_error": 0.02018951885881215,
-      "de_gap": null,
-      "n_2q": 112,
-      "total_gates": null,
-      "depth": null,
-      "converged": "second_order+descent",
-      "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.391292+00:00",
-      "previous_fidelity": 0.9892263356493513
+      "updated_utc": "2026-10-15T14:27:36.232916+00:00"
     },
     {
       "method": "HVA",
@@ -1165,7 +1105,27 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_from2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804414+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231676+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 10,
+      "h": 0.5,
+      "variant": "p2_full_ref (nnn=15)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9892263356493513,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 112,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:frac_sweep_square_N10_p2_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.232082+00:00",
+      "previous_fidelity": 0.9822289889369026
     },
     {
       "method": "HVA",
@@ -1184,45 +1144,7 @@
       "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T21:09:09.924762+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_half_nn_rx_full",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9890556369813924,
-      "abs_error": 0.023413562199127824,
-      "de_gap": 3.8180439966930626,
-      "n_2q": 82,
-      "total_gates": null,
-      "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:25:59.819091+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_half_nn_rx_topk11of15 (nnn=11)",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9890279632138615,
-      "abs_error": 0.023474920698120627,
-      "de_gap": 3.8280497124715143,
-      "n_2q": 74,
-      "total_gates": null,
-      "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:25:59.819197+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231612+00:00"
     },
     {
       "method": "HVA",
@@ -1241,7 +1163,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.850836+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232566+00:00"
     },
     {
       "method": "HVA",
@@ -1250,9 +1172,9 @@
       "variant": "p1_half_nn_rx_topk8of15 (nnn=8)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9889155945060996,
-      "abs_error": 0.02379866959346799,
-      "de_gap": 3.880843367525125,
+      "fidelity": 0.9888821190865617,
+      "abs_error": 0.02380837383276102,
+      "de_gap": 3.882425835517156,
       "n_2q": 68,
       "total_gates": null,
       "depth": null,
@@ -1260,64 +1182,26 @@
       "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:25:59.819285+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232466+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 10,
       "h": 0.5,
-      "variant": "p2_topk_regime (nnn=8)",
+      "variant": "p1_half_nn_rx_full",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9888695685745346,
-      "abs_error": 0.022643543874057315,
-      "de_gap": null,
-      "n_2q": 84,
-      "total_gates": null,
-      "depth": null,
-      "converged": "second_order+descent",
-      "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.391374+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_half_nn_rx_topk5of15 (nnn=5)",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9879508012524865,
-      "abs_error": 0.025952396257917343,
-      "de_gap": 4.232051060390627,
-      "n_2q": 62,
+      "fidelity": 0.9888756496163,
+      "abs_error": 0.023817700851742174,
+      "de_gap": 3.8839467902751394,
+      "n_2q": 82,
       "total_gates": null,
       "depth": null,
       "converged": "masked",
       "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:25:59.819372+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_half_nn",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.987267861798052,
-      "abs_error": 0.026745876525941625,
-      "de_gap": 4.361443698219403,
-      "n_2q": 82,
-      "total_gates": null,
-      "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475963+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232389+00:00"
     },
     {
       "method": "HVA",
@@ -1336,7 +1220,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.595974+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233071+00:00"
     },
     {
       "method": "HVA",
@@ -1355,26 +1239,7 @@
       "source": "bond_ablation:frac_sweep_square_N10_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804669+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_half_nn_rx_topk5of15_nn10of13 (nnn=5)",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.98616176819327,
-      "abs_error": 0.030670524166179547,
-      "de_gap": 5.001435051714395,
-      "n_2q": 50,
-      "total_gates": null,
-      "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.850678+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232294+00:00"
     },
     {
       "method": "HVA",
@@ -1393,26 +1258,7 @@
       "source": "bond_ablation:frac_sweep_square_N10_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804631+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_half_nn_rx_topk3of15_nn10of13 (nnn=3)",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9842694322868444,
-      "abs_error": 0.03258679174363266,
-      "de_gap": 5.3139203479685175,
-      "n_2q": 46,
-      "total_gates": null,
-      "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p1_half_nn_rx_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.850766+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232223+00:00"
     },
     {
       "method": "HVA",
@@ -1431,7 +1277,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.850917+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232688+00:00"
     },
     {
       "method": "HVA",
@@ -1450,26 +1296,45 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N10_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.850988+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232765+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 10,
       "h": 0.5,
-      "variant": "p1_half_nnn",
+      "variant": "p2_topk_regime (nnn=8)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9740056667314835,
-      "abs_error": 0.044716187771390636,
-      "de_gap": 7.29185806173765,
-      "n_2q": 86,
+      "fidelity": 0.9792945376184884,
+      "abs_error": 0.04456896369897656,
+      "de_gap": null,
+      "n_2q": 84,
       "total_gates": null,
       "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
+      "converged": "transfer<donor<N10h0.70>@0.940>+descent",
+      "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476006+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232014+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 10,
+      "h": 0.5,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9735738251205842,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 60,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N10.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.233312+00:00"
     },
     {
       "method": "HVA",
@@ -1488,83 +1353,26 @@
       "source": "bond_ablation:frac_sweep_square_N10_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804594+00:00"
+      "updated_utc": "2026-10-15T14:27:36.232154+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 10,
       "h": 0.5,
-      "variant": "p1_rx_extra",
+      "variant": "p1_half_nn_rx_prune0.3_nn7_nnn4 (nnn=4)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.47835789318669564,
-      "abs_error": 1.2048308563154322,
-      "de_gap": 196.4714800279751,
-      "n_2q": 56,
+      "fidelity": 0.9597991488791386,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 36,
       "total_gates": null,
       "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p1_half_nn_rx_prune0.3_nn7_nnn4_square_N10_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475851+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_rz_extra",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.41909521184989834,
-      "abs_error": 1.2327384008139042,
-      "de_gap": 201.0223566450709,
-      "n_2q": 56,
-      "total_gates": null,
-      "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475916+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_base",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.40885779271887945,
-      "abs_error": 1.3022961241521944,
-      "de_gap": 212.36511797959005,
-      "n_2q": 56,
-      "total_gates": null,
-      "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.475812+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 10,
-      "h": 0.5,
-      "variant": "p1_interleaved",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.3450128061208714,
-      "abs_error": 1.3632316899046284,
-      "de_gap": 222.30186613553894,
-      "n_2q": 56,
-      "total_gates": null,
-      "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N10_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476051+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233150+00:00"
     },
     {
       "method": "HVA",
@@ -1583,7 +1391,7 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_from2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804450+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231743+00:00"
     },
     {
       "method": "HVA",
@@ -1602,7 +1410,26 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_from2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804485+00:00"
+      "updated_utc": "2026-10-15T14:27:36.231810+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 10,
+      "h": 0.7,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9716997194441034,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 90,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N10.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.239780+00:00"
     },
     {
       "method": "HVA",
@@ -1621,7 +1448,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.392951+00:00"
+      "updated_utc": "2026-10-15T14:27:36.239532+00:00"
     },
     {
       "method": "HVA",
@@ -1640,7 +1467,26 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393027+00:00"
+      "updated_utc": "2026-10-15T14:27:36.239658+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 10,
+      "h": 0.9,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9566309940250094,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 68,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N10.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.265465+00:00"
     },
     {
       "method": "HVA",
@@ -1659,7 +1505,7 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_from2_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.805037+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234119+00:00"
     },
     {
       "method": "HVA",
@@ -1678,7 +1524,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804951+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233946+00:00"
     },
     {
       "method": "HVA",
@@ -1697,7 +1543,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804909+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233861+00:00"
     },
     {
       "method": "HVA",
@@ -1716,7 +1562,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804826+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233681+00:00"
     },
     {
       "method": "HVA",
@@ -1735,7 +1581,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804786+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233564+00:00"
     },
     {
       "method": "HVA",
@@ -1754,7 +1600,7 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.805219+00:00",
+      "updated_utc": "2026-10-15T14:27:36.234487+00:00",
       "previous_fidelity": 0.8289181715440163
     },
     {
@@ -1774,7 +1620,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804868+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233774+00:00"
     },
     {
       "method": "HVA",
@@ -1793,7 +1639,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804746+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233481+00:00"
     },
     {
       "method": "HVA",
@@ -1812,7 +1658,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804707+00:00"
+      "updated_utc": "2026-10-15T14:27:36.233398+00:00"
     },
     {
       "method": "HVA",
@@ -1831,7 +1677,7 @@
       "source": "bond_ablation:adapt_bonds_square_N10_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.804994+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234032+00:00"
     },
     {
       "method": "HVA",
@@ -1850,7 +1696,7 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_from2_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.805081+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234207+00:00"
     },
     {
       "method": "HVA",
@@ -1869,7 +1715,7 @@
       "source": "bond_ablation:bond_ablation_square_N10_p1_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:39:47.805173+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234389+00:00"
     },
     {
       "method": "VL",
@@ -1880,7 +1726,7 @@
       "chi": null,
       "fidelity": 0.8966093908768537,
       "abs_error": 0.6180332269114572,
-      "de_gap": 1.2304646008110363,
+      "de_gap": 1.230464600811245,
       "n_2q": 34,
       "total_gates": 237,
       "depth": 53,
@@ -1888,7 +1734,7 @@
       "source": "vl_h_sweep",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476569+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234580+00:00"
     },
     {
       "method": "HVA",
@@ -1907,7 +1753,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h1.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393104+00:00"
+      "updated_utc": "2026-10-15T14:27:36.239902+00:00"
     },
     {
       "method": "HVA",
@@ -1926,7 +1772,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h1.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393183+00:00"
+      "updated_utc": "2026-10-15T14:27:36.240055+00:00"
     },
     {
       "method": "HVA",
@@ -1945,7 +1791,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h1.80.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393263+00:00"
+      "updated_utc": "2026-10-15T14:27:36.240181+00:00"
     },
     {
       "method": "HVA",
@@ -1964,7 +1810,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N10_p2_h1.80.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393343+00:00"
+      "updated_utc": "2026-10-15T14:27:36.240388+00:00"
     },
     {
       "method": "HVA",
@@ -1983,7 +1829,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N12_p2_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393424+00:00"
+      "updated_utc": "2026-10-15T14:27:36.240589+00:00"
     },
     {
       "method": "HVA",
@@ -2002,7 +1848,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N12_p2_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393506+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241191+00:00"
     },
     {
       "method": "HVA",
@@ -2021,7 +1867,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N12_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393588+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241322+00:00"
     },
     {
       "method": "HVA",
@@ -2040,7 +1886,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N12_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393672+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241450+00:00"
     },
     {
       "method": "HVA",
@@ -2059,7 +1905,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N12_p2_h1.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393756+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241578+00:00"
     },
     {
       "method": "HVA",
@@ -2078,7 +1924,26 @@
       "source": "bond_ablation:bond_topk_regime_square_N12_p2_h1.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393841+00:00"
+      "updated_utc": "2026-10-15T14:27:36.241706+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 12,
+      "h": 3.0,
+      "variant": "prune0.3 (nnn=17)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9952409454054854,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 51,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:prune0.3_square_N12_h3.00.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.264766+00:00"
     },
     {
       "method": "HVA",
@@ -2097,7 +1962,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.927638+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234978+00:00"
     },
     {
       "method": "HVA",
@@ -2116,7 +1981,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.927769+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235073+00:00"
     },
     {
       "method": "HVA",
@@ -2135,7 +2000,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.927507+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234873+00:00"
     },
     {
       "method": "HVA",
@@ -2154,7 +2019,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.927373+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234779+00:00"
     },
     {
       "method": "HVA",
@@ -2173,7 +2038,27 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.30.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.927243+00:00"
+      "updated_utc": "2026-10-15T14:27:36.234686+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 14,
+      "h": 0.5,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.961938690626484,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 200,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N14_thin_h05.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.238519+00:00",
+      "previous_fidelity": 0.9453636617043571
     },
     {
       "method": "HVA",
@@ -2182,9 +2067,9 @@
       "variant": "p2_half_nn_rx_full",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9500878012698258,
-      "abs_error": null,
-      "de_gap": null,
+      "fidelity": 0.9500383189109085,
+      "abs_error": 0.06534597062664815,
+      "de_gap": 7.320427403569406,
       "n_2q": 228,
       "total_gates": null,
       "depth": null,
@@ -2192,46 +2077,26 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T04:37:28.124428+00:00",
-      "previous_fidelity": 0.949696277080427
+      "updated_utc": "2026-10-15T14:27:36.236768+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 14,
       "h": 0.5,
-      "variant": "p2_half_nn_rx_topk20of27 (nnn=20)",
+      "variant": "ADAPT(square)-pareto",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9491397049989403,
-      "abs_error": 0.06664447819034969,
-      "de_gap": 7.465893608450276,
-      "n_2q": 200,
+      "fidelity": 0.9396831145116857,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 160,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N14_improved_h05.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.853383+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 14,
-      "h": 0.5,
-      "variant": "p2_half_nn_rx_topk14of27 (nnn=14)",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9482253250862822,
-      "abs_error": 0.06955432843985854,
-      "de_gap": 7.79187158846095,
-      "n_2q": 176,
-      "total_gates": null,
-      "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-10-02T02:40:41.853455+00:00"
+      "updated_utc": "2026-10-15T14:27:36.237914+00:00"
     },
     {
       "method": "HVA",
@@ -2250,7 +2115,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.263342+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236549+00:00"
     },
     {
       "method": "HVA",
@@ -2269,7 +2134,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N14_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.393927+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235460+00:00"
     },
     {
       "method": "HVA",
@@ -2288,7 +2153,26 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.263811+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236986+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 14,
+      "h": 0.5,
+      "variant": "prune0.3 (nnn=20)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9127161274356126,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 60,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:prune0.3_square_N14_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.237672+00:00"
     },
     {
       "method": "HVA",
@@ -2307,7 +2191,7 @@
       "source": "bond_ablation:seed_ablation_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.928568+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235660+00:00"
     },
     {
       "method": "HVA",
@@ -2326,7 +2210,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.263480+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236656+00:00"
     },
     {
       "method": "HVA",
@@ -2335,17 +2219,17 @@
       "variant": "p2_half_nn_rx_prune0.15_nn11_nnn8 (nnn=8)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.8968256790150526,
-      "abs_error": 0.1333473580613589,
-      "de_gap": 14.938329705302912,
+      "fidelity": 0.8967117545380447,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 98,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_prune0.15_nn11_nnn8_square_N14_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-02T05:44:09.366634+00:00"
+      "updated_utc": "2026-10-15T14:27:36.237207+00:00"
     },
     {
       "method": "HVA",
@@ -2354,9 +2238,9 @@
       "variant": "p2_half_nn_rx_prune0.2_nn9_nnn7 (nnn=7)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.7510641385500839,
-      "abs_error": 0.23350798542415063,
-      "de_gap": 26.15889302823777,
+      "fidelity": 0.7505314335265434,
+      "abs_error": 0.2307587936151787,
+      "de_gap": 25.850912920808188,
       "n_2q": 82,
       "total_gates": null,
       "depth": null,
@@ -2364,7 +2248,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.929534+00:00"
+      "updated_utc": "2026-10-15T14:27:36.237096+00:00"
     },
     {
       "method": "HVA",
@@ -2383,7 +2267,7 @@
       "source": "bond_ablation:seed_ablation_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.928706+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235761+00:00"
     },
     {
       "method": "HVA",
@@ -2402,7 +2286,7 @@
       "source": "bond_ablation:seed_ablation_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.928842+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235862+00:00"
     },
     {
       "method": "HVA",
@@ -2412,16 +2296,16 @@
       "loader": null,
       "chi": null,
       "fidelity": 0.7079194004206223,
-      "abs_error": 0.28720985350816797,
-      "de_gap": 32.17488181797727,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 72,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_prune0.3_nn8_nnn6_square_N14_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.929674+00:00"
+      "updated_utc": "2026-10-15T14:27:36.237319+00:00"
     },
     {
       "method": "HVA",
@@ -2440,7 +2324,26 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.263701+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236877+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 14,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_topk4of27_nn12of20 (nnn=4)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.615892000768847,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 88,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk4of27_nn12of20_square_N14_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.237435+00:00"
     },
     {
       "method": "HVA",
@@ -2459,7 +2362,26 @@
       "source": "bond_ablation:seed_ablation_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.928979+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235965+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 14,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_topk5of27_nn12of20 (nnn=5)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.6148280699404383,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 92,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk5of27_nn12of20_square_N14_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.237557+00:00"
     },
     {
       "method": "HVA",
@@ -2478,7 +2400,7 @@
       "source": "bond_ablation:seed_ablation_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.929117+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236117+00:00"
     },
     {
       "method": "HVA",
@@ -2497,7 +2419,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.263227+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236443+00:00"
     },
     {
       "method": "HVA",
@@ -2516,7 +2438,7 @@
       "source": "bond_ablation:seed_ablation_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.929255+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236232+00:00"
     },
     {
       "method": "HVA",
@@ -2535,7 +2457,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.263118+00:00"
+      "updated_utc": "2026-10-15T14:27:36.236338+00:00"
     },
     {
       "method": "HVA",
@@ -2554,7 +2476,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N14_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.394015+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235560+00:00"
     },
     {
       "method": "HVA",
@@ -2573,7 +2495,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.928165+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235362+00:00"
     },
     {
       "method": "HVA",
@@ -2592,7 +2514,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.928033+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235265+00:00"
     },
     {
       "method": "HVA",
@@ -2611,7 +2533,7 @@
       "source": "bond_ablation:adapt_gate2_square_N14_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.927901+00:00"
+      "updated_utc": "2026-10-15T14:27:36.235169+00:00"
     },
     {
       "method": "HVA",
@@ -2630,7 +2552,27 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.269336+00:00"
+      "updated_utc": "2026-10-15T14:27:36.260537+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 14,
+      "h": 0.7,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9442745728050506,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 220,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N14_improved.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.262470+00:00",
+      "previous_fidelity": 0.9390443509500727
     },
     {
       "method": "HVA",
@@ -2649,7 +2591,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.269451+00:00"
+      "updated_utc": "2026-10-15T14:27:36.260927+00:00"
     },
     {
       "method": "HVA",
@@ -2668,7 +2610,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.269570+00:00"
+      "updated_utc": "2026-10-15T14:27:36.261153+00:00"
     },
     {
       "method": "HVA",
@@ -2687,7 +2629,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.268884+00:00"
+      "updated_utc": "2026-10-15T14:27:36.259020+00:00"
     },
     {
       "method": "HVA",
@@ -2706,7 +2648,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.268997+00:00"
+      "updated_utc": "2026-10-15T14:27:36.259340+00:00"
     },
     {
       "method": "HVA",
@@ -2725,7 +2667,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.269110+00:00"
+      "updated_utc": "2026-10-15T14:27:36.259743+00:00"
     },
     {
       "method": "HVA",
@@ -2744,7 +2686,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.269686+00:00"
+      "updated_utc": "2026-10-15T14:27:36.261539+00:00"
     },
     {
       "method": "HVA",
@@ -2763,7 +2705,64 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N14_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-07T13:57:31.269223+00:00"
+      "updated_utc": "2026-10-15T14:27:36.260173+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 14,
+      "h": 0.7,
+      "variant": "ADAPT(square)-pareto",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.4463039028977084,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 40,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N14_baseline.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.262259+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 16,
+      "h": 3.0,
+      "variant": "prune0.3 (nnn=24)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9941117366050853,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 72,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:prune0.3_square_N16_h3.00.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.264987+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.3,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9001227197263395,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 264,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N18.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.265738+00:00"
     },
     {
       "method": "HVA",
@@ -2782,7 +2781,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920689+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229974+00:00"
     },
     {
       "method": "HVA",
@@ -2801,7 +2800,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.921088+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230095+00:00"
     },
     {
       "method": "HVA",
@@ -2820,26 +2819,7 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920930+00:00"
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 18,
-      "h": 0.5,
-      "variant": "p2_half_nn_rx",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.9267941827203114,
-      "abs_error": 0.08459957157760911,
-      "de_gap": 14.354534505482153,
-      "n_2q": 318,
-      "total_gates": null,
-      "depth": null,
-      "converged": "0/1",
-      "source": "ansatz_variants:ansatz_variants_square_N18_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-30T12:36:41.421017+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230055+00:00"
     },
     {
       "method": "HVA",
@@ -2858,7 +2838,7 @@
       "source": "bond_ablation:variant_topk_p3_nn_dom2_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.921215+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230137+00:00"
     },
     {
       "method": "HVA",
@@ -2877,7 +2857,7 @@
       "source": "faircov:n18_square_N18_p3_faircov_mi3000.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T20:12:55.051530+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229476+00:00"
     },
     {
       "method": "HVA",
@@ -2896,27 +2876,83 @@
       "source": "ansatz_variants:ansatz_variants_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T13:38:44.580291+00:00",
-      "previous_fidelity": 0.8941477683588238
+      "updated_utc": "2026-10-15T14:27:36.229503+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 18,
       "h": 0.5,
-      "variant": "p2_half_nn",
+      "variant": "p2_half_nn_rx_topk29of39 (nnn=29)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9124083543116518,
-      "abs_error": 0.09194829789805326,
-      "de_gap": 15.60143852131856,
-      "n_2q": 318,
+      "fidelity": 0.9082994574946057,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 278,
       "total_gates": null,
       "depth": null,
-      "converged": "0/1",
-      "source": "ansatz_variants:ansatz_variants_square_N18_h0.50.json",
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk29of39_square_N18_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-30T12:36:41.420984+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230685+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.1_nn20_nnn19 (nnn=19)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9059213350555115,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 274,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.1_nn20_nnn19_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230951+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.05_nn24_nnn26 (nnn=26)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9010769677474126,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 348,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.05_nn24_nnn26_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230843+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_topk20of39 (nnn=20)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9001998784334603,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 242,
+      "total_gates": null,
+      "depth": null,
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk20of39_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230635+00:00"
     },
     {
       "method": "HVA",
@@ -2925,9 +2961,9 @@
       "variant": "p2_half_nn_rx_full",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9101691502309021,
-      "abs_error": 0.10557717846020509,
-      "de_gap": 17.913935294631155,
+      "fidelity": 0.8967655307031386,
+      "abs_error": 0.12215298414210096,
+      "de_gap": 20.726455147644888,
       "n_2q": 318,
       "total_gates": null,
       "depth": null,
@@ -2935,7 +2971,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.390617+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229757+00:00"
     },
     {
       "method": "HVA",
@@ -2954,7 +2990,26 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920810+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230013+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_topk13of39 (nnn=13)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8865938725309835,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 214,
+      "total_gates": null,
+      "depth": null,
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk13of39_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230535+00:00"
     },
     {
       "method": "HVA",
@@ -2973,7 +3028,26 @@
       "source": "bond_ablation:variant_topk_p3_nn_dom2_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.921350+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230179+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_topk20of39_nn21of27 (nnn=20)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8550854580331506,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 206,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk20of39_nn21of27_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230584+00:00"
     },
     {
       "method": "HVA",
@@ -2983,16 +3057,35 @@
       "loader": null,
       "chi": null,
       "fidelity": 0.8482674169664425,
-      "abs_error": 0.19171155943806184,
-      "de_gap": 32.52889043889202,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 148,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.50.json",
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk13of39_nn16of27_square_N18_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920180+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230437+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.15_nn14_nnn15 (nnn=15)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8435410598668415,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 202,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.15_nn14_nnn15_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230897+00:00"
     },
     {
       "method": "HVA",
@@ -3011,7 +3104,7 @@
       "source": "bond_ablation:variant_topk_p3_nn_dom_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.921606+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230270+00:00"
     },
     {
       "method": "HVA",
@@ -3030,7 +3123,7 @@
       "source": "bond_ablation:variant_topk_p3_nn_dom_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.921481+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230224+00:00"
     },
     {
       "method": "HVA",
@@ -3049,7 +3142,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.590772+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229825+00:00"
     },
     {
       "method": "HVA",
@@ -3059,16 +3152,16 @@
       "loader": null,
       "chi": null,
       "fidelity": 0.8201641820943193,
-      "abs_error": 0.21934378813806532,
-      "de_gap": 37.217422223827086,
+      "abs_error": null,
+      "de_gap": null,
       "n_2q": 128,
       "total_gates": null,
       "depth": null,
-      "converged": "masked",
-      "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.50.json",
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk8of39_nn16of27_square_N18_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920329+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230736+00:00"
     },
     {
       "method": "HVA",
@@ -3087,7 +3180,45 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.590645+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229791+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk8of39_nn16of27 (nnn=8)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.7841143701396424,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 176,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk8of39_nn16of27_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.231182+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.2_nn13_nnn12 (nnn=12)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.7820124524466987,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 176,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.2_nn13_nnn12_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.231010+00:00"
     },
     {
       "method": "HVA",
@@ -3106,7 +3237,7 @@
       "source": "bond_ablation:variant_topk_p2_nn_dom_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920452+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229899+00:00"
     },
     {
       "method": "HVA",
@@ -3125,7 +3256,45 @@
       "source": "bond_ablation:variant_topk_p2_nn_dom_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.920569+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229936+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_prune0.05_nn23_nnn16 (nnn=16)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.7682134379996272,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 202,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_prune0.05_nn23_nnn16_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230387+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.3_nn12_nnn12 (nnn=12)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.6987373808216513,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 168,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.3_nn12_nnn12_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.231067+00:00"
     },
     {
       "method": "HVA",
@@ -3144,7 +3313,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.590892+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229863+00:00"
     },
     {
       "method": "HVA",
@@ -3163,7 +3332,7 @@
       "source": "bond_ablation:bond_topk_regime_square_N18_p2_h0.50.COLLAPSE_0p654_coldseed.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.390455+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229563+00:00"
     },
     {
       "method": "HVA",
@@ -3182,27 +3351,8 @@
       "source": "bond_ablation:bond_topk_regime_square_N18_p2_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-01T21:31:28.390535+00:00",
+      "updated_utc": "2026-10-15T14:27:36.229592+00:00",
       "previous_fidelity": 0.6539960408179312
-    },
-    {
-      "method": "HVA",
-      "n_qubits": 18,
-      "h": 0.5,
-      "variant": "p2_base",
-      "loader": null,
-      "chi": null,
-      "fidelity": 0.6552000158247347,
-      "abs_error": 0.3402506050998291,
-      "de_gap": 57.732432450193436,
-      "n_2q": 264,
-      "total_gates": null,
-      "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N18_h0.50.json",
-      "theta_ref": null,
-      "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476276+00:00"
     },
     {
       "method": "HVA",
@@ -3211,7 +3361,7 @@
       "variant": "p2_base_full",
       "loader": null,
       "chi": null,
-      "fidelity": 0.6389427335272579,
+      "fidelity": 0.6389427335272451,
       "abs_error": 0.3676153717062469,
       "de_gap": 62.375582282252815,
       "n_2q": 264,
@@ -3221,7 +3371,26 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.919601+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229626+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk5of39_nn16of27 (nnn=5)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.563490079249003,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 158,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk5of39_nn16of27_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.231125+00:00"
     },
     {
       "method": "HVA",
@@ -3230,7 +3399,7 @@
       "variant": "p2_base_prune0.05_nn18_nnn15 (nnn=15)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.5435438585912817,
+      "fidelity": 0.5435438585912752,
       "abs_error": 0.3857171131344792,
       "de_gap": 65.44701712641654,
       "n_2q": 132,
@@ -3240,7 +3409,26 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.919768+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229656+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 0.5,
+      "variant": "p2_half_nn_rx_topk8of39_nn21of27 (nnn=8)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.4020909544804445,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 158,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk8of39_nn21of27_square_N18_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.230790+00:00"
     },
     {
       "method": "HVA",
@@ -3259,26 +3447,26 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.590406+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229724+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 18,
       "h": 0.5,
-      "variant": "p1_half_nn",
+      "variant": "p2_half_nn_rx_topk13of39_nn21of27 (nnn=13)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.28505857661100376,
-      "abs_error": 0.9490803529098315,
-      "de_gap": 161.03635538898303,
-      "n_2q": 186,
+      "fidelity": 0.32293418652509914,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 178,
       "total_gates": null,
       "depth": null,
-      "converged": "4/4",
-      "source": "ansatz_variants:ansatz_variants_square_N18_h0.50.json",
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p2_half_nn_rx_topk13of39_nn21of27_square_N18_h0.50.spec.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476228+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230485+00:00"
     },
     {
       "method": "HVA",
@@ -3287,7 +3475,7 @@
       "variant": "p2_base_prune0.1_nn14_nnn10 (nnn=10)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.12578368177637506,
+      "fidelity": 0.12578368177638033,
       "abs_error": 0.6086810034960948,
       "de_gap": 103.27868456913522,
       "n_2q": 96,
@@ -3297,7 +3485,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-06T04:08:26.919893+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229692+00:00"
     },
     {
       "method": "VL",
@@ -3308,7 +3496,7 @@
       "chi": 64,
       "fidelity": 0.8625297735770214,
       "abs_error": 0.5382374714671414,
-      "de_gap": 91.32609317336161,
+      "de_gap": 91.32609317363686,
       "n_2q": 264,
       "total_gates": 1768,
       "depth": 181,
@@ -3316,7 +3504,7 @@
       "source": "vl_mps_n18",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476383+00:00"
+      "updated_utc": "2026-10-15T14:27:36.230339+00:00"
     },
     {
       "method": "HVA",
@@ -3335,7 +3523,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.612649+00:00"
+      "updated_utc": "2026-10-15T14:27:36.263880+00:00"
     },
     {
       "method": "HVA",
@@ -3354,7 +3542,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.612821+00:00"
+      "updated_utc": "2026-10-15T14:27:36.264100+00:00"
     },
     {
       "method": "HVA",
@@ -3373,7 +3561,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.613074+00:00"
+      "updated_utc": "2026-10-15T14:27:36.264332+00:00"
     },
     {
       "method": "HVA",
@@ -3392,7 +3580,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.612054+00:00"
+      "updated_utc": "2026-10-15T14:27:36.263118+00:00"
     },
     {
       "method": "HVA",
@@ -3411,7 +3599,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.611893+00:00"
+      "updated_utc": "2026-10-15T14:27:36.262908+00:00"
     },
     {
       "method": "HVA",
@@ -3430,7 +3618,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.612189+00:00"
+      "updated_utc": "2026-10-15T14:27:36.263327+00:00"
     },
     {
       "method": "HVA",
@@ -3449,7 +3637,7 @@
       "source": "bond_ablation:variant_topk_p2_base_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.612325+00:00"
+      "updated_utc": "2026-10-15T14:27:36.263622+00:00"
     },
     {
       "method": "HVA",
@@ -3468,7 +3656,7 @@
       "source": "bond_ablation:variant_topk_p2_half_nn_rx_square_N18_h0.70.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.613349+00:00"
+      "updated_utc": "2026-10-15T14:27:36.264549+00:00"
     },
     {
       "method": "HVA",
@@ -3487,7 +3675,7 @@
       "source": "faircov:n18_square_N18_p2_faircov_mi3000.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T20:12:55.051462+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229411+00:00"
     },
     {
       "method": "VL",
@@ -3498,7 +3686,7 @@
       "chi": 64,
       "fidelity": 0.7924082375867896,
       "abs_error": 1.3938827655231592,
-      "de_gap": null,
+      "de_gap": 2.823581176584342,
       "n_2q": 264,
       "total_gates": 1767,
       "depth": 181,
@@ -3506,7 +3694,26 @@
       "source": "vl_mps_n18",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-09-29T19:49:25.476661+00:00"
+      "updated_utc": "2026-10-15T14:27:36.229449+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 18,
+      "h": 3.0,
+      "variant": "prune0.3 (nnn=31)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9912476163724342,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 83,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:prune0.3_square_N18_h3.00.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.265244+00:00"
     },
     {
       "method": "HVA",
@@ -3515,23 +3722,175 @@
       "variant": "p3_half_nn_rx_full",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9918755283657538,
-      "abs_error": 0.026333321522006514,
-      "de_gap": 373.9534575331817,
+      "fidelity": 0.9939030817376505,
+      "abs_error": 0.020227081861836638,
+      "de_gap": 287.24014905845434,
       "n_2q": 524,
       "total_gates": null,
       "depth": null,
       "converged": "masked",
-      "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N20_h0.50.json",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.608527+00:00"
+      "updated_utc": "2026-10-15T14:27:36.245969+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 20,
       "h": 0.5,
-      "variant": "?",
+      "variant": "p3_nn_dom2_rx_full",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9883797605080453,
+      "abs_error": 0.03882917971531441,
+      "de_gap": 551.4042738497444,
+      "n_2q": 432,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_nn_dom2_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T18:29:39.898110+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk14of46_fg (nnn=14)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9856495207623874,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 332,
+      "total_gates": null,
+      "depth": null,
+      "converged": "transfer<full>+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk14of46_fg_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.251428+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_nn_dom2_rx_topk14of46_fg (nnn=14)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9843899172813132,
+      "abs_error": 0.04662257916402268,
+      "de_gap": 662.076551640385,
+      "n_2q": 304,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_nn_dom2_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T18:29:39.898376+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk10of46_fg (nnn=10)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9837247319517104,
+      "abs_error": 0.049045903614565844,
+      "de_gap": 696.489625205644,
+      "n_2q": 308,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.246979+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk9of46_fg (nnn=9)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9815093326751031,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 302,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk9of46_fg_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.251607+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk12of46_fg (nnn=12)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9800366210168899,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 320,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk12of46_fg_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.251173+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk7of46_fg (nnn=7)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9800299434631532,
+      "abs_error": 0.056619113972132595,
+      "de_gap": 804.0350480608705,
+      "n_2q": 290,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.246822+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk14of46_th (nnn=14)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9800193623418209,
+      "abs_error": 0.05860230572644198,
+      "de_gap": 832.1979001071393,
+      "n_2q": 332,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_th_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.247617+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "diag_axial50 (nnn=35)",
       "loader": null,
       "chi": null,
       "fidelity": 0.9789742578344327,
@@ -3544,27 +3903,484 @@
       "source": "bond_ablation:n20_geometric_square_N20_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.607525+00:00",
-      "previous_fidelity": 0.9647009365305864
+      "updated_utc": "2026-10-15T14:27:36.244817+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 20,
       "h": 0.5,
-      "variant": "p3_half_nn_rx_prune0.15_nn18_nnn12",
+      "variant": "p3_half_nn_rx_topk12of46_th (nnn=12)",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9547907311268197,
+      "fidelity": 0.9764883928909638,
+      "abs_error": 0.058055073147532,
+      "de_gap": 824.4267757905474,
+      "n_2q": 320,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_th_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.247953+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk11of46_fg (nnn=11)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9759209463491922,
+      "abs_error": 0.05705624096663442,
+      "de_gap": 810.2425882248858,
+      "n_2q": 314,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.247136+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "diag_axial50_top20 (nnn=20)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9748775631344984,
       "abs_error": null,
       "de_gap": null,
+      "n_2q": 266,
+      "total_gates": null,
+      "depth": null,
+      "converged": "spec",
+      "source": "ansatz_specs:diag_axial50_top20_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.248633+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk9of46_th (nnn=9)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9742391774853775,
+      "abs_error": 0.059397270422898885,
+      "de_gap": 843.4870113946536,
+      "n_2q": 302,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_th_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.248121+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk5of46_fg (nnn=5)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9688881659397581,
+      "abs_error": 0.07047708958065257,
+      "de_gap": 1000.8289804051115,
+      "n_2q": 278,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.246495+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk6of46_fg (nnn=6)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9663897438145771,
+      "abs_error": 0.07604458067004316,
+      "de_gap": 1079.8916440815494,
+      "n_2q": 284,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.246666+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "full (nnn=46)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9647009365306004,
+      "abs_error": null,
+      "de_gap": 0.2266352020428401,
+      "n_2q": 370,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_geometric_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.244479+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "nnn2_half",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9647009365305864,
+      "abs_error": 0.0923409824575856,
+      "de_gap": 0.22663520204242937,
+      "n_2q": 370,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_extended_ansatze_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.244316+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.25_th_nn13_nnn12 (nnn=12)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9490687911187807,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 176,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.25_th_nn13_nnn12_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.249383+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "diag_axial50_top8 (nnn=8)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9458766620765205,
+      "abs_error": null,
+      "de_gap": 0.2732769635376275,
+      "n_2q": 218,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_hybrid_prune_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.244978+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "diag_axial50_top10 (nnn=10)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9444277654024986,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 226,
+      "total_gates": null,
+      "depth": null,
+      "converged": "spec",
+      "source": "ansatz_specs:diag_axial50_top10_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.248283+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "diag_axial50_top12 (nnn=12)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9437798484063574,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 234,
+      "total_gates": null,
+      "depth": null,
+      "converged": "spec",
+      "source": "ansatz_specs:diag_axial50_top12_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.248445+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.2_th_nn13_nnn13 (nnn=13)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9423851304431875,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 182,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.2_th_nn13_nnn13_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.249785+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.1_nn27_nnn14 (nnn=14)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9377206262224864,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 300,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.1_nn27_nnn14_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.249034+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.3_th_nn11_nnn10 (nnn=10)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8988306254144872,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 148,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.3_th_nn11_nnn10_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.250368+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_prune0.2_nn20_nnn2 (nnn=2)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8917407434825231,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 172,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_prune0.2_nn20_nnn2_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.249612+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "nnn2",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.4824820972809242,
+      "abs_error": 1.2670801696923384,
+      "de_gap": 3.1098323043517597,
+      "n_2q": 308,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_extended_ansatze_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.244170+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "diag_only (nnn=24)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.481257564156593,
+      "abs_error": null,
+      "de_gap": 3.1092085423359697,
+      "n_2q": 282,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_geometric_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.244642+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.4538376161293957,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 222,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N20_short_n20_h05.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.252136+00:00",
+      "previous_fidelity": 0.4515001903966205
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "ADAPT(square)-pareto",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.45150365349088695,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 198,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N20_short_n20_h05.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.252311+00:00",
+      "previous_fidelity": 0.4515001903966205
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "nnn1_half",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.2470444820289361,
+      "abs_error": 1.9800408225374184,
+      "de_gap": 4.859672703546247,
       "n_2q": 216,
       "total_gates": null,
       "depth": null,
       "converged": "masked",
-      "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N20_h0.50.json",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h0.50.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.608652+00:00"
+      "updated_utc": "2026-10-15T14:27:36.245673+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "p3_half_nn_rx_topk12of46_fg_nn20of31 (nnn=12)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.19949040588595468,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 232,
+      "total_gates": null,
+      "depth": null,
+      "converged": "analytic+descent",
+      "source": "ansatz_specs:p3_half_nn_rx_topk12of46_fg_nn20of31_square_N20_h0.50.spec.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.250778+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "nn2",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.09892157817473571,
+      "abs_error": 3.1418125793122194,
+      "de_gap": 7.7110434580715745,
+      "n_2q": 124,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.245364+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "nnn1",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.06584883549604119,
+      "abs_error": 3.530071486795322,
+      "de_gap": 8.663958768265218,
+      "n_2q": 154,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.245520+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 0.5,
+      "variant": "nn1",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.022229384431577744,
+      "abs_error": 3.905113308752604,
+      "de_gap": 9.5844349948707,
+      "n_2q": 62,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h0.50.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.245127+00:00"
     },
     {
       "method": "HVA",
@@ -3573,23 +4389,137 @@
       "variant": "p3_half_nn_rx_full",
       "loader": null,
       "chi": null,
-      "fidelity": 0.9652040582492418,
-      "abs_error": 0.13164409714373093,
-      "de_gap": 0.5792625109271842,
+      "fidelity": 0.9652040582492484,
+      "abs_error": 0.13164409714353908,
+      "de_gap": 0.5792625109263763,
       "n_2q": 524,
       "total_gates": null,
       "depth": null,
       "converged": "masked",
-      "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N20_h1.00.json",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.609904+00:00"
+      "updated_utc": "2026-10-15T14:27:36.254092+00:00"
     },
     {
       "method": "HVA",
       "n_qubits": 20,
       "h": 1.0,
-      "variant": "?",
+      "variant": "p3_half_nn_rx_topk14of46_th (nnn=14)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.94720740437822,
+      "abs_error": 0.25734314587517915,
+      "de_gap": 1.1323655225256115,
+      "n_2q": 332,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_th_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.255688+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "p3_half_nn_rx_topk14of46_fg (nnn=14)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.9188184427190078,
+      "abs_error": 0.3623333702470184,
+      "de_gap": 1.5943452262265385,
+      "n_2q": 332,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.254272+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "p3_half_nn_rx_topk9of46_th (nnn=9)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8984482863670609,
+      "abs_error": 0.39592155071439805,
+      "de_gap": 1.7421404876713336,
+      "n_2q": 302,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_th_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.256306+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "ADAPT(square)-maxfid",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8831029491329397,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 264,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N20_free_n20_h1.0.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.257108+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "p3_half_nn_rx_topk9of46_fg (nnn=9)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8811720744438342,
+      "abs_error": 0.38551619823571315,
+      "de_gap": 1.6963546853856777,
+      "n_2q": 302,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:variant_topk_p3_half_nn_rx_fg_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.254465+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "full (nnn=46)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.8657613581949867,
+      "abs_error": null,
+      "de_gap": 1.6186895543937845,
+      "n_2q": 370,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_geometric_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.252844+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "nnn2_half",
       "loader": null,
       "chi": null,
       "fidelity": 0.8657613581949613,
@@ -3602,8 +4532,26 @@
       "source": "bond_ablation:n20_extended_ansatze_square_N20_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.608898+00:00",
-      "previous_fidelity": 0.7836564367048855
+      "updated_utc": "2026-10-15T14:27:36.252670+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "diag_axial50 (nnn=35)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.817007060774608,
+      "abs_error": null,
+      "de_gap": 1.9789369289275496,
+      "n_2q": 326,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_geometric_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.253198+00:00"
     },
     {
       "method": "HVA",
@@ -3622,7 +4570,26 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N20_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.610029+00:00"
+      "updated_utc": "2026-10-15T14:27:36.254835+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "nnn2",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.7836564367048855,
+      "abs_error": 0.5432524782188644,
+      "de_gap": 2.3904284463045586,
+      "n_2q": 308,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_extended_ansatze_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.252498+00:00"
     },
     {
       "method": "HVA",
@@ -3641,7 +4608,122 @@
       "source": "bond_ablation:variant_topk_p3_half_nn_rx_square_N20_h1.00.json",
       "theta_ref": null,
       "qpy_ref": null,
-      "updated_utc": "2026-10-13T03:42:15.610180+00:00"
+      "updated_utc": "2026-10-15T14:27:36.255021+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "diag_only (nnn=24)",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.7263791460255663,
+      "abs_error": null,
+      "de_gap": 2.7775461903946645,
+      "n_2q": 282,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_geometric_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.253023+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "nnn1_half",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.7137221934595435,
+      "abs_error": 0.7711415217458715,
+      "de_gap": 3.3931895455894323,
+      "n_2q": 216,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.253912+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "nnn1",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.6154776872523832,
+      "abs_error": 1.1140557437850518,
+      "de_gap": 4.902086318030035,
+      "n_2q": 154,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.253734+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "ADAPT(square)-pareto",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.6105272596402515,
+      "abs_error": null,
+      "de_gap": null,
+      "n_2q": 124,
+      "total_gates": null,
+      "depth": null,
+      "converged": "adapt",
+      "source": "adapt_poolA:adapt_poolA_square_N20_short_n20_h10.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.258585+00:00",
+      "previous_fidelity": 0.5307809165689906
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "nn2",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.5999253929700398,
+      "abs_error": 1.0842369590743033,
+      "de_gap": 4.7708772134889905,
+      "n_2q": 124,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.253556+00:00"
+    },
+    {
+      "method": "HVA",
+      "n_qubits": 20,
+      "h": 1.0,
+      "variant": "nn1",
+      "loader": null,
+      "chi": null,
+      "fidelity": 0.5307809165689692,
+      "abs_error": 1.3846680922222667,
+      "de_gap": 6.092839202851566,
+      "n_2q": 62,
+      "total_gates": null,
+      "depth": null,
+      "converged": "masked",
+      "source": "bond_ablation:n20_small_ansatze_square_N20_h1.00.json",
+      "theta_ref": null,
+      "qpy_ref": null,
+      "updated_utc": "2026-10-15T14:27:36.253376+00:00"
     }
   ]
 }

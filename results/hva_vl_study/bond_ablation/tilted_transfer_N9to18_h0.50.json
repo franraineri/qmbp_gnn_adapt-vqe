@@ -1,0 +1,102 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/tilted_transfer_N9to18_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_tilted_transfer.py",
+  "generated_utc": "2026-10-20T03:57:18.875174+00:00",
+  "params": {
+    "experiment": "tilted_transfer",
+    "src_n": 9,
+    "dst_n": 18,
+    "h": 0.5
+  },
+  "description": "Tilted cross-N transfer: N=9 tied \u03b8 seeds N=18",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 18,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square_tilted",
+    "h": 0.5
+  },
+  "completed": 2,
+  "rows": [
+    {
+      "arm": "transfer_fidelity",
+      "objective": "fidelity",
+      "p_layers": 3,
+      "src_n": 9,
+      "dst_n": 18,
+      "h": 0.5,
+      "topology": "square_tilted",
+      "e0": -19.180676449312084,
+      "delta_e": null,
+      "manifold_dim": 1,
+      "src_fidelity": 0.9825683354715901,
+      "transfer_init_fidelity": 0.1896439547470356,
+      "report_fidelity": 0.4040755504861972,
+      "n_2q_transpiled": 432,
+      "n_params": 10,
+      "fidelity_per_cx": 0.0009353600705699009,
+      "theta_best": [
+        -0.10081513094133056,
+        -0.17086494979111627,
+        0.8507052768864556,
+        -0.16848236206254105,
+        -0.07843599594115443,
+        1.0761256910127877,
+        -0.31545264683027735,
+        0.12665198352589,
+        1.276603062529486,
+        1.559903439245115
+      ]
+    },
+    {
+      "arm": "transfer_fidelity",
+      "objective": "fidelity",
+      "p_layers": 4,
+      "src_n": 9,
+      "dst_n": 18,
+      "h": 0.5,
+      "topology": "square_tilted",
+      "e0": -19.180676449312084,
+      "delta_e": null,
+      "manifold_dim": 1,
+      "src_fidelity": 0.996026502462516,
+      "transfer_init_fidelity": 0.2321816773333576,
+      "report_fidelity": 0.5796175456026977,
+      "n_2q_transpiled": 576,
+      "n_params": 13,
+      "fidelity_per_cx": 0.0010062804611157947,
+      "theta_best": [
+        -0.15170266080099723,
+        -0.1211054197980778,
+        0.8188551028977405,
+        -0.2553750525838399,
+        0.014149576145396987,
+        1.1387142037559652,
+        -0.3136476734582964,
+        0.15213604847148918,
+        1.1888750235667562,
+        -0.3600007753049224,
+        0.1580044839436082,
+        1.4243165550595431,
+        1.4664141328120741
+      ]
+    }
+  ],
+  "best_theta": null,
+  "topology": "square_tilted",
+  "tilt": [
+    3,
+    3
+  ],
+  "src_n": 9,
+  "dst_n": 18,
+  "h": 0.5,
+  "J2": 0.5,
+  "schema": "tilted_transfer_v1",
+  "manifold_dim": 1,
+  "group_order": 144,
+  "phys_gap": 0.006776192316266361,
+  "e0": -19.180676449312084,
+  "status": "final"
+}

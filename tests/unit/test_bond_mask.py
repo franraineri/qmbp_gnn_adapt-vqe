@@ -166,6 +166,121 @@ class TestMaskedBuilderEquivalence:
             b.create_bond_resolved_masked(10, lat, blocks=["nn", "x"], bond_selection=bad)
 
 
+class TestSymmetryTiedBuilder:
+    """create_bond_resolved_symmetry_tied — same physical circuit, fewer params.
+
+    Uses N=20 square (4×5), the completed lattice whose point group is the full
+    D2 (order 4) — the only N where the reflections are real symmetries of the
+    frustrated Hamiltonian (verified in the symmetry study).
+    """
+
+    @pytest.fixture
+    def n20(self):
+        from qmbp_simulation.models import make_lattice
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat = make_lattice("square", 20, J=1.0, h=0.5)
+        nn = [(int(i), int(j)) for i, j in lat.edges]
+        nnn = [(int(i), int(j)) for i, j in HamiltonianBuilder._generate_nnn_edges(lat)]
+        return lat, nn, nnn
+
+    def _n2q(self, qc):
+        return sum(1 for inst in qc.data if inst.operation.num_qubits == 2)
+
+    def test_same_circuit_fewer_params(self, n20):
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+
+        lat, nn, nnn = n20
+        b = HVACircuitBuilder()
+        sel = full_selection(nn, nnn)
+        g = detect_symmetry_group(nn, nnn, 20)
+        blocks = ["nn", "nnn", "x"]
+        qc_m, th_m = b.create_bond_resolved_masked(20, lat, blocks=blocks, bond_selection=sel)
+        qc_t, th_t = b.create_bond_resolved_symmetry_tied(20, lat, blocks=blocks, bond_selection=sel, symmetry_group=g)
+        # identical physical circuit (2q count) but strictly fewer parameters
+        assert self._n2q(qc_t) == self._n2q(qc_m)
+        assert len(th_t) < len(th_m)
+        # 10 nn-orbits + 13 nnn-orbits + 6 site-orbits = 29
+        assert len(th_t) == 29
+
+    def test_trivial_group_equals_masked(self, n20):
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.symmetry import LatticeSymmetryGroup
+
+        lat, nn, nnn = n20
+        b = HVACircuitBuilder()
+        sel = full_selection(nn, nnn)
+        g0 = LatticeSymmetryGroup(n_qubits=20, perms=[], names=[])
+        blocks = ["nn", "nnn", "x"]
+        qc_m, th_m = b.create_bond_resolved_masked(20, lat, blocks=blocks, bond_selection=sel)
+        qc_0, th_0 = b.create_bond_resolved_symmetry_tied(20, lat, blocks=blocks, bond_selection=sel, symmetry_group=g0)
+        # a trivial group ties nothing → one param per bond, same as masked
+        assert len(th_0) == len(th_m)
+        assert self._n2q(qc_0) == self._n2q(qc_m)
+
+    def test_tied_circuit_is_evaluable(self, n20):
+        from qiskit.quantum_info import Statevector
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+
+        lat, nn, nnn = n20
+        b = HVACircuitBuilder()
+        sel = full_selection(nn, nnn)
+        g = detect_symmetry_group(nn, nnn, 20)
+        qc_t, th_t = b.create_bond_resolved_symmetry_tied(
+            20, lat, blocks=["nn", "nnn", "x"], bond_selection=sel, symmetry_group=g
+        )
+        bound = qc_t.assign_parameters(np.full(qc_t.num_parameters, 0.1))
+        sv = Statevector(bound)
+        np.testing.assert_allclose(float(np.linalg.norm(sv.data)), 1.0, atol=1e-10)
+
+    def test_rx_final_adds_site_orbit_params(self, n20):
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+
+        lat, nn, nnn = n20
+        b = HVACircuitBuilder()
+        sel = full_selection(nn, nnn)
+        g = detect_symmetry_group(nn, nnn, 20)
+        base, th_b = b.create_bond_resolved_symmetry_tied(
+            20, lat, blocks=["nn", "nnn", "x"], bond_selection=sel, symmetry_group=g
+        )
+        rx, th_rx = b.create_bond_resolved_symmetry_tied(
+            20, lat, blocks=["nn", "nnn", "x"], bond_selection=sel, symmetry_group=g, rx_final=True
+        )
+        # rx_final adds exactly #site-orbits params (6 at N=20), zero extra 2q
+        assert len(th_rx) == len(th_b) + 6
+        assert self._n2q(rx) == self._n2q(base)
+
+    def test_orbit_complete_tied_adjoint_grad_length(self, n20):
+        """Tied circuit built on an orbit-complete selection has a well-formed
+        adjoint gradient (len == params). Pins the param-index contract between
+        the tied builder and the backend's adjoint gradient — a regression guard
+        for the off-by-one that surfaced on some orbit-complete selections."""
+        import numpy as np
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.bond_mask import select_orbit_complete
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.framework.study_core import ground_state, make_cost_fid
+
+        lat_full, nn, nnn = n20
+        g = detect_symmetry_group(nn, nnn, 20)
+        lat, _q, H, psi, _e0, _gap, _nnn_cnt, _m = ground_state("square", 20, 0.5, 0.5, 1)
+        w_nn = np.arange(1, len(nn) + 1, dtype=float)
+        w_nnn = np.arange(1, len(nnn) + 1, dtype=float)
+        sel = select_orbit_complete(nn, nnn, w_nn, w_nnn, g, keep_nnn_orbits=4, keep_nn_orbits=6)
+        qc, _ = HVACircuitBuilder().create_bond_resolved_symmetry_tied(
+            20, lat, blocks=["nn", "nnn", "x"], bond_selection=sel, symmetry_group=g, rx_final=True
+        )
+        _c, _f, grad, _ = make_cost_fid(qc, H, psi, backend=NoiselessBackend())
+        g_vec = grad(np.full(qc.num_parameters, 0.1))
+        assert len(g_vec) == qc.num_parameters
+
+
 class TestVariantRouting:
     """AnsatzVariant.bond_selection routes build_variant to the masked engine."""
 
@@ -196,6 +311,101 @@ class TestVariantRouting:
         # fewer params than full nnn (subset of nnn bonds)
         n_full = len(lat.edges) + len(nnn) + 10
         assert qc.num_parameters < n_full
+
+    def test_symmetry_group_routes_to_tied_engine(self):
+        """A variant carrying a non-trivial symmetry_group builds the tied circuit
+        (same 2q, fewer params) — build_variant's third route."""
+        from dataclasses import replace
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.hva_variants import build_variant, make_masked_variant
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+        from qmbp_simulation.models import make_lattice
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat = make_lattice("square", 20, J=1.0, h=0.5)
+        nn = [(int(i), int(j)) for i, j in lat.edges]
+        nnn = [(int(i), int(j)) for i, j in HamiltonianBuilder._generate_nnn_edges(lat)]
+        g = detect_symmetry_group(nn, nnn, 20)
+        v = make_masked_variant("m20", "x", ["nn", "nnn", "x"], full_selection(nn, nnn))
+        qc_mask, _ = build_variant(HVACircuitBuilder(), 20, lat, v)
+        qc_tied, _ = build_variant(HVACircuitBuilder(), 20, lat, replace(v, symmetry_group=g))
+
+        def n2q(qc):
+            return sum(1 for inst in qc.data if inst.operation.num_qubits == 2)
+
+        assert n2q(qc_tied) == n2q(qc_mask)  # identical physical circuit
+        assert qc_tied.num_parameters < qc_mask.num_parameters
+        assert qc_tied.num_parameters == 29  # 10 nn + 13 nnn + 6 site orbits
+
+    def test_symmetry_group_without_selection_uses_full_lattice(self):
+        """A tied variant with no explicit bond_selection falls back to the full
+        lattice edge set (the tied engine needs a concrete selection)."""
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.hva_variants import AnsatzVariant, build_variant
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+        from qmbp_simulation.models import make_lattice
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat = make_lattice("square", 20, J=1.0, h=0.5)
+        nn = [(int(i), int(j)) for i, j in lat.edges]
+        nnn = [(int(i), int(j)) for i, j in HamiltonianBuilder._generate_nnn_edges(lat)]
+        g = detect_symmetry_group(nn, nnn, 20)
+        v = AnsatzVariant("ft", "tied full", ["nn", "nnn", "x"], symmetry_group=g)
+        qc, _ = build_variant(HVACircuitBuilder(), 20, lat, v)
+        assert v.bond_selection is None
+        assert qc.num_parameters == 29  # full lattice tied → 29 orbit params
+
+
+class TestSelectOrbitComplete:
+    """select_orbit_complete keeps WHOLE symmetry orbits — never splits one, so
+    the retained bonds preserve the lattice point-group invariance of the GS."""
+
+    @staticmethod
+    def _n20():
+        from qmbp_simulation.circuits.symmetry import detect_symmetry_group
+        from qmbp_simulation.models import make_lattice
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat = make_lattice("square", 20, J=1.0, h=0.5)
+        nn = [(int(i), int(j)) for i, j in lat.edges]
+        nnn = [(int(i), int(j)) for i, j in HamiltonianBuilder._generate_nnn_edges(lat)]
+        return detect_symmetry_group(nn, nnn, 20), nn, nnn
+
+    def test_kept_bonds_are_whole_orbits(self):
+        from qmbp_simulation.circuits.bond_mask import select_orbit_complete
+        from qmbp_simulation.circuits.symmetry import bond_orbits
+
+        g, nn, nnn = self._n20()
+        # arbitrary (deterministic) per-bond weights
+        w_nn = np.arange(len(nn), dtype=float)
+        w_nnn = np.arange(len(nnn), dtype=float)[::-1].copy()
+        sel = select_orbit_complete(nn, nnn, w_nn, w_nnn, g, keep_nnn_orbits=5)
+        # every kept nnn bond's whole orbit must be kept (no partial orbit)
+        kept = {tuple(e) for e in sel.nnn_edges}
+        for orb in bond_orbits(nnn, g):
+            orb_set = {tuple(e) for e in orb}
+            inter = orb_set & kept
+            assert inter == orb_set or inter == set(), f"orbit {orb} partially kept"
+        # nn backbone kept whole by default (keep_nn_orbits=None)
+        assert len(sel.nn_edges) == len(nn)
+        # kept exactly 5 whole nnn orbits → bond count is a sum of 5 orbit sizes
+        n_orbits_kept = sum(1 for orb in bond_orbits(nnn, g) if {tuple(e) for e in orb} <= kept)
+        assert n_orbits_kept == 5
+        assert 0 < len(sel.nnn_edges) < len(nnn)
+
+    def test_keep_none_keeps_all_and_zero_empties(self):
+        from qmbp_simulation.circuits.bond_mask import select_orbit_complete
+
+        g, nn, nnn = self._n20()
+        w_nn = np.ones(len(nn))
+        w_nnn = np.ones(len(nnn))
+        full = select_orbit_complete(nn, nnn, w_nn, w_nnn, g, keep_nnn_orbits=None)
+        assert len(full.nnn_edges) == len(nnn)  # None → keep all nnn
+        empty = select_orbit_complete(nn, nnn, w_nn, w_nnn, g, keep_nnn_orbits=0)
+        assert empty.nnn_edges == []  # 0 → drop all nnn
+        assert len(empty.nn_edges) == len(nn)  # nn untouched
+        assert "orbit_complete" in full.provenance
 
 
 class TestAdaptGrowthLogic:

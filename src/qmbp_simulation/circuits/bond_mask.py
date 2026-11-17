@@ -483,3 +483,87 @@ def rank_agreement_topk(weight_a, weight_b, k: int) -> float | None:
 
     sa, sb = _topk_set(a), _topk_set(b)
     return len(sa & sb) / float(k)
+
+
+def select_orbit_complete(
+    nn_edges,
+    nnn_edges,
+    weight_nn,
+    weight_nnn,
+    group,
+    *,
+    keep_nnn_orbits: int | None = None,
+    keep_nn_orbits: int | None = None,
+    aggregate: str = "max",
+) -> BondSelection:
+    """Symmetry-respecting bond selection — keep WHOLE orbits, never split one.
+
+    The frustrated ground state is exactly invariant under the lattice point
+    group, so bonds in the same symmetry orbit are physically equivalent and
+    carry the same ideal angle. Selecting individual bonds (``top_k_by_weight`` /
+    ``prune_by_theta``) can keep half an orbit, which breaks that invariance and
+    desaligns the target state. This keeps or drops each orbit AS A WHOLE: it
+    ranks the orbits by an aggregate of their member bond weights and keeps the
+    strongest ``keep_nnn_orbits`` nnn orbits (and, optionally, ``keep_nn_orbits``
+    nn orbits), so every retained bond's symmetry partners are retained too.
+
+    Parameters
+    ----------
+    nn_edges, nnn_edges : the full bond sets (aligned with the weight arrays).
+    weight_nn, weight_nnn : per-bond importance (|θ| or |∂Fidelity/∂θ|), aligned.
+    group : LatticeSymmetryGroup whose orbits define the equivalence classes.
+    keep_nnn_orbits : how many nnn orbits to keep (strongest first). ``None`` =
+        keep all nnn. The 2q budget follows from the orbit sizes, so inspect the
+        orbit-size cumsum to pick a target (orbit-complete budgets are discrete).
+    keep_nn_orbits : optional nn-orbit budget (``None`` keeps the whole backbone;
+        the nn backbone is usually irreducible, so prune it only deliberately).
+    aggregate : how to pool a bond weight into an orbit score — ``"max"``
+        (default, the orbit's strongest bond) or ``"mean"``.
+
+    Returns a :class:`BondSelection` whose kept bonds are a union of complete
+    orbits, in original edge order, with a self-describing provenance.
+    """
+    import numpy as np
+
+    from qmbp_simulation.circuits.symmetry import bond_orbits
+
+    nn = _normalize_edges(nn_edges)
+    nnn = _normalize_edges(nnn_edges)
+    w_nn = np.asarray(weight_nn, float)
+    w_nnn = np.asarray(weight_nnn, float)
+    if w_nn.shape[0] != len(nn):
+        raise ValueError(f"weight_nn length {w_nn.shape[0]} != n_nn {len(nn)}")
+    if w_nnn.shape[0] != len(nnn):
+        raise ValueError(f"weight_nnn length {w_nnn.shape[0]} != n_nnn {len(nnn)}")
+    if aggregate not in ("max", "mean"):
+        raise ValueError(f"unknown aggregate {aggregate!r}; expected 'max' or 'mean'")
+
+    def _keep(edges, w, orbits, keep_orbits):
+        if keep_orbits is None or keep_orbits >= len(orbits):
+            return list(edges)
+        if keep_orbits <= 0:
+            return []
+        w_by_edge = {e: float(wi) for e, wi in zip(edges, w, strict=True)}
+        scored = []
+        for orb in orbits:
+            vals = [abs(w_by_edge[e]) for e in orb if np.isfinite(w_by_edge.get(e, np.nan))]
+            score = (max(vals) if aggregate == "max" else float(np.mean(vals))) if vals else -np.inf
+            scored.append((score, orb))
+        # strongest orbits first; keep their bonds in the original edge order.
+        scored.sort(key=lambda s: -s[0])
+        kept = set()
+        for _score, orb in scored[:keep_orbits]:
+            kept.update(orb)
+        return [e for e in edges if e in kept]
+
+    nn_orbits = bond_orbits(nn, group) if nn else []
+    nnn_orbits = bond_orbits(nnn, group) if nnn else []
+    keep_nn = _keep(nn, w_nn, nn_orbits, keep_nn_orbits)
+    keep_nnn = _keep(nnn, w_nnn, nnn_orbits, keep_nnn_orbits)
+    return BondSelection(
+        nn_edges=keep_nn,
+        nnn_edges=keep_nnn,
+        provenance=(
+            f"orbit_complete(keep_nnn_orbits={keep_nnn_orbits}, keep_nn_orbits={keep_nn_orbits}, agg={aggregate})"
+        ),
+    )

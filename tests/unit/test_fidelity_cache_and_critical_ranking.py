@@ -14,7 +14,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. EvalCache fidelity get/put
 # ─────────────────────────────────────────────────────────────────────────────
@@ -31,16 +30,13 @@ class TestEvalCacheFidelity:
     def test_put_then_get_roundtrip(self, tmp_path):
         cache = self._cache(tmp_path)
         theta = np.array([0.1, 0.2, 0.3])
-        cache.put_fidelity("chain_1d", 10, 1.0, theta, 0.95,
-                           model="tfim_bond_resolved", p_layers=1)
-        got = cache.get_fidelity("chain_1d", 10, 1.0, theta,
-                                 model="tfim_bond_resolved", p_layers=1)
+        cache.put_fidelity("chain_1d", 10, 1.0, theta, 0.95, model="tfim_bond_resolved", p_layers=1)
+        got = cache.get_fidelity("chain_1d", 10, 1.0, theta, model="tfim_bond_resolved", p_layers=1)
         assert got == pytest.approx(0.95)
 
     def test_miss_returns_none(self, tmp_path):
         cache = self._cache(tmp_path)
-        got = cache.get_fidelity("chain_1d", 10, 1.0, np.array([0.0]),
-                                 model="tfim_bond_resolved", p_layers=1)
+        got = cache.get_fidelity("chain_1d", 10, 1.0, np.array([0.0]), model="tfim_bond_resolved", p_layers=1)
         assert got is None
 
     def test_out_of_range_is_rejected(self, tmp_path):
@@ -101,8 +97,7 @@ class TestComputeExactFidelityCache:
         from qmbp_simulation.analysis.fidelity import compute_exact_fidelity
 
         qc, theta, exact = self._tiny_case()
-        ctx = {"topology": "chain_1d", "n_qubits": 1, "h": 1.0,
-               "model": "tfim_bond_resolved", "p_layers": 1}
+        ctx = {"topology": "chain_1d", "n_qubits": 1, "h": 1.0, "model": "tfim_bond_resolved", "p_layers": 1}
         f1 = compute_exact_fidelity(qc, theta, exact, cache_ctx=ctx)
 
         # Stored under a FID| key
@@ -130,17 +125,20 @@ class TestUpdateCriticalRanking:
         monkeypatch.setattr(mz, "_MANIFEST_PATH", manifest)
         monkeypatch.setattr(mz, "_REPO_MANIFEST_PATH", manifest)
         entry = ZooEntry(
-            model="tfim_bond_resolved", topology="chain_1d", n_qubits=0, p_layers=1,
-            checkpoint_file="model_a.pt", h_range=(0.5, 5.0), pass_rate=0.7,
+            model="tfim_bond_resolved",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="model_a.pt",
+            h_range=(0.5, 5.0),
+            pass_rate=0.7,
         )
         _save_manifest([entry])
         return mz
 
     def test_upsert_writes_record(self, tmp_path, monkeypatch):
         mz = self._isolate_manifest(tmp_path, monkeypatch)
-        ok = mz.update_zoo_critical_ranking(
-            "model_a.pt", {"abs_error_mean": 0.2, "fidelity_mean": 0.9, "grade": "C"}
-        )
+        ok = mz.update_zoo_critical_ranking("model_a.pt", {"abs_error_mean": 0.2, "fidelity_mean": 0.9, "grade": "C"})
         assert ok
         entry = next(e for e in mz._load_manifest() if e.checkpoint_file == "model_a.pt")
         rec = entry.critical_ranking[mz._critical_window_key()]
@@ -151,9 +149,7 @@ class TestUpdateCriticalRanking:
         mz = self._isolate_manifest(tmp_path, monkeypatch)
         mz.update_zoo_critical_ranking("model_a.pt", {"abs_error_mean": 0.10})
         # Worse |ΔE| should NOT overwrite when only_if_better=True
-        changed = mz.update_zoo_critical_ranking(
-            "model_a.pt", {"abs_error_mean": 0.50}, only_if_better=True
-        )
+        changed = mz.update_zoo_critical_ranking("model_a.pt", {"abs_error_mean": 0.50}, only_if_better=True)
         assert changed is False
         entry = next(e for e in mz._load_manifest() if e.checkpoint_file == "model_a.pt")
         rec = entry.critical_ranking[mz._critical_window_key()]
@@ -182,16 +178,17 @@ class TestCriticalMetricsAtH:
 
         win = mz._critical_window_key()
         entry = ZooEntry(
-            model="tfim_bond_resolved", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim_bond_resolved",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="model_a.pt",
             critical_ranking={
                 win: {
                     "abs_error_mean": 0.3,
                     "per_n": {
-                        "10": {"abs_error_mean": 0.2,
-                               "at_h1": {"h": 1.0, "abs_error": 0.15, "fidelity": 0.92}},
-                        "20": {"abs_error_mean": 0.5,
-                               "at_h1": {"h": 1.05, "abs_error": 0.40, "fidelity": 0.80}},
+                        "10": {"abs_error_mean": 0.2, "at_h1": {"h": 1.0, "abs_error": 0.15, "fidelity": 0.92}},
+                        "20": {"abs_error_mean": 0.5, "at_h1": {"h": 1.05, "abs_error": 0.40, "fidelity": 0.80}},
                         "30": {"abs_error_mean": 0.9, "at_h1": None},
                     },
                 }
@@ -199,8 +196,7 @@ class TestCriticalMetricsAtH:
         )
         _save_manifest([entry])
 
-        out = mz.get_critical_metrics_at_h("model_a.pt", h=1.0, p_layers=1,
-                                           n_values=[10, 20, 30])
+        out = mz.get_critical_metrics_at_h("model_a.pt", h=1.0, p_layers=1, n_values=[10, 20, 30])
         assert "model_a.pt" in out
         per_n = out["model_a.pt"]
         assert per_n[10]["abs_error"] == pytest.approx(0.15)
@@ -208,3 +204,87 @@ class TestCriticalMetricsAtH:
         assert per_n[20]["abs_error"] == pytest.approx(0.40)
         # N=30 had at_h1=None → excluded
         assert 30 not in per_n
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. cached_degenerate_ground_manifold — persistent NPZ cache of the manifold
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestCachedDegenerateGroundManifold:
+    """The manifold NPZ cache: miss computes+persists, hit reads, corrupt recomputes."""
+
+    def _tiny_h(self):
+        """A small TFIM Hamiltonian (N=4 chain) — cheap, deterministic manifold."""
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        lattice = make_lattice("chain_1d", 4, J=1.0, h=1.0)
+        spec = get_model_spec("tfim")
+        H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+        return H
+
+    def test_miss_computes_and_writes_npz(self, tmp_path):
+        from qmbp_simulation.analysis.fidelity import cached_degenerate_ground_manifold
+
+        H = self._tiny_h()
+        manifold, e0, phys_gap, m_dim = cached_degenerate_ground_manifold(
+            H, topology="chain_1d", n_qubits=4, model="tfim", h=1.0, j2=0.0, cache_dir=tmp_path
+        )
+        # An NPZ was written for this key
+        files = list(tmp_path.glob("*.npz"))
+        assert len(files) == 1
+        assert manifold.shape[0] == 16  # 2^4
+        assert isinstance(m_dim, int) and m_dim >= 1
+
+    def test_hit_matches_direct_computation(self, tmp_path):
+        from qmbp_simulation.analysis.fidelity import (
+            cached_degenerate_ground_manifold,
+            degenerate_ground_manifold,
+        )
+
+        H = self._tiny_h()
+        direct = degenerate_ground_manifold(H)
+        # First call computes+writes, second call reads from disk
+        cached_degenerate_ground_manifold(
+            H, topology="chain_1d", n_qubits=4, model="tfim", h=1.0, j2=0.0, cache_dir=tmp_path
+        )
+        man2, e0_2, gap2, dim2 = cached_degenerate_ground_manifold(
+            H, topology="chain_1d", n_qubits=4, model="tfim", h=1.0, j2=0.0, cache_dir=tmp_path
+        )
+        # The cached read reproduces the direct computation
+        np.testing.assert_allclose(np.abs(man2), np.abs(direct[0]), atol=1e-8)
+        assert e0_2 == pytest.approx(direct[1], abs=1e-8)
+        assert dim2 == direct[3]
+
+    def test_h_precision_two_decimals_shares_key(self, tmp_path):
+        # h=1.0 and h=1.004 round to the same 2-decimal key → one NPZ, one entry
+        from qmbp_simulation.analysis.fidelity import cached_degenerate_ground_manifold
+
+        H = self._tiny_h()
+        cached_degenerate_ground_manifold(
+            H, topology="chain_1d", n_qubits=4, model="tfim", h=1.0, j2=0.0, cache_dir=tmp_path
+        )
+        cached_degenerate_ground_manifold(
+            H, topology="chain_1d", n_qubits=4, model="tfim", h=1.004, j2=0.0, cache_dir=tmp_path
+        )
+        assert len(list(tmp_path.glob("*.npz"))) == 1
+
+    def test_corrupt_npz_is_treated_as_miss(self, tmp_path):
+        from qmbp_simulation.analysis.fidelity import (
+            _manifold_cache_path,
+            cached_degenerate_ground_manifold,
+        )
+
+        H = self._tiny_h()
+        # Pre-seed a corrupt file at the exact key path the function will use
+        path = tmp_path / _manifold_cache_path("chain_1d", 4, "tfim", 1.0, 0.0).name
+        path.write_bytes(b"not a valid npz")
+        # Should recompute (not raise) and overwrite with a valid NPZ
+        manifold, e0, phys_gap, m_dim = cached_degenerate_ground_manifold(
+            H, topology="chain_1d", n_qubits=4, model="tfim", h=1.0, j2=0.0, cache_dir=tmp_path
+        )
+        assert manifold.shape[0] == 16
+        # File is now a readable NPZ
+        with np.load(path) as d:
+            assert "manifold" in d

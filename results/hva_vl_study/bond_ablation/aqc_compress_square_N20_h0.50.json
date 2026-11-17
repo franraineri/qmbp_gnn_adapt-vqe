@@ -1,0 +1,89 @@
+{
+  "schema": "aqc_compress_v1",
+  "topology": "square",
+  "N": 20,
+  "h": 0.5,
+  "target_spec": "p3_half_nn_rx_square_N20_h0.50.spec.json",
+  "target_fidelity": 0.9939030817376505,
+  "target_native_2q": 262,
+  "results": [
+    {
+      "template": "hva_p1",
+      "chi": 64,
+      "fidelity": 0.48695510625839233,
+      "n_2q_compressed": 31,
+      "n_2q_original": 262,
+      "n_2q_reduction_pct": 88.16793893129771,
+      "fid_per_2q": 0.01570822923414169,
+      "n_params": 339,
+      "n_iterations": 400,
+      "converged": false,
+      "wall_s": 29.4
+    },
+    {
+      "template": "hva_p1",
+      "chi": 128,
+      "fidelity": 0.4870426654815674,
+      "n_2q_compressed": 31,
+      "n_2q_original": 262,
+      "n_2q_reduction_pct": 88.16793893129771,
+      "fid_per_2q": 0.01571105372521185,
+      "n_params": 339,
+      "n_iterations": 400,
+      "converged": false,
+      "wall_s": 27.1
+    },
+    {
+      "template": "hva_p1",
+      "chi": 256,
+      "fidelity": 0.48699891567230225,
+      "n_2q_compressed": 31,
+      "n_2q_original": 262,
+      "n_2q_reduction_pct": 88.16793893129771,
+      "fid_per_2q": 0.015709642441042008,
+      "n_params": 339,
+      "n_iterations": 400,
+      "converged": false,
+      "wall_s": 19.6
+    },
+    {
+      "template": "p1_rx_extra",
+      "chi": 64,
+      "fidelity": 0.4951978325843811,
+      "n_2q_compressed": 77,
+      "n_2q_original": 262,
+      "n_2q_reduction_pct": 70.61068702290076,
+      "fid_per_2q": 0.0064311406829140405,
+      "n_params": 753,
+      "n_iterations": 176,
+      "converged": true,
+      "wall_s": 148.0
+    },
+    {
+      "template": "p1_rx_extra",
+      "chi": 128,
+      "fidelity": 0.49493443965911865,
+      "n_2q_compressed": 77,
+      "n_2q_original": 262,
+      "n_2q_reduction_pct": 70.61068702290076,
+      "fid_per_2q": 0.00642771999557297,
+      "n_params": 753,
+      "n_iterations": 144,
+      "converged": true,
+      "wall_s": 130.2
+    },
+    {
+      "template": "p1_rx_extra",
+      "chi": 256,
+      "fidelity": 0.4968862533569336,
+      "n_2q_compressed": 77,
+      "n_2q_original": 262,
+      "n_2q_reduction_pct": 70.61068702290076,
+      "fid_per_2q": 0.006453068225414722,
+      "n_params": 753,
+      "n_iterations": 400,
+      "converged": false,
+      "wall_s": 80.3
+    }
+  ]
+}

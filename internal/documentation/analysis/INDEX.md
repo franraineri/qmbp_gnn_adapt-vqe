@@ -1,7 +1,7 @@
-# Índice Detallado — `documentation/analysis`
+# Índice Detallado — `internal/documentation/analysis`
 
-**Archivos**: 31 documentos markdown
-**Total**: 62,871 palabras, 9,309 líneas
+**Archivos**: 42 documentos markdown
+**Total**: 103,445 palabras, 14,794 líneas
 
 ---
 
@@ -1192,34 +1192,46 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-08 | 264 | 1,783 | 12.4 KB | 6 | 0 |
+| 2026-06-08 | 577 | 3,936 | 27.4 KB | 51 | 3 |
 
 **Tags**: `zne`, `hardware`, `tesis`, `heisenberg`, `tfim`, `pea`
 
 > > Techniques identified as promising extensions beyond the scope of this thesis.
 
-**Métricas clave**: R²>0.9
+**Métricas clave**: R²>0.9 · ΔE/gap < 5% · R²<0.90
 
-**Hallazgos / Aseveraciones** (2):
+**Hallazgos / Aseveraciones** (4):
 
-- Techniques identified as promising extensions beyond the scope of this thesis. Included for Chapter 7 (Future Work) discussion with literature references. Date: 2026-06-08
+- Techniques identified as promising extensions beyond the scope of this thesis. Included for Chapter 7 (Future Work) discussion with literature references. Date: 2026-06-08 Last sta…
 - *Origen: Análisis de sesión 2026-06-15 — extensibilidad de modelos y límites del HVA. Contexto completo**: `documentation/binnacles/binnacle-hamiltonian-candidates.md` (Addendum 2)
+- *Fecha: 2026-06-19 Contexto**: Evaluación completa del ecosistema Qiskit addons contra nuestro pipeline GNN-HVA. Técnicas que NO aplican hoy pero podrían ser útiles en escenarios d…
+- El bias residual de esta medición es ≤ ε con probabilidad 1 − δ
 
-**Contenido** (8 secciones):
+**Contenido** (10 secciones):
 
-- **1. Neighbor-Informed Learning (NIL) for Error Mitigation** (L10)
-- **2. ML-QEM: Machine Learning for Practical QEM** (L31)
-- **3. Telemetry-Driven Adaptive Error Mitigation (GSC-QEMit)** (L51)
-- **4. SC-ADAPT-VQE: Scalable Circuits for Translationally Invariant Systems** (L75)
-- **5. Utility-Scale Hamiltonian Engineering (103 qubits Kagome)** (L94)
-- **6. Parameter Freezing (TITAN)** (L114)
-- **7. Probing the p≤2 Expressibility Boundary for XX+YY Models** (L134)
+- **Implementation Status Tracker** (L11)
+  - Summary
+- **1. Neighbor-Informed Learning (NIL) for Error Mitigation** (L33)
+- **2. ML-QEM: Machine Learning for Practical QEM** (L54)
+- **3. Telemetry-Driven Adaptive Error Mitigation (GSC-QEMit)** (L74)
+- **4. SC-ADAPT-VQE: Scalable Circuits for Translationally Invariant Systems** (L98)
+- **5. Utility-Scale Hamiltonian Engineering (103 qubits Kagome)** (L117)
+- **6. Parameter Freezing (TITAN)** (L137)
+- **7. Probing the p≤2 Expressibility Boundary for XX+YY Models** (L157)
   - El límite conocido
   - Qué estudiar y cómo (si tiene sentido ejecutarlo)
   - Estado actual de la evidencia
   - Conexión con literatura
   - Refs
-- **8. GNN for Quantum Chip Parameter Design** (L249)
+- **8. GNN for Quantum Chip Parameter Design** (L272)
+- **9. Qiskit Addons — Error Mitigation Techniques for Future Scaling** (L291)
+  - Resumen de decisiones
+  - 9.1 Propagated Noise Absorption (PNA) — `qiskit-addon-pna`
+  - 9.2 Shaded Lightcones + PEC — `qiskit-addon-slc`
+  - 9.3 Operator Backpropagation (OBP) — `qiskit-addon-obp`
+  - 9.4 Circuit Cutting — `qiskit-addon-cutting`
+  - 9.5 Técnicas descartadas definitivamente
+  - … (+2 más)
 
 ---
 
@@ -1375,7 +1387,89 @@
 
 ---
 
-## 31. [24_mpnn_eval_suite_results.md](24_mpnn_eval_suite_results.md)
+## 31. [24_aqc_tensor_integration_plan.md](24_aqc_tensor_integration_plan.md)
+**AQC-Tensor Integration Plan**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-17 | 278 | 1,461 | 10.8 KB | 28 | 4 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `tfim`, `pea`
+
+> Date: 2026-06-17
+
+**Métricas clave**: ΔE/gap=0.24% · fidelity < 0.9995 · Fidelity ≥ 0.999 · Fidelity < 0.99 · ΔE/gap < 1% · ΔE/gap > 3%
+
+**Hallazgos / Aseveraciones** (2):
+
+- `p=1 N=10`: 34 CZ → ~18 CX post-transpilación → ZNE funciona ✅
+- `p=2 N=10`: 68 CZ → ~36 CX post-transpilación → ZNE falla ❌
+
+**Contenido** (8 secciones):
+
+- **Motivación** (L10)
+- **Arquitectura del módulo** (L26)
+  - Ubicación
+  - Dependencias nuevas
+  - Interfaz pública (API)
+- **Fases de Implementación** (L81)
+  - Fase 1: Proof of Concept (POC standalone)
+  - Fase 2: Módulo de producción (`aqc_compression.py`)
+  - Fase 3: Validación cross-topology y comparativa
+  - Fase 4: Integración en pipeline de hardware
+  - Fase 5: Extensiones escalables (futuro)
+- **Relación con componentes existentes** (L215)
+- **Riesgos y mitigaciones** (L232)
+- **Criterios de éxito (por fase)** (L244)
+- **Timeline estimado** (L256)
+- **Referencias** (L270)
+
+---
+
+## 32. [24_mitiq_integration_plan.md](24_mitiq_integration_plan.md)
+**Mitiq Integration Plan — Módulo de Mitigación Complementario**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-17 | 455 | 2,684 | 19.1 KB | 42 | 8 |
+
+**Tags**: `zne`, `hardware`, `thesis`, `tfim`, `pea`, `noise`
+
+> Fecha: 2026-06-17
+
+**Métricas clave**: R²>0.90 · R² ≥ 0.95 · ΔE/gap < 1%
+
+**Contenido** (8 secciones):
+
+- **1. Análisis: ¿Es útil Mitiq para simulaciones noisy vs. nuestros métodos actuales?** (L9)
+  - 1.1 Comparación de enfoque noisy actual vs. Mitiq
+  - 1.2 Valor de Mitiq para noisy simulations
+  - 1.3 Cuándo Mitiq NO reemplaza nuestros métodos
+  - 1.4 Estrategia recomendada
+- **2. Fases de Implementación** (L65)
+  - Fase 1: Foundation — Módulo base y executor adapter
+  - Fase 2: Mitiq ZNE — Random folding + factories ricas
+  - Fase 3: Mitiq CDR — La contribución principal
+  - Fase 4: DDD+ZNE Composition — Stack de mitigación
+  - Fase 5: PEC Benchmark — Reference offline
+  - Fase 6: Noisy Simulation Pipeline via Mitiq
+  - … (+3 más)
+- **3. Diseño Técnico Detallado** (L270)
+  - 3.1 Módulo DAG (sin circular imports)
+  - 3.2 Dataclasses (output pattern)
+  - 3.3 pyproject.toml changes
+  - 3.4 Integration con `__init__.py`
+- **4. Análisis de Valor por Método para Nuestro Caso Específico** (L362)
+  - 4.1 N=10 p=1 heavy_hex (hardware deployment target)
+  - 4.2 Simulación noisy (pre-hardware validation)
+- **5. Riesgos y Mitigaciones** (L393)
+- **6. Criterios de Éxito** (L406)
+- **7. Timeline Estimado** (L425)
+- **8. Referencias** (L444)
+
+---
+
+## 33. [24_mpnn_eval_suite_results.md](24_mpnn_eval_suite_results.md)
 **MPNN Evaluation Suite — Results & Analysis**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1418,5 +1512,495 @@
   - Section 19 — κ Extended Through Phase Transition ✅
   - Hardware Deployment Integration (New)
 - **Final Bug Fixes Applied** (L167)
+
+---
+
+## 34. [25_mitigation_benchmark_plan.md](25_mitigation_benchmark_plan.md)
+**Plan de Benchmarking Sistemático — Técnicas de Mitigación y Supresión de Ruido**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-17 | 1131 | 6,701 | 49.3 KB | 227 | 31 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `tfim`, `pea`
+
+> Fecha: 2026-06-17
+
+**Métricas clave**: ΔE/gap < 5% · ΔE/gap < 3% · R² < 0.5
+
+**Contenido** (18 secciones):
+
+- **1. Diseño Experimental** (L10)
+  - 1.1 Circuito Base (constante en todos los benchmarks)
+  - 1.2 Modos de Ejecución
+  - 1.3 Baseline (referencia obligatoria)
+- **2. Técnicas a Evaluar** (L45)
+  - 2.1 Error Suppression (prevención — no agregan overhead de shots)
+  - 2.2 Error Mitigation (post-procesamiento — agregan overhead)
+  - 2.3 Combinaciones Prioritarias (evitar explosión combinatoria)
+- **3. Métricas a Capturar** (L134)
+  - 3.1 Métricas de Precisión (ya existentes en summary.json — NO duplicar)
+  - 3.2 Métricas Adicionales del Benchmark (nuevas, específicas de este estudio)
+  - 3.3 Métricas de Transpilación (clave para objetivo: mejores transpilaciones)
+  - 3.4 Métricas AQC-Tensor (cuando `--aqc-compress` activo)
+  - 3.5 Métricas de Robustez y Confiabilidad
+  - 3.6 Métricas IBM-Specific (Hardware Real)
+  - … (+1 más)
+- **4. Estructura de Resultados** (L290)
+  - 4.1 Formato de Resultado por Ejecución
+- **5. Plan de Ejecución** (L368)
+  - Fase A — Simulación completa (FakeTorino, 0 QPU cost)
+  - Fase B — Validación en hardware (IBM Torino)
+  - Fase C — Análisis y Tablas de Tesis
+- **6. Implementación** (L402)
+  - 6.1 Script Principal
+  - 6.2 Analyzer
+  - 6.3 Integración con Pipeline Existente
+- **7. Prioridad de Ejecución (si QPU time es limitado)** (L436)
+- **8. Criterios de Éxito** (L448)
+- **9. Metodología de Análisis — Cómo Encontrar la Configuración Óptima** (L460)
+  - 9.1 Principio: Análisis por Capas (de simple a complejo)
+  - 9.2 Nivel 1 — Ranking Bruto
+  - 9.3 Nivel 2 — Ablation Study (contribución individual)
+  - 9.4 Nivel 3 — Análisis Costo-Beneficio
+  - 9.5 Nivel 4 — Robustez y Transferencia Sim→Hardware
+  - 9.6 Análisis de Sensibilidad por Parámetro
+- **10. Tablas de Tesis (output final)** (L593)
+  - Tabla 10.1 — Comparación de Técnicas de Supresión (Chapter 5)
+  - Tabla 10.2 — Ablation Study (Chapter 5)
+  - Tabla 10.3 — Configuración Óptima Recomendada
+- **11. Flujo de Decisiones (Diagrama)** (L638)
+- **12. Hipótesis a Validar** (L680)
+- **13. Condiciones de Aborto** (L708)
+- **14. Notas Importantes** (L720)
+  - 14.1 Notas Técnicas Adicionales (correcciones 2026-06-17)
+- **15. Referencias** (L754)
+- **16. Integración con Mitiq — Consideraciones de Transpilación** (L775)
+  - 16.1 El dilema opt_level=0 vs opt_level=2
+  - 16.2 Estrategia para el benchmark de transpilación
+  - 16.3 Implementación (usa compare_mitigation_strategies)
+  - 16.4 AQC × Transpilación × Mitigación: Análisis 3-factorial
+- **17. Guía de Implementación — Funciones Existentes a Reutilizar** (L864)
+  - 17.1 Métricas de circuito (Section 3.3) — YA EXISTEN
+  - 17.2 Layout selection — YA EXISTE
+  - 17.3 Error mitigation — YA EXISTE (configs C0-C10)
+  - 17.4 Mitiq mitigation — YA EXISTE (configs C11-C14)
+  - 17.5 AQC-Tensor compression — YA EXISTE (configs C16-C18)
+  - 17.6 Benchmark execution — YA EXISTE (BenchmarkSuite)
+  - … (+2 más)
+- **18. Principios de Reutilización y Escalabilidad** (L1056)
+  - 18.1 NUNCA reimplementar lo que ya existe
+  - 18.2 Extensión preferida sobre creación
+  - 18.3 Formato de resultados: envelope pattern
+  - 18.4 Principio de composición (no monolito)
+
+---
+
+## 35. [26_bond_dimension_classical_simulability_review.md](26_bond_dimension_classical_simulability_review.md)
+**Bond Dimension as the Classical Simulability Frontier — Literature Review (2026-09-01)**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| — | 155 | 1,031 | 8.4 KB | 8 | 0 |
+
+**Tags**: `hardware`, `thesis`, `heisenberg`, `tfim`, `scaling`
+
+> > External-literature review supporting the study objective:
+
+**Hallazgos / Aseveraciones** (2):
+
+- External-literature review supporting the study objective: "The GNN-prepared initial state shifts the entanglement barrier, requiring a larger χ than a trivial quench from |0⟩^N." …
+- A quench from a non-trivial, correlated initial state |ψ₀(h₁)⟩ (prepared by the GNN-HVA pipeline) drives entanglement growth faster than a quench from a product state |0⟩^N or |+⟩^…
+
+**Contenido** (5 secciones):
+
+- **Thesis objective this review supports** (L13)
+- **Two regimes (established physics)** (L26)
+- **Key references** (L38)
+  - The entanglement barrier (core mechanism)
+  - Linear entanglement growth after a quench (why χ explodes)
+  - IBM kicked-Ising was simulated classically (reframes our IBM diagram)
+  - χ-vs-precision frontier (concrete numbers)
+  - GNN/NN state preparation (competing methods — positioning)
+- **Verdict** (L101)
+- **Cross-refs (repo)** (L116)
+
+---
+
+## 36. [Completion_Plan-techniques.md](Completion_Plan-techniques.md)
+**Completion_Plan-techniques**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-19 | 259 | 1,530 | 10.6 KB | 29 | 7 |
+
+**Tags**: `zne`, `hardware`, `tesis`, `heisenberg`, `tfim`, `pea`
+**Métricas clave**: R² < 0.85 · R² > 0.98
+
+**Hallazgos / Aseveraciones** (4):
+
+- *Fecha: 2026-06-19 Scope: Plan para completar las 2 técnicas parcialmente implementadas (#3 y #7). Prioridad**: Post-Kingston deployment. Ninguna bloquea el hardware run actual
+- TFIM (h=2): S≈0.5, fid≥0.99 ✅
+- TFIM+Long (g=0.3): S≈0.5, fid≥0.98 ✅
+- Heisenberg (h=3): S≈2.2, fid=0.48 ❌
+
+**Contenido** (1 secciones):
+
+- **10. Completion Plan — Partially Implemented Techniques** (L3)
+  - 10.1 Técnica #3: Adaptive Mitigation (GSC-QEMit) — de 60% a 100%
+  - 10.2 Técnica #7 (FW-C): Entanglement Entropy como Predictor de Viabilidad — de 70% a 100%
+  - 10.3 Priorización
+
+---
+
+## 37. [accelerated_cross_n_coverage.md](accelerated_cross_n_coverage.md)
+**Accelerated Cross-N Coverage Analysis**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-10-04 (auto-updated by update_cross_n_coverage.py) | 391 | 4,413 | 20.3 KB | 243 | 0 |
+
+**Tags**: `mpnn`, `tfim`, `topology`
+
+> Fecha: 2026-10-04 (auto-updated by update_cross_n_coverage.py)
+
+**Métricas clave**: ΔE/gap ≥ 5%
+
+**Hallazgos / Aseveraciones** (1):
+
+- *Nota**: Las secciones marcadas con `<!-- AUTO-GENERATED -->` se actualizan automáticamente. Las secciones de análisis físico y recomendaciones son manuales
+
+**Contenido** (9 secciones):
+
+- **Resumen Ejecutivo (auto-generated)** (L14)
+- **Training Data Health** (L27)
+  - Quality Tier Distribution (NPZ-level)
+- **Gap Masking Analysis** (L106)
+- **Detalle por Topología** (L144)
+  - Chain 1D
+  - Heavy Hex
+  - Ladder
+  - Square
+  - Triangular
+- **h_frontier per Topology** (L249)
+- **Cross-N Transfer Summary** (L265)
+- **Quality Tier Distribution** (L285)
+- **Training Plan (auto-generated)** (L296)
+  - ⚠️ IMPROVE — Insufficient signal (need more good points)
+  - ✅ EXPAND — Useful configs (add more h-points for better generalization)
+- **Model Zoo Health** (L379)
+
+---
+
+## 38. [classical_simulability_square_frustrated.md](classical_simulability_square_frustrated.md)
+**Classical simulability of 2D square frustrated TFIM dynamics**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-11-16 | 332 | 2,610 | 17.5 KB | 34 | 3 |
+
+**Tags**: `zne`, `hardware`, `thesis`, `heisenberg`, `tfim`, `pea`
+
+> Status: **temporarily closed, 2026-11-16.** Supersedes the 2026-10-02 version, whose
+
+**Métricas clave**: fidelity > 0.01
+
+**Hallazgos / Aseveraciones** (8):
+
+- In the 2D square frustrated TFIM, the exact microstate of a quench across h_c is followed by a 1D MPS of fixed χ only up to a step t\* that shrinks with N (measured to N=18). Entan…
+- *Ground state is trivial for MPS** [MEASURED]: half-chain entropy 0.7–1.3 nats at
+- *Dynamics across the transition is where classical cost grows** [MEASURED]: the
+- *No practical classical limit exists at N ≤ 20** [MEASURED]: the exact statevector is
+- *N=30** [EXTRAPOLATED]: exact statevector 17 GB (cluster, not laptop); MPS needs
+- *N≈50** [EXTRAPOLATED]: exact statevector ≈ 18 PB (impossible); MPS needs χ ≈ 10⁶,
+- *Quantum side** [MEASURED + EXTRAPOLATED]: outlasting a χ=10⁴ MPS at N=18 needs
+- *No hardware quantum advantage is claimed.** This document bounds the classical side
+
+**Contenido** (11 secciones):
+
+- **1. Summary** (L18)
+- **2. Setup and definitions** (L39)
+- **3. Measured results** (L59)
+  - 3.1 Critical point [MEASURED, N=10]
+  - 3.2 Crossing quench, N = 10–20 (h_prep 3.0 → h₂ 0.3) [MEASURED]
+  - 3.3 Saturation entropy is linear in N [MEASURED]
+  - 3.4 Quench from the exact ground state, leaving the critical region [MEASURED]
+  - 3.5 2D cut versus 1D half-chain [MEASURED, negative result]
+  - 3.6 Ground-state entropy [MEASURED, N ≤ 18]
+- **4. Projections beyond measured N [EXTRAPOLATED]** (L143)
+- **5. Ground state versus dynamics** (L165)
+- **6. Quantum-side budget for outlasting the classical limit** (L183)
+  - 6.1 Routing overhead on the real square coupling map [MEASURED]
+  - 6.2 Gate budget at N = 16 and 18 [MEASURED + EXTRAPOLATED]
+- **7. Hypothesis (conservative)** (L231)
+- **8. Open caveats and unfinished work** (L243)
+- **9. Suggested next experiments** (L265)
+- **10. Reproduction (flags verified with `--help` on 2026-11-16)** (L276)
+- **11. Literature** (L310)
+
+---
+
+## 39. [cross_topology_report.md](cross_topology_report.md)
+**Cross-Topology Unified Report**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-10-04 | 118 | 1,068 | 5.4 KB | 58 | 0 |
+
+**Tags**: `mpnn`, `tfim`, `scaling`, `topology`
+
+> Generated: 2026-10-04 23:58 UTC
+
+**Métricas clave**: ΔE/gap < 5%
+
+**Hallazgos / Aseveraciones** (1):
+
+- All quality metrics use the dual criterion exclusively. `summary.pass_rate` in runner JSONs = execution health (sections completed), NOT quality
+
+**Contenido** (7 secciones):
+
+- **1. Scorecard** (L13)
+- **2. Scaling: pass_rate_dual per (Topology, N)** (L25)
+- **3. Gap Masking Severity** (L39)
+- **4. Large-N Extrapolation (Zero-Shot)** (L64)
+- **5. Training Data Quality** (L72)
+- **6. Failure Mode Classification** (L84)
+- **7. Recommended Actions** (L98)
+
+---
+
+## 40. [noiseless_comprehensive_status.md](noiseless_comprehensive_status.md)
+**Análisis Completo de Resultados Noiseless — Estado al 2026-07-11**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-24 | 899 | 6,862 | 40.8 KB | 269 | 11 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `heisenberg`, `tfim`
+
+> Total runs noiseless: 320 (de ~1400 totales en el índice)
+
+**Métricas clave**: ΔE/gap<0.03 · ΔE/gap=0.003 · ΔE/gap < 5% · ΔE/gap = 0.021 · ΔE/gap=0.55 · ΔE/gap=0.45
+
+**Hallazgos / Aseveraciones** (8):
+
+- For heavy_hex topology at N≥16, the spectral gap is computed using the analytical fallback Δ = 2π/N, which constitutes a lower bound on the true gap. Consequently, the ΔE/gap value…
+- F1-F2, F6: `documentation/analysis/noiseless_v2_analysis.md` § 10 "Consolidated Empirical Findings
+- F3: `noiseless_v2_analysis.md` § 9.3 (N=16 MSE=1.59e-2 con ratio 1.25:1)
+- F4: `results/analysis/noiseless_final_scaling.json` (axis h_dependence, h_boundary≈1.3 en 8+ configs)
+- F5: Sección 11.5 de este doc + `analyze_noiseless_scaling.py` output (100% wins en runs julio 11)
+- F7: `exp_noiseless_tfim_4/run_20260702_184821.json` (N=16), `run_20260702_200440.json` (N=20)
+- F8: `exp_noiseless_tfim_4/run_20260702_200440.json` (100%, 39/39, F̄=0.998)
+- tfim ch N=20 p=4: `exp_noiseless_tfim_4/run_20260702_200440.json`
+
+**Contenido** (16 secciones):
+
+- **1. Inventario Completo de Datos** (L10)
+  - 1.1 Modelos Testados
+  - 1.2 Topologías Cubiertas
+  - 1.3 Tamaños de Sistema (N)
+  - 1.4 Profundidades (p)
+- **2. Resultados Consolidados — Lo que SABEMOS (Thesis-Grade)** (L56)
+  - 2.1 Findings Definitivos (multi-run validated)
+  - 2.2 Findings de Expresividad (p=5, 2026-07-09)
+  - 2.3 Resultados Definitivos (Thesis Table Material)
+- **3. Lo que FALTA — Investigaciones Pendientes** (L115)
+  - 3.1 Prioridad ALTA (necesario para tesis)
+  - 3.2 Prioridad MEDIA (fortalece la tesis)
+  - 3.3 Prioridad BAJA (nice-to-have, publicación extendida)
+- **4. Parámetros Explorados vs No Explorados** (L149)
+  - 4.1 Matriz de Cobertura (✅=pass, ⚠️=parcial, ❌=fail, —=no testado)
+  - 4.2 Huecos Críticos en la Cobertura
+- **5. Análisis de Regresiones y Anomalías** (L192)
+  - 5.1 Regresiones Detectadas (project-status.md)
+  - 5.2 Anomalías Conocidas
+- **6. Parámetros Óptimos Establecidos** (L226)
+  - 6.1 Configuración de Producción (recomendada para nuevos runs)
+  - 6.2 Scaling Law para h_min
+  - 6.3 Jerarquía de Modelos
+  - 6.4 Jerarquía de Topologías
+- **7. Preguntas Científicas Abiertas** (L277)
+  - 7.1 Respondidas (cerradas)
+  - 7.2 Parcialmente Respondidas
+  - 7.3 No Respondidas (requieren experimentos nuevos)
+- **8. Roadmap de Próximos Experimentos (priorizado)** (L316)
+  - Fase A: Completar Tabla de Scaling (1-2 días)
+  - Fase B: Multi-Seed Validation (1 día)
+  - Fase C: Cross-Model Validation (1 día)
+  - Fase D: Experimentos Opcionales (si hay tiempo)
+- **9. Resumen Ejecutivo para Tesis** (L373)
+  - Lo que está LISTO para escribir:
+  - Lo que FALTA para tesis completa:
+  - Esfuerzo estimado total: ~60-80 horas de compute (~3-4 días con nohup)
+- **10. Métricas Globales del Programa Noiseless** (L395)
+- **11. Resultados Finales del Estudio de Scaling (2026-07-10)** (L415)
+  - 11.1 Global Summary
+  - 11.2 Eje 1: N-Scaling (Tabla Definitiva)
+  - 11.3 Eje 2: h-Dependence (Fronteras de Validez)
+  - 11.4 Eje 3: p-Dependence (Profundidad Óptima)
+  - 11.5 Eje 4: Topology Comparison (Ranking Final)
+  - 11.6 Tabla de Scaling Final para Tesis
+  - … (+1 más)
+- **12. Known Artifact: DMRG Gap Floor in heavy_hex N≥16** (L652)
+  - 12.1 Description
+  - 12.2 Affected Runs
+  - 12.3 Impact on Results
+  - 12.4 Why chain_1d Works but heavy_hex Doesn't
+  - 12.5 Resolution Path
+  - 12.6 Statement for Thesis
+  - … (+1 más)
+- **13. Robustness Fixes Validation (2026-07-11)** (L737)
+  - 13.1 Problem Statement
+  - 13.2 Fixes Applied
+  - 13.3 Before vs After
+  - 13.4 Detailed Metrics (post-fix)
+  - 13.5 Residual Outlier Analysis
+  - 13.6 Updated Multi-Seed Summary (14/14 configs now pass)
+  - … (+1 más)
+- **14. Runs No Registrados Previamente (julio 10-11, 34 runs)** (L812)
+- **15. Findings Nuevos Robustos (multi-run validated)** (L836)
+  - F9: p=2 es viable a N=16/20 con h≥1.6 (hardware-optimal depth)
+  - F10: MPNN wins = 100% es UNIVERSAL en todo el rango h
+  - F11: Gradient clipping (max_norm=1.0) elimina MPNN training divergence
+  - F12: Force-bidirectional es necesario para seeds difíciles a N≥16
+  - F13: h_boundary escala con topología independientemente de N
+- **16. Hipótesis Pendientes de Validación** (L891)
+
+---
+
+## 41. [noiseless_model_comparison_tables.md](noiseless_model_comparison_tables.md)
+**noiseless_model_comparison_tables**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| — | 100 | 843 | 4.1 KB | 45 | 0 |
+
+**Tags**: `mpnn`, `heisenberg`, `tfim`, `topology`, `noise`
+**Métricas clave**: ΔE/gap < 5%
+
+**Contenido** (7 secciones):
+
+- **TN1 — Noiseless Model Ranking** (L1)
+- **TN2 — Noiseless Topology Ranking** (L13)
+- **TN3 — Model × Topology Cross-Table** (L27)
+- **TN4 — Best Configurations Per Model** (L39)
+- **TN5 — VQE Optimization Quality by Model** (L57)
+- **TN6 — MPNN Training Quality by Model** (L69)
+- **TN7 — Performance by Circuit Depth (p-layers)** (L81)
+
+---
+
+## 42. [noiseless_v2_analysis.md](noiseless_v2_analysis.md)
+**Noiseless Pipeline v2 — Comprehensive Analysis**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-27 | 1054 | 9,218 | 51.0 KB | 291 | 1 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `thesis`, `heisenberg`, `tfim`
+
+> Date: 2026-06-27
+
+**Métricas clave**: ΔE/gap = 8.2 · ΔE/gap = 1.4 · ΔE/gap = 2.4 · ΔE/gap=0.024 · ΔE/gap=0.073 · ΔE/gap=0.225
+
+**Hallazgos / Aseveraciones** (8):
+
+- *Sections 8 and 9.5 are now OBSOLETE.** The DMRG gap floor issue has been permanently fixed in the solver. All new runs compute correct spectral gaps
+- Heisenberg HVA p≤4 es completamente inviable para N=10
+- The v3 pipeline improvements closed the gap between TFIM and TFIM Longitudinal. Both models now achieve 90%+ on the best topologies (chain_1d, heavy_hex) with p=3-4
+- El grid denso penaliza a heavy_hex (−11% a −20%) más que a chain_1d. En chain_1d con p=4 la mejora es real (+17% en tfim_long) porque el ansatz tiene la expresibilidad suficiente p…
+- ALL 4 SECTIONS PASS. First p=4 full-pipeline success
+- ALL 4 SECTIONS PASS. 24/24 deploy points = 100%
+- *heavy_hex** — Mejor en todos los modelos. Conectividad moderada (N=10 chain subgraph con 9 edges) favorece VQE + MPNN. Pipeline ALL PASS con tfim p=4 y tfim_long p=3
+- *chain_1d** — Segundo mejor. Mínima conectividad, landscape simple pero h-crit cercano
+
+**Contenido** (18 secciones):
+
+- **1. TFIM Standard (`model=tfim`)** (L10)
+  - Summary Table
+  - p=1 Analysis
+  - p=3 Analysis (NEW — 2026-06-27)
+  - Best Result: chain_1d p=3 (NEW)
+  - Previous Best: heavy_hex p=4
+- **2. TFIM Longitudinal (`model=tfim_longitudinal`)** (L72)
+  - Summary Table
+  - Best Result: heavy_hex p=3
+  - Critical Finding: p=4 DEGRADES performance
+- **3. Heisenberg (`model=heisenberg`)** (L109)
+  - Summary Table (COMPLETE — p=1 through p=4, all topologies)
+  - Analysis by p-layer
+  - Key Observation: MPNN "learns" but deploys garbage
+- **4. Key Findings** (L154)
+  - 4.1 Topology Ranking (consistent across models)
+  - 4.2 Optimal Depth per Model
+  - 4.3 θ_smoothness como Predictor de Éxito
+  - 4.3b MSE como Indicador de Calidad MPNN
+  - 4.4 Failure Modes Identified
+  - 4.5 Hardware Deployment Implications
+  - … (+1 más)
+- **5. Experimental Conditions** (L227)
+- **6. Data Summary** (L236)
+  - Global Rankings (from 79 runs)
+- **7. Pipeline v3 — Impact of Bidirectional Sweep + Energy Guard + Outlier Filter** (L268)
+  - 7.1 v2 vs v3 Comparison (same topology, model, p — only pipeline improvements differ)
+  - 7.2 Analysis of Improvements
+  - 7.3 Heisenberg Transverse — Negative Result (v3)
+  - 7.4 Updated Top-5 Configurations (v3)
+  - 7.5 Updated Global Rankings (v3, 35 new runs)
+- **8. Pipeline v4 — Dense h-grid (70 points) Validation** (L344)
+  - 8.1 TFIM Standard — 4/18 PASS
+  - 8.2 TFIM Longitudinal — 1/15 PASS
+  - 8.3 Heisenberg Transverse — 0/10 PASS (confirmación definitiva)
+  - 8.4 Hallazgos Concretos (v4)
+  - 8.5 Top-5 Configuraciones Validadas (v4, 70 h-points)
+  - 8.6 Comparación v3 vs v4 (mejores configuraciones)
+  - … (+1 más)
+- **9. Scaling to N=16 — TFIM Longitudinal p=4 heavy_hex (2026-07-02)** (L490)
+  - 9.1 Context
+  - 9.2 Configuration
+  - 9.3 Results
+  - 9.4 Reliable Findings (Consistent with N=10 results)
+  - 9.5 Known Artifacts (still valid)
+  - 9.6 Comparison with N=10 Equivalent (corrected gaps)
+- **10. Consolidated Empirical Findings (v2–v4, 47 runs)** (L563)
+  - Finding F1: Topology dominates over circuit depth (quantified)
+  - Finding F2: Fidelity saturates for chain_1d/heavy_hex by p=2
+  - Finding F3: MPNN training requires data:output ratio ≥ 2.5:1
+  - Finding F4: Hard pass/fail boundary at h ≈ 1.3 for TFIM-class models
+  - Finding F5: MPNN beats random init in 81-93% of test points
+  - Finding F6: 2D topology failures are VQE-limited, not MPNN-limited
+- **11. Optimized Runs — h-range Restricted (2026-07-02)** (L667)
+  - 11.1 Results Summary
+  - 11.2 Run 1: heavy_hex p=3 N=10 — 95% deploy (validates Finding F4)
+  - 11.3 Run 2: chain_1d p=4 N=16 — 100% deploy (first N>10 full pass)
+  - 11.4 Run 3: chain_1d p=4 N=20 — 100% deploy (largest N in project)
+  - 11.5 New Findings from These Runs
+- **5. Expressibility Depth Study: p=5, N=8 (2026-07-09)** (L750)
+  - Motivation
+  - Configuration
+  - Results
+  - Key Metrics
+  - Analysis
+  - Comparison: Expressibility Boundary vs p
+  - … (+2 más)
+- **6. p=4 N=8 with Restricted h-range — Full Pipeline PASS (2026-07-09)** (L830)
+- **7. Definitive Result: N=10 p=3 chain_1d h=[1.3, 3.0] — 100% ALL PASS (2026-07-09)** (L863)
+- **9. RESOLVED: Gap Floor Artifact Fixed (2026-07-13)** (L889)
+  - 9.1 The Fix
+  - 9.2 Impact: heavy_hex N=16 Now Passes at 100%
+  - 9.3 Tracing: gap_method Field
+  - 9.4 Conclusion
+- **10. Physics Loss Experiment (2026-07-13)** (L943)
+  - Hypothesis
+  - Configuration
+  - Results: TFIM
+  - Results: TFIM Longitudinal
+  - Conclusion
+- **11. Expressibility Limit Investigation (2026-07-13)** (L995)
+  - Question
+  - Test Results
+  - Root Cause
+- **12. Updated Top Configurations (2026-07-13)** (L1035)
+  - Key Changes from Previous Rankings
 
 ---

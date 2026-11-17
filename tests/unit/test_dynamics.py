@@ -24,8 +24,17 @@ from qmbp_simulation.analysis.dynamics import (
     evolve_states,
     fidelity_from_2q,
     gates_to_floor,
+    nighthawk_coupling_map,
+    routing_overhead_breakdown,
+    square_grid_coupling_map,
     tnoise_from_2q_curve,
+    transpiled_2q_count,
     truncate_mps,
+)
+from qmbp_simulation.analysis.observables import (
+    bipartition_entropy,
+    half_chain_entropy,
+    square_vertical_cut_qubits,
 )
 from qmbp_simulation.circuits.trotter import (
     build_frustrated_trotter_step,
@@ -134,8 +143,7 @@ class TestClassicalCrossover:
         A = rng.normal(size=(2**n, 2**n)) + 1j * rng.normal(size=(2**n, 2**n))
         H = A + A.conj().T  # Hermitian
         psi0 = _random_state(n, seed=5)
-        out = classical_crossover(psi0, H, dt=0.1, n_steps=8, n_qubits=n,
-                                  chi_values=[1, 2, 4, 8])
+        out = classical_crossover(psi0, H, dt=0.1, n_steps=8, n_qubits=n, chi_values=[1, 2, 4, 8])
         # None (never crossed) sorts last via a large sentinel.
         big = 10**6
         seq = [out[c] if out[c] is not None else big for c in (1, 2, 4, 8)]
@@ -151,16 +159,18 @@ class TestClassicalCrossover:
         H[0, -1] = H[-1, 0] = 0.5
         psi0 = _random_state(n, seed=9)
         dt, steps, chis = 0.4, 6, [2, 4]
-        dense = classical_crossover(psi0, H, dt, steps, n, chis,
-                                    propagator=expm(-1j * H * dt))
+        dense = classical_crossover(psi0, H, dt, steps, n, chis, propagator=expm(-1j * H * dt))
         sparse = classical_crossover_sparse(psi0, csr_matrix(H), dt, steps, n, chis)
         assert dense == sparse
 
 
 class TestTrotterSteps:
-    @pytest.mark.parametrize("builder_call", [
-        lambda n, nn, nnn: build_frustrated_trotter_step(n, nn, nnn, h=1.5, dt=0.05, j2=0.5),
-    ])
+    @pytest.mark.parametrize(
+        "builder_call",
+        [
+            lambda n, nn, nnn: build_frustrated_trotter_step(n, nn, nnn, h=1.5, dt=0.05, j2=0.5),
+        ],
+    )
     def test_frustrated_step_is_unitary(self, builder_call):
         n = 4
         nn = [(0, 1), (1, 2), (2, 3)]
@@ -249,8 +259,7 @@ class TestRobustJsonPersistence:
         doc = {
             "schema": "dyn_test_v1",
             "quenches": [
-                {"h2": 2.5, "rate": [0.0, float("inf"), 0.1, float("nan")],
-                 "loschmidt": [1.0, 0.0, 0.5, 0.9]},
+                {"h2": 2.5, "rate": [0.0, float("inf"), 0.1, float("nan")], "loschmidt": [1.0, 0.0, 0.5, 0.9]},
             ],
             "t_noise": float("inf"),
         }
@@ -280,3 +289,79 @@ class TestRobustJsonPersistence:
         assert out.exists()
         # No leftover PID-tagged temp files in the directory.
         assert not list(out.parent.glob("*.tmp.*"))
+
+
+class TestBipartitionEntropy:
+    """Arbitrary-cut entropy used to compare 2D cuts against the 1D half-chain cut."""
+
+    def test_bell_pair_is_ln2_and_product_is_zero(self):
+        qc = QuantumCircuit(3)
+        qc.h(0)
+        qc.cx(0, 1)
+        psi = np.asarray(Statevector(qc).data)
+        np.testing.assert_allclose(bipartition_entropy(psi, 3, [0]), np.log(2), atol=1e-10)
+        np.testing.assert_allclose(bipartition_entropy(psi, 3, [2]), 0.0, atol=1e-10)
+
+    def test_matches_half_chain_on_complementary_cut(self):
+        # Pure state: S(A) = S(B), so the low-half cut equals the half-chain cut.
+        n = 6
+        psi = _random_state(n, seed=11)
+        np.testing.assert_allclose(bipartition_entropy(psi, n, [0, 1, 2]), half_chain_entropy(psi, n), atol=1e-10)
+
+    def test_degenerate_cuts_return_zero(self):
+        psi = _random_state(4)
+        assert bipartition_entropy(psi, 4, []) == 0.0
+        assert bipartition_entropy(psi, 4, [0, 1, 2, 3]) == 0.0
+
+    def test_vertical_cut_matches_square_layout(self):
+        # qubit s = r*cols + c, cols = ceil(sqrt(N)); cut = columns < cols//2.
+        assert square_vertical_cut_qubits(16) == [0, 1, 4, 5, 8, 9, 12, 13]
+        assert square_vertical_cut_qubits(18) == [0, 1, 5, 6, 10, 11, 15, 16]
+
+
+class TestNativeRoutingBudget:
+    """Routing overhead on a square coupling map: nn edges native (RZZ -> 2 CZ),
+    diagonal nnn edges need SWAP. This is the measurement behind the xN estimate."""
+
+    @staticmethod
+    def _layers(n_rows=2, n_cols=2):
+        from qmbp_simulation.circuits.trotter import _apply_zz_layer
+
+        n = n_rows * n_cols
+        nn = [(0, 1), (2, 3), (0, 2), (1, 3)]
+        nnn = [(0, 3), (1, 2)]
+        nn_qc = QuantumCircuit(n)
+        _apply_zz_layer(nn_qc, nn, 1.0, 0.05)
+        full_qc = QuantumCircuit(n)
+        _apply_zz_layer(full_qc, nn, 1.0, 0.05)
+        _apply_zz_layer(full_qc, nnn, -0.5, 0.05)
+        return nn_qc, full_qc
+
+    def test_nn_only_overhead_is_exactly_two_on_native_edges(self):
+        nn_qc, full_qc = self._layers()
+        grid = square_grid_coupling_map(4)
+        bd = routing_overhead_breakdown(nn_qc, full_qc, grid)
+        np.testing.assert_allclose(bd["overhead_nn"], 2.0)
+
+    def test_diagonals_add_routing_cost(self):
+        nn_qc, full_qc = self._layers()
+        bd = routing_overhead_breakdown(nn_qc, full_qc, square_grid_coupling_map(4))
+        assert bd["overhead_full"] > bd["overhead_nn"]
+        assert bd["routing_excess"] > 0
+        # All-to-all is the no-routing lower bound: decomposition only.
+        assert bd["transpiled_all_to_all"] <= bd["transpiled_full"]
+
+    def test_transpiled_count_without_coupling_map_is_decomposition_only(self):
+        nn_qc, _ = self._layers()
+        assert transpiled_2q_count(nn_qc, None) == 2 * count_2q_gates(nn_qc)
+
+    def test_square_grid_holds_requested_qubits(self):
+        for n in (10, 16, 18):
+            assert square_grid_coupling_map(n).size() >= n
+
+    def test_nighthawk_coupling_map_is_the_120_qubit_square_lattice(self):
+        cmap = nighthawk_coupling_map()
+        if cmap is None:
+            pytest.skip("FakeNighthawk unavailable in this environment")
+        assert cmap.size() == 120
+        assert cmap.is_connected()

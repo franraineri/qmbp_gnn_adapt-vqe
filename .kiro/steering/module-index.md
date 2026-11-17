@@ -42,7 +42,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/analysis/ (32)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +68
 
-  auto_tuning                      F:auto_tuning_dir,override_log_path,learned_overrides_path+6
+  auto_tuning                      F:auto_tuning_dir,override_log_path,learned_overrides_path+8
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
   comparative                ANAL  C:RegimeDiscoveryResult,ComparativeMetrics | F:find_h_min,classify_result,filter_by_threshold+5
   constants                  CFG   F:compute_quality_score,grade_from_score
@@ -57,7 +57,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
   extension_ranker           ANAL  C:ExtensionScore,ExtensionPriorityRanker
   failures_tests             TEST  C:FailureDiagnostic | F:diagnose_gap_masking,diagnose_contaminated_training,diagnose_generalization_failure+4
-  fidelity                         F:compute_exact_fidelity,energy_gap_fidelity_bound,compute_variance_fidelity_bound+4
+  fidelity                         F:compute_exact_fidelity,energy_gap_fidelity_bound,compute_variance_fidelity_bound+7
   flow_warmstart             OPT   C:FlowWarmstartManager
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
@@ -75,14 +75,15 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   vqe_validator              VAL   C:Severity,ValidationIssue,VQEValidationReport+1
   warmstart                  CIRC  F:first_order_warmstart_theta,calibrated_zz_coef,calibrated_x_scale+43
 
-### qsim/circuits/ (6)
+### qsim/circuits/ (7)
   ↳ HVACircuitBuilder AQCCircuitCompressor AQCCompressionConfig AQCCompressionResult CompressionValidation AQCCompressionCache
 
-  ansatz_spec                IO    C:AnsatzSpec | F:encode_ansatz_spec,decode_ansatz_spec
+  ansatz_spec                IO    C:AnsatzSpec | F:symmetry_meta_from_group,encode_ansatz_spec,decode_ansatz_spec
   aqc_compression            CIRC  C:AQCCompressionConfig,AQCCompressionResult,CompressionValidation+2
-  bond_mask                  CIRC  C:BondSelection | F:full_selection,prune_by_theta,top_k_by_weight+7
+  bond_mask                  CIRC  C:BondSelection | F:full_selection,prune_by_theta,top_k_by_weight+8
   hva                        MODEL C:HVACircuitBuilder | F:do_checks
   hva_variants               CIRC  C:AnsatzVariant | F:build_variant,make_masked_variant
+  symmetry                   ANAL  C:LatticeSymmetryGroup,SymmetryReport,SymmetryStrategy | F:detect_symmetry_group,bond_orbits,site_orbits+9
   trotter                    CIRC  F:build_trotter_step,build_trotter_step_from_topology,build_frustrated_trotter_step+1
 
 ### qsim/execution/hardware/ (11)
@@ -136,7 +137,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   study_runner               PIPE  C:WarmStartResult,StudyRunner | F:make_adjoint_gradient,strategy_single,strategy_bestof+4
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
 
-### qsim/models/ (5)
+### qsim/models/ (6)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
   constants                  CFG  
@@ -144,6 +145,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
   model_spec                 MODEL C:ModelSpec
+  tilted_square                    C:TiltedCluster | F:generate_square_tilted,tilted_for_n
 
 ### qsim/optimizers/ (3)
   ↳ VQEOptimizer SPSAOptimizer AdaptiveRestartConfig SelectiveAscendingConfig SelectiveAscendingReport compute_adaptive_restarts compute_restarts_for_sweep select_suspicious_points
@@ -352,7 +354,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   compute_h_frontier_topologies DIAG  F:compute_frontier
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   quick_noisy_comparison     EXEC  F:run_comparison,main
-  analyze_angles             CIRC  F:cmd_blocks,cmd_basins,cmd_seed_gap+4
+  analyze_angles             CIRC  F:cmd_blocks,cmd_basins,cmd_seed_gap+5
   analyze_bond_importance    PRED  F:analyze,main
   analyze_bond_importance_deep IO    F:analyze,main
   analyze_hva_vs_vl_resources VIS   F:build_summary,main
@@ -360,10 +362,13 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   analyze_seed_vs_optimum    CFG   F:main
   analyze_theta_patterns     ANAL  F:analyze_one,main
   ansatz_expressivity_2d     OPT   F:expressivity_ceiling,run,format_rows+2
+  audit_warmstart_donors     VAL   F:load_donors,run_one,main
+  audit_warmstart_vs_random  VAL   F:audit_point,main
   calibrate_budget_vs_n            F:curve_for,main
   check_warmstart_adaptive         F:metrics_table,cross_n_matrix,theta_x_table+1
   compare_circuits_square_n10_p2 CIRC  F:compare,main
   compare_hva_nnn_vs_vl      CIRC  F:main
+  compare_hva_vl_mps_fidelity PRED  F:compare_state_preparations,format_rows,build_parser+1
   compare_seed_initfid       ANAL  F:main
   confirm_second_order_warmstart       F:run,build_parser,main
   converge_to_ceiling        IO    F:main
@@ -376,7 +381,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   export_hva_circuit_bundle  PRED  F:main
   fit_seed_profile                 F:main
   fit_sparsity_law                 F:keep_counts_for_N,build_table,main
-  generate_ansatz_summary    DIAG  C:Config,Solution | F:collect_exact,collect_specs,collect_bond_ablation+5
+  generate_ansatz_summary    DIAG  C:Config,Solution | F:collect_exact,collect_specs,collect_bond_ablation+8
   generate_vl_hva_comparison_report CIRC  F:build_markdown,main
   generate_vl_hva_consolidated_report CIRC  C:Rec,Scenario | F:collect,build_markdown,main
   hva_nnn_h_sweep_frustrated OPT   F:run,format_rows,build_parser+1
@@ -384,6 +389,9 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   mps_extraction             EXEC  C:CappedMPS | F:dmrg_mps_capped,capped_mps_vidal,mps_to_statevector+1
   oracle_block_sources       PRED  F:main
   organize_results           CIRC  F:cmd_reindex,cmd_query,cmd_validate_cache+3
+  probe_tilted_ceiling       DIAG  F:main
+  probe_tilted_seeds         ANAL  F:tied_analytic_seed,main
+  probe_tilted_symmetry            F:build_frustrated_h,probe_one,main
   reanalyze_p2_filtered      ANAL  
   results_query              CIRC  C:ResultRecord | F:iter_records,query_results,best_result+5
   run_adapt_bonds            CIRC  F:run,main
@@ -403,16 +411,32 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_layer_ablation_direct  TEST  F:main
   run_n18_fair_convergence   ANAL  F:main
   run_n18_second_order       PIPE  F:main
+  run_n20_aqc_compress       CIRC  F:main
+  run_n20_crossn_and_geo           F:main
+  run_n20_frontier_symmetry        F:main
+  run_n20_geo_cluster        CORE  F:main
   run_n20_geometric          OPT   F:run,main
   run_n20_hybrid_prune             F:run,main
+  run_n20_refine_pruned            F:main
   run_n20_small_ansatze      OPT   F:run,main
+  run_n20_symmetry_tied            F:main
   run_native_routing_budget        F:run,build_parser
   run_prep_evolution_noise         F:run,build_parser
   run_prune03_dynamics             F:run,build_parser
   run_representability_mps   SOLVE F:dmrg_chi,exact_energy,run+1
+  run_sb_layers_ab           CIRC  F:main
   run_seed_ablation_study    OPT   F:main
+  run_symmetrized_warmstart_ab ANAL  F:main
+  run_symmetry_sweep         OPT   F:main
+  run_tilted_drop_nnn              F:main
+  run_tilted_pareto_2q       OPT   F:main
+  run_tilted_tied_ab               F:build_frustrated_h,main
+  run_tilted_transfer              F:optimize_fidelity,main
+  run_tilted_warmstart             F:main
   run_variant_topk                 F:run,main
   run_zero_tiny_compress           F:main
+  study_symmetries           CLI   F:main
+  study_sync                 CIRC  F:run_study_sync,main
   sweep_block_scale_h1       OPT   F:scale_block,main
   sweep_nn_shrink_h1         OPT   F:shrink_nn,main
   theta_pattern_sweep        OPT   F:build_parser,main
@@ -449,7 +473,6 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   circuit_cost_check         CIRC  C:CircuitCostResult | F:compute_circuit_cost,print_cost_report,save_report+1
   compare_ablation_runs      ANAL  F:parse_args,load_runs,format_table+1
   compare_hva_std_vs_longitudinal CIRC  C:PointResult | F:run_anchor_check,main
-  compare_hva_vl_mps_fidelity PRED  F:compare_state_preparations,format_rows,build_parser+1
   compile_multiseed_report   ANAL  F:extract_metrics,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
   compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4

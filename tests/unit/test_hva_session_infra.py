@@ -210,3 +210,68 @@ class TestSpectralDecomposition:
         assert 0.0 <= out["subspace_fidelity"] <= 1.0 + 1e-9
         # weight outside = 1 - subspace, consistent
         assert abs(out["weight_outside_low_subspace"] - (1.0 - out["subspace_fidelity"])) < 1e-9
+
+
+# ── 6. Symmetry-breaking "y" block (RY per site, 0 CX) ────────────────────────
+def _count_2q(qc):
+    """Number of two-qubit operations in a circuit (CX/RZZ pre-transpile)."""
+    return sum(1 for inst in qc.data if inst.operation.num_qubits == 2)
+
+
+class TestSymmetryBreakingYBlock:
+    """The "y" block is an RY-per-site symmetry-breaking layer: +N params, +0 CX.
+
+    Mirrors the "x"/"z" single-qubit blocks but with RY (breaks the Z2/X-only
+    symmetry the HVA preserves). Ref: Park arXiv:2106.02509.
+    """
+
+    def test_y_block_adds_nqubits_params_zero_2q(self, frustrated_n6):
+        lat, _, _, _, _ = frustrated_n6
+        b = HVACircuitBuilder()
+        base, _ = b.create_bond_resolved_frustrated_configurable(
+            6, lat, blocks=["nn", "nnn", "x", "nn", "x"], rx_final=True
+        )
+        with_y, _ = b.create_bond_resolved_frustrated_configurable(
+            6, lat, blocks=["nn", "nnn", "x", "nn", "x", "y"], rx_final=True
+        )
+        # One y block adds exactly N parameters (one RY per site)...
+        assert with_y.num_parameters == base.num_parameters + 6
+        # ...and NO two-qubit gates (RY is single-qubit).
+        assert _count_2q(with_y) == _count_2q(base)
+
+    def test_y_block_emits_ry_gates(self, frustrated_n6):
+        lat, _, _, _, _ = frustrated_n6
+        b = HVACircuitBuilder()
+        qc, _ = b.create_bond_resolved_frustrated_configurable(6, lat, blocks=["nn", "nnn", "x", "y"])
+        n_ry = sum(1 for inst in qc.data if inst.operation.name == "ry")
+        assert n_ry == 6  # one RY per site
+
+    def test_registry_y_variant_same_2q_more_params(self, frustrated_n6):
+        """p1_half_nn_rx_y matches p1_half_nn_rx in 2q count but adds params."""
+        lat, _, _, _, _ = frustrated_n6
+        from qmbp_simulation.circuits.hva_variants import VARIANTS, build_variant
+
+        b = HVACircuitBuilder()
+
+        def _unwrap(r):
+            return r[0] if isinstance(r, tuple) else r
+
+        qc_base = _unwrap(build_variant(b, 6, lat, VARIANTS["p1_half_nn_rx"]))
+        qc_y = _unwrap(build_variant(b, 6, lat, VARIANTS["p1_half_nn_rx_y"]))
+        assert _count_2q(qc_y) == _count_2q(qc_base)  # 0 extra CX from the y layer
+        assert qc_y.num_parameters == qc_base.num_parameters + 6  # +N from the RY layer
+        assert "p2_half_nn_rx_y" in VARIANTS
+
+    def test_y_warmstart_seed_length_and_zeros(self, frustrated_n6):
+        """variant_warmstart_theta seeds the y block at identity (all zeros)."""
+        lat, _, _, n_nn, n_nnn = frustrated_n6
+        from qmbp_simulation.analysis.warmstart import variant_warmstart_theta
+
+        b = HVACircuitBuilder()
+        blocks = ["nn", "nnn", "x", "nn", "x", "y"]
+        qc, _ = b.create_bond_resolved_frustrated_configurable(6, lat, blocks=blocks, rx_final=True)
+        seed = variant_warmstart_theta(blocks, n_nn, n_nnn, 6, 0.5, J=1.0, J2=0.5, rx_final=True)
+        assert len(seed) == qc.num_parameters
+        # The y block sits after [nn, nnn, x, nn, x]; its N slots must be zero.
+        off = n_nn + n_nnn + 6 + n_nn + 6
+        assert np.allclose(seed[off : off + 6], 0.0)

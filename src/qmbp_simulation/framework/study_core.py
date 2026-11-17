@@ -420,6 +420,12 @@ def prepare_warmstart(
     auto_donors=False,
     donor_sources=("ansatz_specs", "npz"),
     max_donors=4,
+    blocks=None,
+    rx_final=False,
+    rz_final=False,
+    symmetrize_group=None,
+    symmetrize_nn_edges=None,
+    symmetrize_nnn_edges=None,
 ):
     """One-call warm-start for any runner — the canonical integration point.
 
@@ -476,6 +482,19 @@ def prepare_warmstart(
     Returns the ``best_combined_warmstart`` dict ``{seed, provenance,
     init_fidelity, report}`` plus the ``fid``/``grad``/``cost`` it built (keys
     ``_fid`` / ``_grad`` / ``_cost``) and the resolved ``_profile`` for provenance.
+
+    ``blocks`` (+ ``rx_final`` / ``rz_final``): the circuit's block sequence. When
+    given for a NON-standard layout (half-layers, trailing finals), the matching
+    structure-aware second-order seed is injected as an extra candidate of the
+    exact parameter count, so the chosen seed is never a length-mismatched
+    fallback the caller must discard. Omit (or pass the plain ``[nn,nnn,x]*p``
+    sequence) to keep the previous behaviour unchanged.
+
+    ``symmetrize_group`` (+ ``symmetrize_nn_edges`` / ``symmetrize_nnn_edges``):
+    project the chosen seed onto the lattice's symmetric subspace (orbit-average,
+    keeping per-bond width — no tying) before returning it. The target state is
+    group-invariant so the optimum sits near that subspace; this starts the
+    optimizer there while the circuit stays bond-resolved. Opt-in; off by default.
 
     Backend-agnostic and N-agnostic: it only needs an evaluable ``qc``/``H``/``psi``
     (the caller owns the backend), so every runner integrates the same way.
@@ -553,6 +572,46 @@ def prepare_warmstart(
         except Exception:
             use_donors = donors  # discovery is best-effort; never break the seed
 
+    # Non-standard layout auto-seed: when the caller passes the block sequence
+    # (and rx/rz finals), the built-in analytic candidates — built for the plain
+    # [nn,nnn,x]*p layout — do not match the circuit's parameter count, so the
+    # cascade would fall back to a length-mismatched regime seed the caller then
+    # discards. We inject the structure-aware second-order seed
+    # (variant_warmstart_theta) as an extra candidate of the EXACT layout length,
+    # so every non-standard ansatz (half-layers, rx_final — e.g. p1_half_nn_rx)
+    # gets an informed seed automatically. Standard [nn,nnn,x]*p layouts are left
+    # untouched (the built-in seeds already match). Prepended so an explicit
+    # caller candidate still competes/overrides.
+    if blocks is not None:
+        from qmbp_simulation.analysis.warmstart import cached_variant_warmstart_theta
+
+        std_blocks = ["nn", "nnn", "x"] * p_layers
+        is_standard = list(blocks) == std_blocks and not rx_final and not rz_final
+        if not is_standard:
+            variant_seed = cached_variant_warmstart_theta(
+                list(blocks), n_nn, n_nnn, n_qubits, h, J=J, J2=J2, rx_final=rx_final, rz_final=rz_final
+            )
+            extra_candidates = [(variant_seed, "variant_second_order"), *(extra_candidates or [])]
+
+    # Symmetry projection of transferred donors (validated lever): a cross-N/cross-h
+    # donor lands slightly off the symmetric subspace the target state lives on;
+    # projecting it back (orbit-average, per-bond width preserved — no tying) adds a
+    # cleaned-up candidate the cascade ranks against the raw transfer. Built here
+    # from the lattice group (opt-in via symmetrize_group) because this is where
+    # the block layout + bond edges are known; passed to the cascade as a projector
+    # so the cascade stays symmetry-agnostic. Analytic seeds are already orbit-
+    # constant, so only transfer candidates are projected (inside the cascade).
+    project_transfer = None
+    if symmetrize_group is not None and blocks is not None and symmetrize_nn_edges is not None:
+        from qmbp_simulation.circuits.symmetry import symmetrize_seed
+
+        _grp, _blk = symmetrize_group, list(blocks)
+        _nn_e, _nnn_e = symmetrize_nn_edges, symmetrize_nnn_edges or []
+        _rx, _rz = rx_final, rz_final
+
+        def project_transfer(theta):
+            return symmetrize_seed(theta, _blk, _nn_e, _nnn_e, n_qubits, _grp, rx_final=_rx, rz_final=_rz)
+
     res = best_combined_warmstart(
         n_nn=n_nn,
         n_nnn=n_nnn,
@@ -563,6 +622,7 @@ def prepare_warmstart(
         J2=J2,
         fid_fn=fid,
         descent_fn=descent_fn,
+        project_transfer=project_transfer,
         donors=use_donors,
         target_nnn_edges=target_nnn_edges,
         extra_candidates=extra_candidates,

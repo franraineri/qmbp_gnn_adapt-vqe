@@ -5,6 +5,69 @@
 **Zoo**: 5 checkpoints (all multi-N) | **Extrapolation**: chain_1d N=30, ladder N=20
 **Topologías**: chain_1d (n_max=20✅), heavy_hex (16✅), ladder (10⚠️ physics limit), square (16✅), triangular (14⚠️)
 
+### A0. Estado 2026-11-16 — frente "dinámica square frustrado" (cerrado temporalmente)
+
+El resto de este archivo está fechado 2026-08-11. Este frente se documenta aparte:
+
+- Bitácora (qué se hizo, correcciones, trampas, cómo retomar):
+  `../binnacles/binnacle-session-20261116-square-dynamics-limits.md`
+- Resultados y caveats: `../analysis/classical_simulability_square_frustrated.md`
+- Presupuesto de hardware: `../hardware/nighthawk_r2_gate_limits_and_noise.md`
+
+Resumen: el límite clásico de la dinámica (MPS) se mide hasta N=18-20 y se extrapola a
+una frontera N≈50-53. A N≤20 el statevector exacto (≤17 MB) hace el límite académico.
+No se afirma ventaja cuántica. Gap de hardware a N=18: ×41 sobre el límite de ruido,
+×2.7 sobre el arquitectónico.
+
+Pendiente, por prioridad (detalle en el análisis §8-§9):
+
+1. S_sat en N=22/24 y DMRG del ground state en N=24-36 (sostienen toda cifra N>20).
+2. t*(χ) a N=20 con χ hasta 256 (acorta la extrapolación a χ=10⁴).
+3. Comparar estado GNN vs quench trivial a igual densidad de energía (el resultado
+   actual no respalda el objetivo de la tesis tal como está planteado).
+4. Podar nnn en la evolución y medir física perdida vs 2q ahorrados.
+5. Agregar `--noise-model analytic` a `run_prep_evolution_noise.py`.
+
+### A0b. Estado 2026-11-16 — frente "Haiqu VL en square frustrado" (cerrado temporalmente)
+
+Trabajo ejecutado 2026-09-22 → 09-25 (commits `6cf7465`, `6e41376`). Se documenta aparte:
+
+- Bitácora (qué se hizo, mapa de código y datos, bugs, trampas, cómo retomar):
+  `../binnacles/binnacle-vl-haiqu-square-frustrated.md`
+- Reporte con todas las tablas:
+  `../../../results/hva_vl_study/reports/REPORT_VL_square_frustrated.md`
+
+Resumen: la fidelidad de VL está limitada por el gap (F=0.81 en gap 0.22 → 0.99 en gap 4.5
+con L2/F20). Con L8/F50 se recupera a F=0.94-0.98 en N=9 al costo de 4× las 2q (30→120).
+A N=18 vía `mps_loading` F=0.79-0.86 con 264 2q; el MPS de entrada es fiel (χ=64≈χ=256).
+Además se corrigió un bug del `ClassicalSolver` (DMRG sin términos NNN/J2 a N>16).
+
+Pendiente, por prioridad:
+
+1. Correr N=18 con `--fine-tuning 200 --truncation-cutoff 1e-8` en forma `standard` y `vidal`
+   (bloqueado: créditos de Haiqu agotados, HTTP 402; el código está listo y verificado).
+2. Separar efecto de tamaño y de loader: `mps_loading` a N=9-16 (hoy N=9 usa `vector_loading`).
+3. Repeticiones por punto (VL es estocástico, hoy una sola corrida) y barrido de `truncation_cutoff`.
+4. Triangular: `|ΔE|` y QPY solo existen en el quality sweep.
+5. Deuda técnica: tests para `mps_extraction` / `run_vl_*`; conversión Pauli→TeNPy duplicada
+   (`classical.py` y `mps_extraction.py`); evaluar mover el núcleo MPS a `src/`.
+6. Validar el gap del solver para frustrado con N>18 (usa estimación analítica TFIM).
+7. Operativo: rotar la API key de Haiqu (apareció en un chat) y recargar créditos.
+
+### A0-sym. Estado 2026-11-16 — frente "simetría y clusters tilted PBC" (cerrado temporalmente)
+Se documenta aparte; nada de este frente está commiteado.
+- Bitácora: `internal/documentation/binnacles/binnacle-session-20261116-symmetry-tilted.md`.
+- Traspaso (estado por experimento, comandos, trampas): `docs/research/HANDOFF_symmetry_tilted.md`.
+- Física y tablas: `docs/research/symmetry_frustrated_vqe_findings.md`, secciones 9 a 11.
+- Resultado en una línea: en OBC la simetría no ayuda a N >= 16; en clusters tilted PBC (otro modelo
+  físico) el ansatz tied llega a 0.9960 en N=9 y a 0.7951 en N=16 (512 2q) con semilla de N=9 y
+  objetivo de fidelidad; omitir el nnn de la capa 0 da 0.7881 con 448 2q.
+- Abierto, por valor esperado:
+  1. Barrer p=5/6 en N=16 con objetivo fidelidad (la fidelidad no saturó en p=4; que p=6 pase 0.95 es hipótesis).
+  2. Confirmar el drop del nnn de la capa 0 con varias semillas y otros p (hoy es una corrida por variante).
+  3. Repetir los clusters geométricos de N=20 sobre `p3_half_nn_rx` con presupuesto comparable (hoy inconcluso).
+  4. Mover `optimize_fidelity` a `src/` con tests; agregar campo OBC/PBC al scoreboard.
+
 ### Hallazgos recientes (sesión 2026-08-11)
 
 - **Theta cleaning**: 15 NPZ con discontinuidad → 6 (sequential canonicalize + MAD filter, 158 outliers removed)

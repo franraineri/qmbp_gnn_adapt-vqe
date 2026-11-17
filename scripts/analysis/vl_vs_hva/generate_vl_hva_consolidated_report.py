@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import glob
 import json
+import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -288,13 +289,18 @@ def collect(root: Path, *, recompute_gates: bool = True) -> dict[tuple, Scenario
             if schema == "adapt_bonds_v1":
                 label = f"adapt step{r.get('step')} ({r.get('n_bonds')} bonds)"
             else:
-                label = r.get("variant", "?")
+                # Schemas disagree on the field name: variant_topk uses
+                # "variant"/"n_nnn_bonds"; the small/geometric/hybrid schemas use
+                # "label"/"n_nnn". Read both so no ansatz collapses to "?" (which
+                # made distinct circuits share the scoreboard's upsert key).
+                label = r.get("variant") or r.get("label") or "?"
                 nnnb = r.get("n_nnn_bonds")
+                if nnnb is None:
+                    nnnb = r.get("n_nnn")
                 if nnnb is not None:
                     label = f"{label} (nnn={nnnb})"
             e_best = r.get("e_best")
-            abs_err = (abs(e_best - e0) if (e_best is not None and e0 is not None)
-                       else r.get("abs_error"))
+            abs_err = abs(e_best - e0) if (e_best is not None and e0 is not None) else r.get("abs_error")
             s.recs.append(
                 Rec(
                     method="HVA",
@@ -405,6 +411,106 @@ def collect(root: Path, *, recompute_gates: bool = True) -> dict[tuple, Scenario
                 "chi_max": d.get("chi_max"),
                 "methods": d.get("methods", {}),
             }
+
+    # ── Portable AnsatzSpecs (specs-only solutions) ──────────────────────
+    # Some solutions (aggressive prunes, the diag_axial50 family, cross-N
+    # transfers) are persisted ONLY as portable specs, never written into a
+    # bond_ablation JSON. Harvest them so the scoreboard has parity with the
+    # per-config summary (which already reads specs). The scoreboard's upsert
+    # dedups by (method, N, h, variant, loader), so a spec that duplicates a
+    # bond_ablation row collapses harmlessly — we never double-count.
+    for f in sorted(glob.glob(str(study / "ansatz_specs" / "*square_N*_h*.spec.json"))):
+        try:
+            d = _load(Path(f))
+        except Exception:
+            continue
+        if not d or d.get("fidelity") is None or d.get("n_2q") is None:
+            continue
+        n = d.get("n_qubits")
+        h = d.get("h")
+        if n is None or h is None:
+            continue
+        s = get(n, h)
+        n_nnn = len(d.get("nnn_edges") or [])
+        fid = round(float(d["fidelity"]), 4)
+        q = int(d["n_2q"])
+        # A spec duplicates a bond_ablation row (same physical circuit) when it
+        # shares (n_2q, fidelity). The spec and bond_ablation names differ (the
+        # spec stem carries a "_<topo>_N<n>_h<h>" suffix), so matching by name is
+        # unreliable; dedup by the physical identity (n_2q, fid) instead — skip
+        # the spec when the scene already has that circuit from any source.
+        if any(r.n_2q == q and r.fidelity is not None and round(r.fidelity, 4) == fid for r in s.recs):
+            continue
+        stem = Path(f).stem.replace(".spec", "")
+        base = re.sub(rf"_{d.get('topology', 'square')}_N\d+_h[0-9.]+$", "", stem)
+        s.recs.append(
+            Rec(
+                method="HVA",
+                variant=f"{base} (nnn={n_nnn})",
+                fidelity=float(d["fidelity"]),
+                abs_error=None,
+                de_gap=None,
+                n_2q=q,
+                total_gates=None,
+                depth=None,
+                converged=d.get("seed_kind") or "spec",
+                note=f"ansatz_spec (nnn={n_nnn})",
+                source=f"ansatz_specs:{Path(f).name}",
+            )
+        )
+
+    # ── ADAPT (poolA) runs ───────────────────────────────────────────────
+    # ADAPT growth runs record a max-fidelity point (pool_best_fidelity/pool_2q)
+    # and a Pareto fid/2q point; harvest both so the scoreboard matches the
+    # summary (which has collect_adapt). These live in adapt_poolA_*.json, a
+    # schema the generic bond_ablation loop above skips.
+    for f in sorted(glob.glob(str(study / "bond_ablation" / "adapt_poolA_*.json"))):
+        try:
+            d = _load(Path(f))
+        except Exception:
+            continue
+        rows = d.get("rows", []) if isinstance(d, dict) else []
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            n = r.get("n_qubits", d.get("N"))
+            h = r.get("h", d.get("h"))
+            if n is None or h is None:
+                continue
+            tag = Path(f).stem.replace("adapt_poolA_", "").split("_")[0]
+            s = get(n, h)
+            if r.get("pool_best_fidelity") is not None and r.get("pool_2q"):
+                s.recs.append(
+                    Rec(
+                        method="HVA",
+                        variant=f"ADAPT({tag})-maxfid",
+                        fidelity=float(r["pool_best_fidelity"]),
+                        abs_error=None,
+                        de_gap=None,
+                        n_2q=int(r["pool_2q"]),
+                        total_gates=None,
+                        depth=None,
+                        converged="adapt",
+                        note="adapt_vqe max-fid",
+                        source=f"adapt_poolA:{Path(f).name}",
+                    )
+                )
+            if r.get("pareto_fid") is not None and r.get("pareto_2q"):
+                s.recs.append(
+                    Rec(
+                        method="HVA",
+                        variant=f"ADAPT({tag})-pareto",
+                        fidelity=float(r["pareto_fid"]),
+                        abs_error=None,
+                        de_gap=None,
+                        n_2q=int(r["pareto_2q"]),
+                        total_gates=None,
+                        depth=None,
+                        converged="adapt",
+                        note="adapt_vqe pareto",
+                        source=f"adapt_poolA:{Path(f).name}",
+                    )
+                )
 
     return scen
 

@@ -107,6 +107,14 @@ Implemented in `qmbp_simulation.analysis.dynamics`:
 - `NIGHTHAWK_CZ_ERROR = 3e-3` — the default median CZ error.
 - `fidelity_from_2q(n_2q, eps_2q=NIGHTHAWK_CZ_ERROR)` — the decay model.
 - `tnoise_from_2q_curve(cumulative_2q, eps_2q, floor)` — first step crossing 1/e.
+- `gates_to_floor(eps_2q)` — 2q-gate budget to the 1/e floor (333 at the default).
+- `tnoise_curve(..., eps_2q=...)` / `tnoise_on_backend(..., eps_2q=...)` — transpile
+  to a named fake backend for a realistic 2q count, but score with the analytic model.
+- `nighthawk_coupling_map()`, `square_grid_coupling_map(n)`, `transpiled_2q_count()`,
+  `routing_overhead_breakdown()` — routing measurements with no noise model.
+- CLI: `--noise-model {fake,analytic}` and `--eps-2q` exist on
+  `run_prune03_dynamics.py` and `run_kitaev_heavyhex_noise.py`. They do **not** exist
+  on `run_prep_evolution_noise.py`, which still uses the fake backend only.
 
 This analytic model is preferred over the Qiskit **fake backends**
 (`FakeNighthawk`, `FakeTorino`) for the realistic budget because:
@@ -132,9 +140,31 @@ This analytic model is preferred over the Qiskit **fake backends**
 Our preparation circuits sit **well below** the realistic noise limit at median CZ
 error (60–158 ≪ 333). The `t_noise ≈ 1` we saw earlier was an artefact of the
 pessimistic fake-backend calibration, **not** a true hardware limit for these
-circuits. The real bottleneck for square-lattice frustrated TFIM at larger N is
-the **SWAP-routing overhead** (×6 at N=21: 160 logical → 973 transpiled 2q), which
-is a mapping cost, not a per-gate-error cost.
+circuits.
+
+### Routing overhead: ×6 on heavy-hex, ×3.5 on the native square lattice
+
+Two different numbers circulated and must not be mixed up:
+
+| Target graph                 | Overhead (transpiled / logical 2q) | Source                        |
+|------------------------------|:----------------------------------:|-------------------------------|
+| `FakeTorino` (Heron, heavy-hex) | ×6.1 at N=21 (160 → 973)        | `qd1` Section 4               |
+| Nighthawk square (real map)  | ×3.1 (N=10) to ×3.55 (N=18)        | `run_native_routing_budget.py` |
+
+The ×6 was a square lattice forced onto the *wrong topology* (heavy-hex), not a
+generic transpilation artefact. On Nighthawk's own square coupling map:
+
+- nn bonds cost exactly **2.00×** (RZZ → 2·CZ, no SWAP): they are physical couplers.
+- The excess (1.1 at N=10 to 1.55 at N=18) is SWAP routing of the "nnn" pairs. In our
+  model these are all graph-distance-2 pairs (diagonal *and* straight two-step), and
+  none is a physical coupler.
+- `FakeNighthawk` ships the correct 120-qubit square connectivity; only its noise
+  model is unreliable. Use its coupling map (`nighthawk_coupling_map()`) with the
+  analytic `ε₂q`, not its calibration.
+
+The budget that results (≈ 13.7k transpiled 2q to outlast a χ=10⁴ MPS at N=18, gap
+×41 over the noise limit, ×2.7 over the architectural limit) is derived in
+`../analysis/classical_simulability_square_frustrated.md` §6.
 
 ---
 

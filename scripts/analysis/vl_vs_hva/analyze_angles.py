@@ -262,6 +262,137 @@ def cmd_basin_signature(args):
     return out
 
 
+def _load_spec_dicts(topology, n, h, *, variants=None):
+    """Load full/complete-square ansatz specs for (topology, N, h) as raw dicts.
+
+    Returns only COMPLETE-lattice specs (selection_provenance == 'full') unless
+    ``variants`` names specific base names. Pruned/top-k specs are excluded so
+    this studies the complete-topology angle structure, not a compressed subset.
+    """
+    import json
+
+    from hva_vl_study_common import STUDY_ROOT
+
+    specs_dir = Path(STUDY_ROOT) / "ansatz_specs"
+    out = []
+    for jf in sorted(specs_dir.glob(f"*{topology}_N{n}_h{h:.2f}.spec.json")):
+        name = jf.stem.replace(".spec", "")
+        if any(tag in name for tag in ("prune", "topk", "_top", "diag", "hub", "axial")):
+            continue
+        try:
+            d = json.loads(jf.read_text())
+        except Exception:
+            continue
+        if d.get("theta") is None:
+            continue
+        if variants is not None and d.get("base_variant", d.get("name")) not in variants:
+            continue
+        if variants is None and d.get("selection_provenance", "full") != "full":
+            continue
+        d["name"] = name
+        out.append(d)
+    return out
+
+
+def cmd_spec(args):
+    """Deterministic angle study of COMPLETE-square ansatz specs (irregular layout).
+
+    Unlike ``blocks``/``scan-n`` (uniform p×[nn,nnn,x] only), this consumes the
+    exact ``blocks`` list of a spec, so full/p3 ansatze with mixed layers are
+    handled. For each spec it reports the per-role |θ| spectrum (sorted,
+    N-comparable, with the active-gate count), the effective couplings recovered
+    from the layer-1 block means (Z2-canonical), and — when ≥2 specs match — the
+    cross-spec shared-gate invariance (which role's angles are predictable across
+    h / variants). Pure: reads specs, runs no circuits.
+    """
+    from qmbp_simulation.analysis.theta_patterns import (
+        angle_spectrum_by_role,
+        compare_compressed_circuits,
+    )
+
+    specs = _load_spec_dicts(args.topology, args.n, args.h, variants=(args.variants or None))
+    if not specs:
+        print(f"No complete-square specs for {args.topology} N={args.n} h={args.h}.")
+        return {}
+    print(f"\nComplete-square angle study — {args.topology} N={args.n} h={args.h} ({len(specs)} spec(s))")
+    out = {"config": {"topology": args.topology, "n": args.n, "h": args.h}, "specs": {}}
+    for d in specs:
+        th = np.asarray(d["theta"], float)
+        nn_e = [tuple(e) for e in d["nn_edges"]]
+        nnn_e = [tuple(e) for e in d["nnn_edges"]]
+        spec = angle_spectrum_by_role(
+            th,
+            d["blocks"],
+            nn_e,
+            nnn_e,
+            d["n_qubits"],
+            rx_final=d.get("rx_final", False),
+            rz_final=d.get("rz_final", False),
+        )
+        # Effective couplings from the layer-1 block means (first nn/nnn/x block),
+        # Z2-canonicalized per block so the sign is gauge-fixed. θ_nn<0 → J_eff>0.
+        # First-block mean per role via block offsets (deterministic, layer-1 seed).
+        off = 0
+        size = {"nn": len(nn_e), "nnn": len(nnn_e), "x": d["n_qubits"], "z": d["n_qubits"]}
+        first_mean = {}
+        taken = set()
+        for b in d["blocks"]:
+            seg = th[off : off + size[b]]
+            if b not in taken and b in ("nn", "nnn", "x"):
+                first_mean[b] = float(np.mean(seg))
+                taken.add(b)
+            off += size[b]
+        h = d["h"]
+        j_nn = -4 * h * first_mean.get("nn", 0.0)
+        j_nnn = -4 * h * first_mean.get("nnn", 0.0)
+        print(f"\n  [{d['name']}]  F={d.get('fidelity', float('nan')):.4f} 2q={d.get('n_2q')}")
+        print(f"    {'role':8s} {'n':>3s} {'active':>6s} {'mean|θ|':>8s} {'max|θ|':>8s}")
+        role_out = {}
+        for role in ("nn", "nnn", "x", "rx_final"):
+            s = spec.get(role)
+            if not s or not s.get("n_total"):
+                continue
+            sp_arr = s.get("spectrum")
+            mx = float(sp_arr[0]) if sp_arr is not None and len(sp_arr) else 0.0
+            print(f"    {role:8s} {s['n_total']:>3d} {s['n_active']:>6d} {s['mean']:>8.4f} {mx:>8.4f}")
+            role_out[role] = {
+                "n_total": s["n_total"],
+                "n_active": s["n_active"],
+                "mean_abs": s["mean"],
+                "max_abs": float(mx),
+            }
+        print(
+            f"    effective couplings (layer-1): J_nn_eff={j_nn:+.4f} "
+            f"J_nnn_eff={j_nnn:+.4f}  (J2 target=+{d.get('j2', 0.5)})  "
+            f"θ_x·pred=arctan(J/h)={np.arctan(1.0 / h):.4f}"
+        )
+        out["specs"][d["name"]] = {
+            "fidelity": d.get("fidelity"),
+            "n_2q": d.get("n_2q"),
+            "roles": role_out,
+            "J_nn_eff": j_nn,
+            "J_nnn_eff": j_nnn,
+        }
+    # Cross-spec invariance (which role is predictable across the matched specs).
+    if len(specs) >= 2:
+        res = compare_compressed_circuits(specs, min_fidelity=args.min_fid)
+        pr = res.get("per_role", {})
+        if pr:
+            print(f"\n  cross-spec shared-gate invariance (Z2+π-wrapped, min_fid={args.min_fid}):")
+            print(f"    {'role':8s} {'shared':>6s} {'frac_inv':>8s} {'mean_disp':>9s}")
+            for role in ("nn", "nnn", "x"):
+                st = pr.get(role)
+                if not st:
+                    continue
+                print(
+                    f"    {role:8s} {st.get('n_shared', 0):>6d} "
+                    f"{st.get('frac_invariant', 0):>8.2f} "
+                    f"{st.get('mean_dispersion', 0):>9.4f}"
+                )
+            out["cross_spec_invariance"] = pr
+    return out
+
+
 def cmd_npz_blocks(args):
     """Per-block angle signature of the resources/*.npz optima (best-known points).
 
@@ -324,7 +455,7 @@ def cmd_npz_blocks(args):
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Recurring HVA angle-study analysis")
     sub = p.add_subparsers(dest="cmd", required=True)
-    for name in ("blocks", "basins", "seed-gap", "scan-n", "basin-signature", "npz-blocks"):
+    for name in ("blocks", "basins", "seed-gap", "scan-n", "basin-signature", "npz-blocks", "spec"):
         sp = sub.add_parser(name)
         sp.add_argument("--topology", default="square")
         sp.add_argument("--n", type=int, default=10)
@@ -336,6 +467,15 @@ def main(argv=None) -> int:
         sp.add_argument("--n-list", type=int, nargs="+", default=[8, 10, 12, 18])
         sp.add_argument("--fid-thr", type=float, default=None, help="basin-signature high/low split (default: median)")
         sp.add_argument("--subdir", default="n18_frustrated", help="npz-blocks: subdir under resources/")
+        sp.add_argument(
+            "--variants",
+            nargs="*",
+            default=None,
+            help="spec: restrict to these base_variant names (default: all complete-lattice specs)",
+        )
+        sp.add_argument(
+            "--min-fid", type=float, default=0.80, help="spec: min fidelity for the cross-spec invariance comparison"
+        )
         sp.add_argument("--save", action="store_true")
     args = p.parse_args(argv)
     fn = {
@@ -345,6 +485,7 @@ def main(argv=None) -> int:
         "scan-n": cmd_scan_n,
         "basin-signature": cmd_basin_signature,
         "npz-blocks": cmd_npz_blocks,
+        "spec": cmd_spec,
     }[args.cmd]
     out = fn(args)
     if getattr(args, "save", False) and out:

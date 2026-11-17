@@ -315,7 +315,7 @@ arXiv:2412.05202; `OURS` = this repo's code/validated data.
 | Data-loading family present | `vector_loading`, `mps_loading`, `block_vector_loading`, `distribution_loading`, `multivariate_distribution_loading`, `function_loading`, `fourier_loading`, `statevector_run` | SDK |
 | Aer `save_matrix_product_state` available | Yes | SDK |
 | TeNPy + quimb installed | Both yes | SDK |
-| `HAIQU_API_KEY` / `IBM_KEY` in env | UNSET (import/inspect OK; `.result()` needs the key — cloud job, credit cost) | SDK (env check) |
+| `HAIQU_API_KEY` / `IBM_KEY` in env | Unset at 2026-09-17. Used via env var during 2026-09-22 → 09-25 (never stored in files). Account then exhausted credits (HTTP 402). Rotate the key that leaked in chat. | SDK (env check), OURS |
 | Haiqu MCP servers exist | `https://api.haiqu.ai/mcp` (tools), `https://docs.haiqu.ai/mcp` (docs). NOT configured in this workspace. | DOCS (MCP.md) |
 
 ### Algorithmic basis (NOT SQD)
@@ -380,10 +380,52 @@ Always call `*_estimates` first (credit cost). [Source: SDK signatures + DOCS.]
 area law). The high-bond risk is a general/2D-critical caveat, not something observed in
 our validated 1D TFIM runs.
 
-### Recommended validation path (before spending credits)
+### Measured results (2026-09-22 → 2026-09-25) — tfim_frustrated, square, J2=0.5
 
-1. Small N (≤10): DMRG χ=64 → `mps_loading` → `statevector_run` vs exact `ground_state_vector`; fix the `shape` convention (TeNPy/quimb/Aer differ: plr vs lpr).
-2. χ sweep vs fidelity at a mid N, especially near h_c.
-3. Large N (60/100) only if step 2 shows χ=64 keeps fidelity acceptable.
+Source: `results/hva_vl_study/reports/REPORT_VL_square_frustrated.md`; handoff:
+`internal/documentation/binnacles/binnacle-vl-haiqu-square-frustrated.md`. Tags:
+`OURS` = measured in this repo.
 
-All above gated by `HAIQU_API_KEY` (currently unset).
+| Finding                                                                                 | Evidence                                                                                           | Source |
+|-----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|--------|
+| VL fidelity is gap-limited at default settings (L2/F20, `vector_loading`)               | N=9: F=0.809 (gap 0.224, h=0.5), 0.900 (h=1.0), 0.961 (h=2.0), 0.987 (h=3.0)                       | OURS   |
+| The small-gap drop is a config limit: L8/F50 recovers it                                | N=9 h=0.5: 0.809 → 0.943 (\|ΔE\| 0.717 → 0.275); h=1.0: 0.900 → 0.975 (0.540 → 0.198)              | OURS   |
+| `fine_tuning_iterations` 20→50 is free in gates; `num_layers` doubles 2q gates per step | 2q gates: 30 → 60 → 120 for L2/L4/L8                                                               | OURS   |
+| `mps_loading` at N=18 (L8/F50, χ≤64) loses fidelity vs N=9                              | F=0.8625 (h=0.5), 0.7924 (h=1.0); 264 2q gates; loader differs from N=9, so not a pure size effect | OURS   |
+| χ=64 is sufficient for the N=18 input MPS                                               | E(χ=64) vs E(χ=256) differ 4.3e-4 / 1.5e-3, so the loss is in MPS → circuit loading                | OURS   |
+| TeNPy `trunc_err` is unreliable at bond saturation                                      | Reports 0 while the bond is at `chi_max`; use the energy-vs-higher-χ proxy                         | OURS   |
+| Solver DMRG dropped NNN/J2 at N>16 (fixed)                                              | N=18 h=1.0: -30.2355 (wrong) vs -23.0280; `dmrg_from_operator`                                     | OURS   |
+
+### Status of the recommended validation path
+
+1. Small N (≤10) → done for `vector_loading`; MPS extraction and Vidal form validated exact at N=9 (fidelity 1.0) without Haiqu.
+2. χ sweep vs fidelity → partially done: χ=64 vs 256 at N=18 only.
+3. Large N (60/100) → NOT done. N=18 is the largest `mps_loading` run.
+
+**Pending (blocked by Haiqu credits)**: `fine_tuning_iterations=200`, `truncation_cutoff=1e-8` and
+Vidal MPS form at N=18. Tooling is ready (`vl_mps_large_n.py --fine-tuning --truncation-cutoff --mps-form`).
+
+---
+
+## Symmetry-tied ansatz and tilted PBC clusters (2026-11-16)
+
+Frustrated square TFIM, J2 = 0.5, h = 0.5. PBC is a different physical model from OBC; fidelities
+below are not comparable with the OBC scoreboard. Tags follow the convention in `changelog.md`.
+Full tables and commands: `docs/research/symmetry_frustrated_vqe_findings.md` (sections 9-11).
+
+| Finding                                                                                          | Evidence                                                                                              | Source |
+|--------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------|
+| [VERIFIED] Orbit-tied ansatz fails on OBC at N >= 16 (degenerate GS, spontaneous symmetry breaking) | Seeds from compress / symmetrize / transfer all start at init_fid <= 0.0095 at N=20; in-orbit angle spread ~20x | OURS   |
+| [VERIFIED] A symmetry-breaking RY layer is redundant with bond-resolved parameters               | delta(sb - pure) within +-0.003 at N=9/12/16/18, p1 and p2 (8 comparisons)                            | OURS   |
+| [VERIFIED] Tilted PBC N=9/16/18 are non-degenerate with full group order 72/128/144; N=8/10/13/20 are degenerate | Exact diagonalization; `tests/unit/test_tilted_square.py` (orders, single orbit per block, N=9 GS invariance) | OURS   |
+| [VERIFIED] On tilted clusters every nn bond is one orbit and every nnn bond is one orbit         | `bond_orbits` / `site_orbits` at N=9, 16 (tests); tied parameters = 3 per layer + 1, same at any N   | OURS   |
+| [PROJECTED] Tied beats per-bond on tilted N=9                                                    | p=2: 0.9047 (7 params) vs 0.6327 (99); p=4 tied 0.9960 @288 2q (13 params); one run each              | OURS   |
+| [PROJECTED] N=9 angles transfer verbatim as the N=16 seed (init 0.62 vs 0.065 calibrated)         | p=4, same parameter count at both N; one run                                                          | OURS   |
+| [PROJECTED] Fidelity objective, not energy, is needed to optimize the tied ansatz at N=16        | p=4: 0.7951 (fidelity) vs 0.3722 (energy); identical 0.7951 with 1000 and 6000 iterations              | OURS   |
+| [PROJECTED] Omitting the layer-0 nnn block costs little at N=16 p=4                              | 0.7881 @448 vs 0.7951 @512 2q; omitting more layers: 0.6923 @384, 0.4982 @320; one run per variant     | OURS   |
+| [PROJECTED] On N=20 OBC no tried technique improved the frontier at 2 restarts x 20 iterations   | topk 2/3/4 of 46 nnn: 0.4299 / 0.9373 @266 / 0.4723; `refine stored` unchanged (+-0.0001); AQC ~0.49  | OURS   |
+
+Not validated: whether the N=20 geometric-cluster idea works (the experiment changed structure and
+budget at once, see the findings note, section 9); whether p=5/6 at N=16 reaches 0.95.
+The fidelity objective needs the exact ground state, so it tests expressivity only; it is not a
+hardware method.

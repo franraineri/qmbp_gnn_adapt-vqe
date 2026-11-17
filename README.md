@@ -116,6 +116,7 @@ data/                          # Persistent caches & training data
 ├── model_zoo/                 #   Versioned MPNN checkpoints
 └── multi_n_training/          #   NPZ training data per (topology, N, p)
 
+docs/research/                 # Research notes and handoffs (lattice symmetry, tilted PBC)
 notebooks/                     # 3 interactive demos
 scripts/
 ├── analysis/                  # Canonical analysis scripts

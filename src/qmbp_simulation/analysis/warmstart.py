@@ -324,6 +324,7 @@ def variant_warmstart_theta(
         nn  → (-J  / 4h) * shrink
         nnn → (-J2 / 4h) * shrink
         x   → arctan(J/h) * (1 - (J/2h)^2 * curv_coef)
+        y   → 0 (symmetry-breaking block; neutral seed)
         z   → 0 (symmetry-breaking block; neutral seed)
 
     Trailing rx_final/rz_final blocks are seeded at 0 (identity) so they only
@@ -335,13 +336,13 @@ def variant_warmstart_theta(
     a_nn = (J / (4 * h)) * (1.0 - (J / (2 * h)) ** 2 * shrink_coef)
     a_nnn = (J2 / (4 * h)) * (1.0 - (J / (2 * h)) ** 2 * shrink_coef)
     theta_x = np.arctan(J / h) * (1.0 - (J / (2 * h)) ** 2 * curv_coef)
-    block_val = {"nn": -a_nn, "nnn": -a_nnn, "x": theta_x, "z": 0.0}
-    block_size = {"nn": n_nn, "nnn": n_nnn, "x": n_qubits, "z": n_qubits}
+    block_val = {"nn": -a_nn, "nnn": -a_nnn, "x": theta_x, "y": 0.0, "z": 0.0}
+    block_size = {"nn": n_nn, "nnn": n_nnn, "x": n_qubits, "y": n_qubits, "z": n_qubits}
 
     parts: list[np.ndarray] = []
     for b in blocks:
         if b not in block_val:
-            raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+            raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|y|z")
         parts.append(np.full(block_size[b], block_val[b], dtype=float))
     if rx_final:
         parts.append(np.zeros(n_qubits))
@@ -383,10 +384,10 @@ def compose_extend_theta(
     are accepted for signature symmetry but unused (tail is zeros).
     """
     n_extra = 0
-    size = {"nn": n_nn, "nnn": n_nnn, "x": n_qubits, "z": n_qubits}
+    size = {"nn": n_nn, "nnn": n_nnn, "x": n_qubits, "y": n_qubits, "z": n_qubits}
     for b in extra_blocks:
         if b not in size:
-            raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+            raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|y|z")
         n_extra += size[b]
     if extra_rx_final:
         n_extra += n_qubits
@@ -855,7 +856,7 @@ def discover_donors(
     cands.sort(key=lambda t: (t[0], t[1]))
     seen: set[tuple[int, float]] = set()
     out: list[dict] = []
-    for dn, dh, donor in cands:
+    for _dn, _dh, donor in cands:
         key = (int(donor["n_qubits"]), round(float(donor["h"]), 2))
         if key in seen:
             continue
@@ -2270,6 +2271,7 @@ def best_combined_warmstart(
     descent_fn_short=None,
     two_pass_top_k: int = 2,
     warm_restart_full: bool = False,
+    project_transfer=None,
 ) -> dict:
     """The one-call combined warm-start cascade — the best seed we can give.
 
@@ -2316,6 +2318,15 @@ def best_combined_warmstart(
       converge to a different basin and change the winner — so it is opt-in and
       must be A/B-validated per regime. The default (raw-seed start) reproduces
       the exhaustive behaviour exactly.
+
+    ``project_transfer`` (optional ``theta -> theta``): a projector applied to each
+    TRANSFERRED donor seed to add a symmetry-projected variant as an extra
+    candidate (the raw transfer stays too, so it never hurts — the ranking picks
+    the better of the two). A cross-N/cross-h donor drifts off the symmetric
+    subspace the target state lives on; projecting it back measurably improves
+    convergence (validated N=9 D4 +1.8% 16/16, N=12 D2 +0.3% 14/16). Only the
+    transfer candidates are projected — the analytic seeds are already orbit-
+    constant. ``prepare_warmstart`` builds this from the lattice symmetry group.
 
     Scalability: no state is built here — ``fid_fn`` / ``descent_fn`` are injected
     (the caller owns the backend), so this stays O(#candidates) evaluations and
@@ -2403,7 +2414,23 @@ def best_combined_warmstart(
             )
             if seed is not None and seed.size == target_len:
                 suffix = "" if blocks == ("nn", "nnn", "x") else "|nn+x"
-                candidates.append((f"transfer<{d.get('label', 'donor')}>{suffix}", seed))
+                label = f"transfer<{d.get('label', 'donor')}>{suffix}"
+                candidates.append((label, seed))
+                # Symmetry projection of the transferred seed: a donor from another
+                # N/h lands slightly OFF the symmetric subspace the target state
+                # lives on (geometric drift), which measurably hurts convergence.
+                # When a projector is supplied, add the PROJECTED variant as an
+                # extra candidate — it competes on equal terms, so it can only help
+                # (if projection doesn't win, the raw transfer still does). The
+                # analytic seeds are already orbit-constant, so we project ONLY the
+                # transfer candidates here.
+                if project_transfer is not None:
+                    try:
+                        proj = np.asarray(project_transfer(seed), float)
+                        if proj.size == target_len and not np.allclose(proj, seed):
+                            candidates.append((f"{label}|sym", proj))
+                    except Exception:
+                        pass  # projection is best-effort; never break the cascade
     # Ensemble candidate: circular mean of same-phase donors (opt-in). Low risk —
     # it competes as one extra candidate and is simply absent when <2 same-phase
     # donors transfer. Empirically it did NOT beat the best single donor in any

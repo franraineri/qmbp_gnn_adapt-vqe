@@ -6,6 +6,10 @@ tagged with structured metadata, and discoverable via a machine- and
 human-readable index. **Nothing is deleted** — superseded artifacts are marked
 `deprecated` and kept.
 
+## Current state and handoff
+
+Start with the [handoff][handoff] for what is done, what is validated, what is open and how to reproduce it. The lattice-symmetry and tilted-PBC line (a separate workstream, closed the same day) has its own [handoff][handoff-symmetry] and findings note under `docs/research/`. The narrative reports live in `reports/`; the bond-selection frontiers at N=10 and N=18 are in the [bond-selection report][report-bond-selection]. `INDEX.md` is only the generated artifact catalog.
+
 ## Directory taxonomy
 
 ```text
@@ -163,3 +167,8 @@ or run it:
 .venv/bin/python scripts/analysis/vl_vs_hva/organize_results.py migrate           # dry-run
 .venv/bin/python scripts/analysis/vl_vs_hva/organize_results.py migrate --apply    # execute
 ```
+
+<!-- Links -->
+[handoff]: HANDOFF_2026-11-16_warmstart_n18.md
+[handoff-symmetry]: ../../docs/research/HANDOFF_symmetry_tilted.md
+[report-bond-selection]: reports/REPORT_bond_selection_2q.md

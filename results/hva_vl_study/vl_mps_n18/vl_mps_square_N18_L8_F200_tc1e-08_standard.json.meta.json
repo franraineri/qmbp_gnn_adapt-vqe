@@ -1,10 +1,10 @@
 {
   "schema": "hva_vl_study_meta_v1",
-  "status": "final",
+  "status": "deprecated",
   "experiment": "vl_mps_n18",
   "run_id": "vl_mps_square_N18_L8_F200_tc1e-08_standard",
   "created_utc": "2026-09-25T19:15:45.401319+00:00",
-  "updated_utc": "2026-09-25T19:15:45.401319+00:00",
+  "updated_utc": "2026-11-17T01:36:42.766913+00:00",
   "source_script": "scripts/analysis/vl_mps_large_n.py",
   "git_commit": "41c1e82",
   "physics": {
@@ -34,5 +34,6 @@
   },
   "provenance": {},
   "artifacts": {},
-  "result_path": "vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json"
+  "result_path": "vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json",
+  "deprecated_reason": "Failed attempt: both rows hold only HTTP 402 Payment Required (Haiqu credits exhausted). No measurements. Re-run with the same flags once credits are available; see binnacle-vl-haiqu-square-frustrated.md."
 }

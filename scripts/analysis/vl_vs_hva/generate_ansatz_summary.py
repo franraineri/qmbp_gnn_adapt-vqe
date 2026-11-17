@@ -27,6 +27,7 @@ Usage
         --n 20 --h 0.5                     # square tfim_frustrated hardcoded
     .venv/bin/python scripts/analysis/vl_vs_hva/generate_ansatz_summary.py --n 20 --h 1.0
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,7 +36,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -66,9 +67,9 @@ class Solution:
     """One normalized solution for the summary table."""
 
     name: str
-    method: str                 # how it was produced (generation / adapt / exact)
-    fidelity: float             # the metric value used for ranking
-    fidelity_metric: str        # "vector" | "subspace" | "exact"
+    method: str  # how it was produced (generation / adapt / exact)
+    fidelity: float  # the metric value used for ranking
+    fidelity_metric: str  # "vector" | "subspace" | "exact"
     n_2q: int
     n_nnn_bonds: int | None
     n_params: int | None
@@ -83,6 +84,7 @@ class Solution:
 
 # ─────────────────────────── collectors ──────────────────────────────────────
 # Each collector takes a Config and returns a list[Solution]. Register in COLLECTORS.
+
 
 def _degenerate_regime(cfg: Config):
     """(e0, phys_gap, manifold_dim, is_degenerate) via the shared src helper.
@@ -112,11 +114,20 @@ def collect_exact(cfg: Config) -> list[Solution]:
     except Exception as exc:  # diagonalization may be out of reach at large N
         print(f"  [exact skipped: {exc}]", file=sys.stderr)
         return []
-    return [Solution(
-        name="exact_diagonalization", method="exact", fidelity=1.0,
-        fidelity_metric="exact", n_2q=0, n_nnn_bonds=None, n_params=None,
-        de_gap=0.0, source_file="eigsh(k=4)",
-        extra={"e0": e0, "phys_gap": phys_gap, "manifold_dim": m})]
+    return [
+        Solution(
+            name="exact_diagonalization",
+            method="exact",
+            fidelity=1.0,
+            fidelity_metric="exact",
+            n_2q=0,
+            n_nnn_bonds=None,
+            n_params=None,
+            de_gap=0.0,
+            source_file="eigsh(k=4)",
+            extra={"e0": e0, "phys_gap": phys_gap, "manifold_dim": m},
+        )
+    ]
 
 
 def collect_specs(cfg: Config) -> list[Solution]:
@@ -133,11 +144,24 @@ def collect_specs(cfg: Config) -> list[Solution]:
         if not cfg.match_h(s.h) or s.fidelity is None:
             continue
         n_nnn = len(s.nnn_edges) if s.nnn_edges else None
-        out.append(Solution(
-            name=s.name, method="generation(spec)", fidelity=float(s.fidelity),
-            fidelity_metric="vector", n_2q=int(s.n_2q or 0), n_nnn_bonds=n_nnn,
-            n_params=s.n_params, de_gap=None, source_file=Path(fp).name,
-            extra={"base_variant": s.base_variant}))
+        # Symmetry-tied ansätze share one param per orbit; surface the reduction
+        # so the table shows WHY a tied ansatz has far fewer params at equal 2q.
+        tied = bool(s.symmetry and s.symmetry.get("tied"))
+        reduction = s.symmetry.get("reduction_factor") if tied else None
+        out.append(
+            Solution(
+                name=s.name,
+                method="generation(spec)",
+                fidelity=float(s.fidelity),
+                fidelity_metric="vector",
+                n_2q=int(s.n_2q or 0),
+                n_nnn_bonds=n_nnn,
+                n_params=s.n_params,
+                de_gap=None,
+                source_file=Path(fp).name,
+                extra={"base_variant": s.base_variant, "tied": tied, "reduction": reduction},
+            )
+        )
     return out
 
 
@@ -193,11 +217,20 @@ def collect_bond_ablation(cfg: Config) -> list[Solution]:
             degap = r.get("de_gap")
             if degap is not None and (not np.isfinite(degap) or degap >= 1e3):
                 degap = None
-            out.append(Solution(
-                name=str(label), method="generation(sweep)", fidelity=float(fid),
-                fidelity_metric=metric, n_2q=int(n2q), n_nnn_bonds=n_nnn,
-                n_params=r.get("n_params"), de_gap=degap,
-                source_file=name, extra={}))
+            out.append(
+                Solution(
+                    name=str(label),
+                    method="generation(sweep)",
+                    fidelity=float(fid),
+                    fidelity_metric=metric,
+                    n_2q=int(n2q),
+                    n_nnn_bonds=n_nnn,
+                    n_params=r.get("n_params"),
+                    de_gap=degap,
+                    source_file=name,
+                    extra={},
+                )
+            )
     return out
 
 
@@ -219,20 +252,36 @@ def collect_adapt(cfg: Config) -> list[Solution]:
             name = Path(fp).name
             # max-fid headline
             if r.get("pool_best_fidelity") is not None and r.get("pool_2q"):
-                out.append(Solution(
-                    name=f"ADAPT({name.replace('.json','').split('_')[-1]})-maxfid",
-                    method="adapt_vqe", fidelity=float(r["pool_best_fidelity"]),
-                    fidelity_metric="vector", n_2q=int(r["pool_2q"]),
-                    n_nnn_bonds=r.get("pool_n_bonds"), n_params=None,
-                    de_gap=None, source_file=name, extra={"layers": r.get("pool_n_layers")}))
+                out.append(
+                    Solution(
+                        name=f"ADAPT({name.replace('.json', '').split('_')[-1]})-maxfid",
+                        method="adapt_vqe",
+                        fidelity=float(r["pool_best_fidelity"]),
+                        fidelity_metric="vector",
+                        n_2q=int(r["pool_2q"]),
+                        n_nnn_bonds=r.get("pool_n_bonds"),
+                        n_params=None,
+                        de_gap=None,
+                        source_file=name,
+                        extra={"layers": r.get("pool_n_layers")},
+                    )
+                )
             # Pareto fid/CX point (if recorded and distinct)
             if r.get("pareto_fid") is not None and r.get("pareto_2q"):
-                out.append(Solution(
-                    name=f"ADAPT({name.replace('.json','').split('_')[-1]})-pareto",
-                    method="adapt_vqe", fidelity=float(r["pareto_fid"]),
-                    fidelity_metric="vector", n_2q=int(r["pareto_2q"]),
-                    n_nnn_bonds=None, n_params=None, de_gap=None,
-                    source_file=name, extra={}))
+                out.append(
+                    Solution(
+                        name=f"ADAPT({name.replace('.json', '').split('_')[-1]})-pareto",
+                        method="adapt_vqe",
+                        fidelity=float(r["pareto_fid"]),
+                        fidelity_metric="vector",
+                        n_2q=int(r["pareto_2q"]),
+                        n_nnn_bonds=None,
+                        n_params=None,
+                        de_gap=None,
+                        source_file=name,
+                        extra={},
+                    )
+                )
     return out
 
 
@@ -240,6 +289,7 @@ COLLECTORS = [collect_exact, collect_specs, collect_bond_ablation, collect_adapt
 
 
 # ─────────────────────────── aggregation ─────────────────────────────────────
+
 
 def _norm_name(name: str) -> str:
     """Canonical structure name for dedup: strip _full suffix and family aliases so
@@ -264,8 +314,12 @@ def _dedup(sols: list[Solution]) -> list[Solution]:
         return d if (d is not None and np.isfinite(d) and d < DEGAP_SANE) else None
 
     def richness(s: Solution) -> tuple:
-        return (s.fidelity, s.fidelity_metric == "subspace",
-                s.n_nnn_bonds is not None, sane_degap(s.de_gap) is not None)
+        return (
+            s.fidelity,
+            s.fidelity_metric == "subspace",
+            s.n_nnn_bonds is not None,
+            sane_degap(s.de_gap) is not None,
+        )
 
     best: dict[tuple, Solution] = {}
     for s in sols:
@@ -328,11 +382,12 @@ def aggregate(cfg: Config) -> list[Solution]:
 
 # ─────────────────────────── rendering ───────────────────────────────────────
 
+
 def render_markdown(cfg: Config, sols: list[Solution]) -> str:
     exact = next((s for s in sols if s.method == "exact"), None)
     ranked = [s for s in sols if s.method != "exact"]
     front = _pareto_front(ranked)
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     lines = []
     lines.append(f"# Soluciones — {cfg.topology} {cfg.model} | N={cfg.n} h={cfg.h}")
@@ -342,30 +397,48 @@ def render_markdown(cfg: Config, sols: list[Solution]) -> str:
     if exact is not None:
         e = exact.extra
         reg = "degenerado (doblete)" if e.get("manifold_dim", 1) > 1 else "no degenerado"
-        lines.append(f"**Diagonalización exacta:** E0 = {e['e0']:.5f} | gap físico = {e['phys_gap']:.4f} "
-                     f"| régimen: {reg} (manifold dim {e.get('manifold_dim')}).")
+        lines.append(
+            f"**Diagonalización exacta:** E0 = {e['e0']:.5f} | gap físico = {e['phys_gap']:.4f} "
+            f"| régimen: {reg} (manifold dim {e.get('manifold_dim')})."
+        )
         lines.append("")
-    lines.append(f"**{len(ranked)} soluciones** agregadas de specs + sweeps + ADAPT. "
-                 "Ordenadas por fidelidad/2q (mejor eficiencia primero). "
-                 "★ = frontera de Pareto (no dominada en fid vs 2q).")
+    lines.append(
+        f"**{len(ranked)} soluciones** agregadas de specs + sweeps + ADAPT. "
+        "Ordenadas por fidelidad/2q (mejor eficiencia primero). "
+        "★ = frontera de Pareto (no dominada en fid vs 2q)."
+    )
     lines.append("")
-    lines.append("| # | Ansatz | Método | Fidelidad | métrica | 2q | nnn bonds | fid/2q | ΔE/gap | Pareto | fuente |")
-    lines.append("|---|--------|--------|:---------:|:-------:|:--:|:---------:|:------:|:------:|:------:|--------|")
+    lines.append(
+        "| # | Ansatz | Método | Fidelidad | métrica | 2q | nnn bonds | tied | fid/2q | ΔE/gap | Pareto | fuente |"
+    )
+    lines.append(
+        "|---|--------|--------|:---------:|:-------:|:--:|:---------:|:----:|:------:|:------:|:------:|--------|"
+    )
     for i, s in enumerate(ranked):
         star = "★" if i in front else ""
         nnn = str(s.n_nnn_bonds) if s.n_nnn_bonds is not None else "–"
         deg = f"{s.de_gap:.2f}" if s.de_gap is not None else "–"
+        red = s.extra.get("reduction")
+        tied = f"×{red:.1f}" if (s.extra.get("tied") and red) else "–"
         met = {"subspace": "sub", "vector": "vec", "exact": "exact"}.get(s.fidelity_metric, s.fidelity_metric)
-        lines.append(f"| {i+1} | {s.name[:34]} | {s.method} | {s.fidelity:.4f} | {met} | "
-                     f"{s.n_2q} | {nnn} | {s.fid_per_cx:.3e} | {deg} | {star} | {s.source_file[:30]} |")
+        lines.append(
+            f"| {i + 1} | {s.name[:34]} | {s.method} | {s.fidelity:.4f} | {met} | "
+            f"{s.n_2q} | {nnn} | {tied} | {s.fid_per_cx:.3e} | {deg} | {star} | {s.source_file[:30]} |"
+        )
     lines.append("")
     lines.append("## Notas")
     lines.append("")
-    lines.append("- **métrica**: `vec` = fidelidad al vector de estado fundamental; "
-                 "`sub` = fidelidad al subespacio del doblete degenerado (la correcta cuando el gap→0). "
-                 "No comparar `vec` vs `sub` directamente.")
+    lines.append(
+        "- **métrica**: `vec` = fidelidad al vector de estado fundamental; "
+        "`sub` = fidelidad al subespacio del doblete degenerado (la correcta cuando el gap→0). "
+        "No comparar `vec` vs `sub` directamente."
+    )
     lines.append("- **fid/2q**: fidelidad por compuerta de 2 qubits — la métrica de eficiencia del estudio.")
     lines.append("- **nnn bonds**: cantidad de bonds next-nearest seleccionados (portadores de la frustración J2).")
+    lines.append(
+        "- **tied**: ansatz symmetry-tied (un parámetro por órbita del grupo puntual); "
+        "`×R` es el factor de reducción de parámetros a igual 2q. `–` = parámetros independientes por bond."
+    )
     lines.append("- **Pareto (★)**: solución no dominada — ninguna otra tiene ≥ fidelidad con ≤ 2q.")
     lines.append("")
     return "\n".join(lines)
@@ -386,16 +459,13 @@ def output_path(cfg: Config) -> Path:
 # artifacts / specs directly (the real data layer), never this markdown.
 
 _TOPOLOGIES = ("chain_1d", "heavy_hex", "kagome", "square", "triangular", "ladder")
-_CFG_RE = re.compile(
-    rf"_(?P<topo>{'|'.join(_TOPOLOGIES)})_N(?P<n>\d+)_h(?P<h>[0-9.]+)\.(spec\.json|json)$"
-)
+_CFG_RE = re.compile(rf"_(?P<topo>{'|'.join(_TOPOLOGIES)})_N(?P<n>\d+)_h(?P<h>[0-9.]+)\.(spec\.json|json)$")
 
 
 def discover_configs(topology: str, model: str, j2: float) -> list[Config]:
     """Find every (N, h) with artifacts for this topology, from spec/JSON names."""
     seen: set[tuple[int, float]] = set()
-    for pat in (study_dir("ansatz_specs") / "*.spec.json",
-                study_dir("bond_ablation") / "*.json"):
+    for pat in (study_dir("ansatz_specs") / "*.spec.json", study_dir("bond_ablation") / "*.json"):
         for fp in glob.glob(str(pat)):
             m = _CFG_RE.search(Path(fp).name)
             if not m or m.group("topo") != topology:
@@ -404,8 +474,7 @@ def discover_configs(topology: str, model: str, j2: float) -> list[Config]:
                 seen.add((int(m.group("n")), round(float(m.group("h")), 2)))
             except ValueError:
                 continue
-    return [Config(n=n, h=h, topology=topology, model=model, j2=j2)
-            for n, h in sorted(seen)]
+    return [Config(n=n, h=h, topology=topology, model=model, j2=j2) for n, h in sorted(seen)]
 
 
 def overview_path(topology: str, model: str) -> Path:
@@ -421,7 +490,7 @@ def render_overview(topology: str, model: str, per_cfg: list[tuple[Config, list[
     config. For each config we surface the Pareto-front solutions (the ones a
     reader actually picks from); full detail lives in the JSON artifacts.
     """
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         f"# Resumen general — {topology} {model}",
         "",
@@ -465,22 +534,40 @@ def render_overview(topology: str, model: str, per_cfg: list[tuple[Config, list[
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         description="Aggregate study solutions into ONE general overview markdown "
-        "(default), or print a single config to stdout with --n/--h.")
-    p.add_argument("--overview", action="store_true",
-                   help="Write the single general OVERVIEW_<topo>_<model>.md (default when no --n/--h).")
+        "(default), or print a single config to stdout with --n/--h."
+    )
+    p.add_argument(
+        "--overview",
+        action="store_true",
+        help="Write the single general OVERVIEW_<topo>_<model>.md (default when no --n/--h).",
+    )
     p.add_argument("--n", type=int, default=None, help="Single config N (prints to stdout, no file).")
     p.add_argument("--h", type=float, default=None, help="Single config h (prints to stdout, no file).")
+    p.add_argument(
+        "--write",
+        action="store_true",
+        help="With --n/--h: also WRITE the per-config markdown to "
+        "ansatz_summary/<topo>_<model>/solutions_N<n>_h<h>.md "
+        "(on-demand, single file — not the bulk generation).",
+    )
     p.add_argument("--topology", default="square")
     p.add_argument("--model", default="tfim_frustrated")
     p.add_argument("--j2", type=float, default=0.5)
     args = p.parse_args(argv)
 
-    # Single-config mode: PRINT to stdout only — never writes a per-config file
-    # (those were ~90 noise files; the overview is the written artifact).
+    # Single-config mode: print to stdout, and with --write also persist ONE
+    # per-config file on demand (the bulk per-config generation was ~90 noise
+    # files; this writes only the config the user explicitly asked for).
     if args.n is not None and args.h is not None and not args.overview:
         cfg = Config(n=args.n, h=args.h, topology=args.topology, model=args.model, j2=args.j2)
         sols = aggregate(cfg)
-        print(render_markdown(cfg, sols))
+        md = render_markdown(cfg, sols)
+        if args.write:
+            out = output_path(cfg)
+            out.write_text(md)
+            print(f"[summary] wrote {out.relative_to(STUDY_ROOT.parent.parent)}", flush=True)
+        else:
+            print(md)
         return 0
 
     # Default / --overview: ONE general file across all discovered configs.
@@ -492,8 +579,10 @@ def main(argv=None) -> int:
     per_cfg = [(cfg, aggregate(cfg)) for cfg in configs]
     out = overview_path(args.topology, args.model)
     out.write_text(render_overview(args.topology, args.model, per_cfg))
-    print(f"[summary] overview -> {out.relative_to(STUDY_ROOT.parent.parent)} "
-          f"({len(configs)} configs, ONE file)", flush=True)
+    print(
+        f"[summary] overview -> {out.relative_to(STUDY_ROOT.parent.parent)} ({len(configs)} configs, ONE file)",
+        flush=True,
+    )
     return 0
 
 

@@ -1,0 +1,133 @@
+{
+  "name": "p1_half_nn_rx_orbit_complete",
+  "topology": "square",
+  "n_qubits": 12,
+  "h": 0.5,
+  "j2": 0.5,
+  "blocks": [
+    "nn",
+    "nnn",
+    "x",
+    "nn",
+    "x"
+  ],
+  "rx_final": true,
+  "rz_final": false,
+  "nn_edges": [
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      4
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      5
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      2,
+      6
+    ],
+    [
+      3,
+      7
+    ],
+    [
+      4,
+      5
+    ],
+    [
+      4,
+      8
+    ],
+    [
+      5,
+      6
+    ],
+    [
+      5,
+      9
+    ],
+    [
+      6,
+      7
+    ],
+    [
+      6,
+      10
+    ],
+    [
+      7,
+      11
+    ],
+    [
+      8,
+      9
+    ],
+    [
+      9,
+      10
+    ],
+    [
+      10,
+      11
+    ]
+  ],
+  "nnn_edges": [
+    [
+      1,
+      6
+    ],
+    [
+      2,
+      5
+    ],
+    [
+      4,
+      6
+    ],
+    [
+      5,
+      7
+    ],
+    [
+      5,
+      10
+    ],
+    [
+      6,
+      9
+    ]
+  ],
+  "selection_provenance": "orbit_complete(keep_nnn_orbits=2, keep_nn_orbits=6, agg=max)",
+  "theta": null,
+  "fidelity": 0.6840913488949135,
+  "n_2q": 80,
+  "n_params": 26,
+  "seed_kind": null,
+  "base_variant": "p1_half_nn_rx",
+  "ansatz_kind": "frustrated_zz",
+  "initial_state": "plus",
+  "p_layers": null,
+  "symmetry": {
+    "tied": true,
+    "group_order": 4,
+    "nn_orbits": 6,
+    "nnn_orbits": 2,
+    "site_orbits": 4,
+    "reduction_factor": 2.9167,
+    "provenance": "graph_automorphism(nn+nnn)"
+  },
+  "metrics": {},
+  "schema": "ansatz_spec_v1"
+}

@@ -574,3 +574,82 @@ class TestScenarioValidation:
         sc = scenario_key(self._row())
         assert set(sc) == set(SCENARIO_FIELDS)
         assert sc["N"] == 9
+
+
+class TestPrepareWarmstartNonStandardLayout:
+    """prepare_warmstart injects a layout-matched seed for non-standard ansätze.
+
+    Regression for the N=20 symmetry-tied run: a half-layer + rx_final circuit
+    has more params than the plain [nn,nnn,x]*p layout, so the built-in analytic
+    seeds mismatch and the caller discarded a length-wrong fallback. Passing the
+    block sequence must yield a seed of the EXACT circuit length. Uses N=4 chain
+    (statevector-trivial) so the test is deterministic and fast.
+    """
+
+    def _setup(self, blocks, rx_final):
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.circuits.bond_mask import full_selection
+        from qmbp_simulation.framework.study_core import ground_state
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lat, _qc, H, psi, _e0, gap, _n_nn, _n_nnn = ground_state("chain_1d", 4, 0.5, 0.5, 1)
+        nn = list(lat.edges)
+        nnn = HamiltonianBuilder._generate_nnn_edges(lat)
+        sel = full_selection(nn, nnn)
+        qc, _ = HVACircuitBuilder().create_bond_resolved_masked(
+            4, lat, blocks=blocks, bond_selection=sel, rx_final=rx_final
+        )
+        return lat, H, psi, gap, qc, sel
+
+    def test_non_standard_layout_seed_matches_circuit(self):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        blocks = ["nn", "nnn", "x", "nn", "x"]
+        _lat, H, psi, gap, qc, sel = self._setup(blocks, rx_final=True)
+        ws = prepare_warmstart(
+            qc,
+            H,
+            psi,
+            n_nn=len(sel.nn_edges),
+            n_nnn=len(sel.nnn_edges),
+            n_qubits=4,
+            p_layers=1,
+            h=0.5,
+            J2=0.5,
+            gap=gap,
+            topology="chain_1d",
+            model="tfim_frustrated",
+            target_len=qc.num_parameters,
+            blocks=blocks,
+            rx_final=True,
+        )
+        import numpy as np
+
+        assert np.asarray(ws["seed"]).size == qc.num_parameters
+
+    def test_standard_layout_unchanged(self):
+        from qmbp_simulation.framework.study_core import prepare_warmstart
+
+        blocks = ["nn", "nnn", "x"]  # plain p=1 layout
+        _lat, H, psi, gap, qc, sel = self._setup(blocks, rx_final=False)
+        ws = prepare_warmstart(
+            qc,
+            H,
+            psi,
+            n_nn=len(sel.nn_edges),
+            n_nnn=len(sel.nnn_edges),
+            n_qubits=4,
+            p_layers=1,
+            h=0.5,
+            J2=0.5,
+            gap=gap,
+            topology="chain_1d",
+            model="tfim_frustrated",
+            target_len=qc.num_parameters,
+            blocks=blocks,
+            rx_final=False,
+        )
+        import numpy as np
+
+        # Standard layout: the built-in seeds already match; no regression.
+        assert np.asarray(ws["seed"]).size == qc.num_parameters

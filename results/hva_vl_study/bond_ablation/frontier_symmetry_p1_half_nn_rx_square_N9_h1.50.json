@@ -1,0 +1,141 @@
+{
+  "result_path": "results/hva_vl_study/bond_ablation/frontier_symmetry_p1_half_nn_rx_square_N9_h1.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_n20_frontier_symmetry.py",
+  "generated_utc": "2026-10-17T02:04:44.304064+00:00",
+  "params": {
+    "experiment": "frontier_symmetry",
+    "N": 9,
+    "h": 1.5
+  },
+  "description": "N=20 orbit-complete + tying vs bond-loose independent (equal 2q)",
+  "resumable": true,
+  "config_fingerprint": {
+    "n_qubits": 9,
+    "p_layers": null,
+    "model": "tfim_frustrated",
+    "topology": "square",
+    "h": 1.5
+  },
+  "completed": 3,
+  "rows": [
+    {
+      "label": "ko2_nnorb2_nn12_nnn6|loose_independent",
+      "band": "loose_independent",
+      "h": 1.5,
+      "n_qubits": 9,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -15.151515019395516,
+      "gap": 1.7062198182012516,
+      "phys_gap": 1.7062198182011699,
+      "manifold_dim": 1,
+      "degenerate": false,
+      "e_best": -15.057729868701376,
+      "best_fidelity": 0.9826013477158223,
+      "subspace_fidelity": null,
+      "report_fidelity": 0.9826013477158223,
+      "n_2q_transpiled": 60,
+      "n_params": 57,
+      "fidelity_per_cx": 0.01637668912859704,
+      "cpu_seconds": 0.0,
+      "seconds": 0.0
+    },
+    {
+      "label": "ko2_nnorb2_nn12_nnn6|loose_tied",
+      "band": "loose_tied",
+      "h": 1.5,
+      "n_qubits": 9,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -15.151515019395516,
+      "gap": 1.7062198182012516,
+      "phys_gap": 1.7062198182011699,
+      "manifold_dim": 1,
+      "degenerate": false,
+      "e_best": -15.057728161431104,
+      "best_fidelity": 0.9826010777292254,
+      "subspace_fidelity": null,
+      "report_fidelity": 0.9826010777292254,
+      "n_2q_transpiled": 60,
+      "n_params": 15,
+      "fidelity_per_cx": 0.016376684628820425,
+      "cpu_seconds": 0.0,
+      "seconds": 0.0
+    },
+    {
+      "label": "ko2_nnorb2_nn12_nnn6|orbit_complete_tied",
+      "band": "orbit_complete_tied",
+      "h": 1.5,
+      "n_qubits": 9,
+      "topology": "square",
+      "blocks": [
+        "nn",
+        "nnn",
+        "x",
+        "nn",
+        "x"
+      ],
+      "e0": -15.151515019395516,
+      "gap": 1.7062198182012516,
+      "phys_gap": 1.7062198182011699,
+      "manifold_dim": 1,
+      "degenerate": false,
+      "e_best": -15.057728161431104,
+      "best_fidelity": 0.9826010777292254,
+      "subspace_fidelity": null,
+      "report_fidelity": 0.9826010777292254,
+      "n_2q_transpiled": 60,
+      "n_params": 15,
+      "fidelity_per_cx": 0.016376684628820425,
+      "cpu_seconds": 0.0,
+      "seconds": 0.0
+    }
+  ],
+  "best_theta": null,
+  "topology": "square",
+  "N": 9,
+  "h": 1.5,
+  "J2": 0.5,
+  "schema": "frontier_symmetry_v1",
+  "structure": "p1_half_nn_rx",
+  "symmetry": {
+    "topology": "square",
+    "n_qubits": 9,
+    "h": 1.5,
+    "j2": 0.5,
+    "n_nn": 12,
+    "n_nnn": 14,
+    "group_order": 8,
+    "nn_orbits": 2,
+    "nnn_orbits": 4,
+    "site_orbits": 3,
+    "params_per_layer_independent": 35,
+    "params_per_layer_tied": 9,
+    "reduction_factor": 3.888888888888889,
+    "nn_orbit_sizes": {
+      "8": 1,
+      "4": 1
+    },
+    "nnn_orbit_sizes": {
+      "4": 3,
+      "2": 1
+    },
+    "gs_invariance": null,
+    "manifold_dim": null,
+    "provenance": "graph_automorphism(nn+nnn)",
+    "schema": "symmetry_report_v1"
+  },
+  "status": "final"
+}

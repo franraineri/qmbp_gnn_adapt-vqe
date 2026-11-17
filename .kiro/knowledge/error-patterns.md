@@ -11,6 +11,30 @@
 **Proper fix** (TODO): Use eigsh on actual SparsePauliOp for N=16 (64K×64K sparse, tractable). For N=20+ where eigsh is too slow, implement topology-aware DMRG that maps the actual lattice graph to the TeNPy model (not just TFIChain).
 **Ref**: Discovered 2026-07-13 during simulation_diagnostics implementation.
 
+## DMRG Drops NNN/J2 Couplings for Frustrated Models (N>16)
+
+**Symptom**: `ClassicalSolver.solve()` returns a ground energy that is far too LOW for `tfim_frustrated` at N>16 (e.g. square N=18, h=1.0, J2=0.5: -30.2355 instead of -23.0280). No error or warning.
+**Root cause**: The lattice-based DMRG paths (`_solve_dmrg_2d`, `_solve_dmrg_graph`, `_solve_dmrg_1d`) rebuild the TeNPy model from `lattice.edges` + scalar J/h and never read the `SparsePauliOp`. NNN bonds are generated inside `HamiltonianBuilder.build_frustrated_tfim` and are not in `lattice.edges`, so DMRG solves the UNFRUSTRATED TFIM.
+**Verification**: Run operator-based DMRG with `J2=0.0` and `J2=0.5` on the same lattice. The solver's value equals the `J2=0.0` result. At N≤16 compare against `solve(..., method="exact")`.
+**Impact**: N≤16 was never wrong (exact diag, plus the DMRG-vs-eigsh guard falls back to exact). At N>16 only frustrated/NNN models were affected. Audit at closure: 0 frustrated entries with N>16 in the GT cache, 0 in the training NPZs, and every VL `|ΔE|` used exact diag (N≤10) or the operator DMRG (N=18). No stored result was contaminated.
+**Fix** (applied, commit `6cf7465`): `solve(..., dmrg_from_operator=None)`. `None` auto-selects the operator-based MPO (`_solve_dmrg_from_operator`, built from the `SparsePauliOp` via `MPOGraph.from_term_list`) when the operator has more ZZ terms than lattice edges; `True` forces it; `False` keeps the legacy path and logs a warning if couplings would be dropped. Regression tests: `tests/unit/test_guards_and_validations.py::TestDMRGCrossValidation`.
+**Open risk**: for N>18 the solver gap falls back to `_estimate_tfim_gap_analytical`, which ignores frustration. Not validated.
+**Ref**: Found 2026-09-24 while validating `mps_loading` at N=18. See `internal/documentation/binnacles/binnacle-vl-haiqu-square-frustrated.md`.
+
+## Haiqu Job Stuck at RUNNING (Client Poll Budget = Compute Budget)
+
+**Symptom**: `run_vl_mps_job` / `run_vl_job` returns `fidelity=None`, status `RUNNING`, `circuit_id=None` for long jobs (e.g. `fine_tuning_iterations=200`), although the job completes in the cloud.
+**Root cause**: the client poll timeout (900 s) equalled Haiqu's compute `max_time` (900 s), so polling ended before the cloud reported DONE.
+**Fix**: pass `max_time` explicitly to the job and poll for `max_time + 300 s` (default in `run_vl_mps_job`).
+**Ref**: 2026-09-25, `scripts/analysis/vl_vs_hva/hva_vl_study_common.py`.
+
+## Haiqu HTTP 402 Payment Required (Credits Exhausted)
+
+**Symptom**: every Haiqu call fails with `HTTPError: 402 Client Error: Payment Required`; result rows contain only `error`.
+**Root cause**: the account ran out of credits after dozens of VL jobs (quality sweep, re-runs, N=18 runs). Not a code bug.
+**Handling**: the batch scripts catch per-point errors and persist them, so nothing is lost. Mark the error-only result file `deprecated` (see `vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json`) and re-run after a top-up. Prefer the result cache (`vl_quality_sweep_frustrated.py`) so completed configs never re-spend credits.
+**Ref**: 2026-09-25.
+
 ## V5.x Failure Mode (Phase Coupling)
 
 **Symptom**: MSE converges but ΔE stagnates or increases.
@@ -131,3 +155,37 @@ not `from scripts.digest.X`. After any package relocation, grep for the old path
 `tests/integration/test_module_contracts.py`).
 **Ref**: Fixed 2026-06-04 (engine.py, coverage.py, digest/__init__.py, digest/scanner.py,
 digest/formatters.py, digest/__main__.py).
+
+## Symmetry-Group Order Capped at 17 on PBC Clusters
+**Symptom**: `detect_symmetry_group` reports `order == 17` for every tilted cluster (N=8, 10, 16, 18, 20), and the tying reduction looks too small.
+**Root cause**: the default `max_syms=16` stops the enumeration after 16 non-identity permutations. The true groups are translations x point group (128 at N=16, 144 at N=18, 72 at N=9). A prime order is the tell: a permutation group of this kind cannot have order 17.
+**Fix**: pass `max_syms=100000`. Orbit counts were not affected (one orbit per block at N=9/16/18); only the reported order and any code that reads it.
+**Prevention**: `tests/unit/test_tilted_square.py::TestSymmetry` pins both the full orders and the capped value 17.
+**Ref**: 2026-11-16, `docs/research/symmetry_frustrated_vqe_findings.md` section 10.1.
+
+## Manifold Cache Key Collision Between OBC and Tilted PBC
+**Symptom**: none visible. A tilted run silently measures fidelity against the wrong ground state.
+**Root cause**: the cache key is `(topology, N, model, h, J2)`. The OBC square at N=16 is degenerate (md=2, e0=-16.25) while the tilted N=16 cluster is not (md=1, e0=-17.13). With `topology="square"` both map to the same file.
+**Fix**: tilted runners use `topology="square_tilted"` (files `data/manifold_cache/square_tilted_*`).
+**Prevention**: any new lattice variant needs its own topology key before it touches `cached_degenerate_ground_manifold`.
+**Ref**: 2026-11-16.
+
+## Wrong Angles Loaded by JSON Name Collision
+**Symptom**: a drop-nnn baseline that should start at fidelity 0.795 starts at 0.100 and ends at 0.5565; every variant is then compared against a wrong reference.
+**Root cause**: `_load_src_tied_theta(N, h, p)` reads `tilted_pareto_2q_N{N}`. At N=16 that file holds the failed calibrated sweep, whose p=4 row also has 13 parameters, so the length check passes. The intended angles are in `tilted_transfer_N9to16`.
+**Fix**: `run_tilted_drop_nnn.py` reads the transfer JSON and aborts if the p4_full seed starts below 0.75.
+**Prevention**: validate a loaded seed by its measured fidelity, not only by its length.
+**Ref**: 2026-11-16, `docs/research/symmetry_frustrated_vqe_findings.md` section 10.6.
+
+## Energy Objective Degrades a Good Seed at Large N (Tilted Tied Ansatz)
+**Symptom**: starting from a seed with fidelity 0.62 at N=16, `converge_circuit` lowers the energy and ends at 0.37; the energy gap to the ground state shrinks while fidelity falls.
+**Root cause**: not isolated. Observed: with a non-degenerate ground state (gap 0.038) the lowest-energy point reachable by the 13-parameter tied ansatz is not the highest-fidelity point. Treat any mechanism as a hypothesis.
+**Fix**: optimize `1 - fidelity` directly (`optimize_fidelity` in `run_tilted_transfer.py`): 0.62 to 0.7951.
+**Caveat**: this needs the exact ground state, so it is a test of expressivity, not a hardware method.
+**Ref**: 2026-11-16, findings note section 10.5.
+
+## JSON Study Outputs Are Overwritten, Not Appended
+**Symptom**: a re-run loses rows from earlier runs (for example `variant_topk_*.json`, `tilted_transfer_N9to16_h0.50.json` keeps only the last invocation).
+**Root cause**: `StudyPersister.persist` writes the full `rows` list built in the current process via `save_json`.
+**Prevention**: pass every tolerance, depth or variant in a single invocation, or copy the log of the earlier run; the p=3 N=16 fidelity (0.6707) survives only in `results/hva_vl_study/poolA_logs/OVERNIGHT_tilted_N16_fidelity.log`.
+**Ref**: 2026-11-16.

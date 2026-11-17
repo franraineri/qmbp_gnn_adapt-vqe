@@ -1243,6 +1243,57 @@ class TestBestCombinedWarmstart:
         assert not r["provenance"].endswith("+descent")
         assert r["init_fidelity"] == pytest.approx(0.7)
 
+    def _cross_donor(self):
+        return {
+            "theta": np.zeros((11 + 13 + 9) * 2),
+            "n_nn": 11,
+            "n_nnn": 13,
+            "p": 2,
+            "n_qubits": 9,
+            "label": "crossN9",
+        }
+
+    def test_project_transfer_adds_sym_candidate_for_donors(self):
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        # a projector that shifts the seed → the projected variant differs from the
+        # raw transfer, so a "<...>|sym" candidate must appear in the report.
+        def projector(theta):
+            return np.asarray(theta, float) + 0.3
+
+        r = best_combined_warmstart(
+            **self._kw(fid_fn=lambda t: 0.5, donors=[self._cross_donor()], project_transfer=projector)
+        )
+        labels = [x["label"] for x in r["report"]]
+        assert any(lbl.endswith("|sym") for lbl in labels), labels
+        # the sym candidate is tied to a transfer candidate, never to an analytic one
+        assert all(lbl.startswith("transfer<") for lbl in labels if lbl.endswith("|sym"))
+
+    def test_project_transfer_noop_when_projection_matches(self):
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        # identity projector → projected == raw transfer → NO extra |sym candidate
+        # (the cascade skips a projection that doesn't change the seed).
+        r = best_combined_warmstart(
+            **self._kw(
+                fid_fn=lambda t: 0.5, donors=[self._cross_donor()], project_transfer=lambda t: np.asarray(t, float)
+            )
+        )
+        labels = [x["label"] for x in r["report"]]
+        assert not any(lbl.endswith("|sym") for lbl in labels)
+        # analytic candidates are never projected regardless
+        assert "calibrated" in labels
+
+    def test_project_transfer_none_is_backcompat(self):
+        from qmbp_simulation.analysis.warmstart import best_combined_warmstart
+
+        # without a projector the report is exactly the pre-integration set
+        # (no |sym labels) — the default path is unchanged.
+        r = best_combined_warmstart(**self._kw(fid_fn=lambda t: 0.5, donors=[self._cross_donor()]))
+        labels = [x["label"] for x in r["report"]]
+        assert not any(lbl.endswith("|sym") for lbl in labels)
+        assert any("crossN9" in lbl for lbl in labels)
+
 
 class TestTransferThetaForBlocks:
     """Structure-aware full→masked θ transfer (p2_half_nn_rx and friends)."""
@@ -1483,7 +1534,6 @@ class TestStructuralWarmstart:
         n_nn, n_nnn, n_q, p = 13, 15, 10, 2
         s = structural_warmstart_theta(n_nn, n_nnn, n_q, p, 0.5, J2=0.5)
         c = calibrated_warmstart_theta(n_nn, n_nnn, n_q, p, 0.5, J2=0.5)
-        per = n_nn + n_nnn + n_q
         s_nnn = np.abs(s[n_nn : n_nn + n_nnn]).mean()
         c_nnn = np.abs(c[n_nn : n_nn + n_nnn]).mean()
         assert s_nnn < c_nnn  # structural suppresses the nnn block
@@ -1612,8 +1662,8 @@ class TestEnsembleDonorSeed:
         )
         on_labels = [x["label"] for x in on["report"]]
         off_labels = [x["label"] for x in off["report"]]
-        assert any(l.startswith("ensemble<") for l in on_labels)
-        assert not any(l.startswith("ensemble<") for l in off_labels)
+        assert any(lbl.startswith("ensemble<") for lbl in on_labels)
+        assert not any(lbl.startswith("ensemble<") for lbl in off_labels)
 
 
 class TestBlockMixWarmstart:
